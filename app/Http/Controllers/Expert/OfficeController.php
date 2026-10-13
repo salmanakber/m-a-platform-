@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Expert;
 use App\Http\Controllers\Controller;
 use App\Models\Canton;
 use App\Models\ExpertOffice;
+use App\Services\Maps\GeocodingService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -12,12 +13,16 @@ use Illuminate\View\View;
 
 class OfficeController extends Controller
 {
+    public function __construct(private GeocodingService $geocoder)
+    {
+    }
+
     public function index(): View
     {
         $expert = Auth::user()?->expert;
 
         return view('expert.offices.index', [
-            'offices' => $expert?->offices()->with('canton')->orderBy('sort_order')->get() ?? collect(),
+            'offices' => $expert?->offices()->with('canton')->orderByDesc('is_primary')->orderBy('sort_order')->get() ?? collect(),
             'cantons' => Canton::query()->orderBy('name_de')->get(),
             'expert' => $expert,
         ]);
@@ -28,19 +33,28 @@ class OfficeController extends Controller
         $expert = $this->requireExpert();
 
         $validated = $this->validateOffice($request);
+        $validated = $this->maybeGeocode($request, $validated);
 
         $maxOrder = (int) $expert->offices()->max('sort_order');
+        $makePrimary = $request->boolean('is_primary') || $expert->offices()->count() === 0;
 
         $office = $expert->offices()->create(array_merge($validated, [
-            'is_primary' => $request->boolean('is_primary'),
+            'is_primary' => $makePrimary,
             'sort_order' => $maxOrder + 1,
         ]));
 
-        if ($request->boolean('is_primary')) {
+        if ($makePrimary) {
             $this->syncPrimary($expert->id, $office->id);
         }
 
-        return back()->with('success', 'Standort hinzugefügt.');
+        $msg = 'Standort gespeichert.';
+        if (! empty($validated['latitude']) && ! empty($validated['longitude'])) {
+            $msg = 'Standort gespeichert und auf der Karte positioniert.';
+        } elseif ($request->boolean('geocode')) {
+            $msg = 'Standort gespeichert — Koordinaten konnten nicht ermittelt werden. Bitte Adresse prüfen oder Lat/Lng manuell eintragen.';
+        }
+
+        return back()->with('success', $msg);
     }
 
     public function update(Request $request, ExpertOffice $office): RedirectResponse
@@ -49,6 +63,7 @@ class OfficeController extends Controller
         $this->authorizeOffice($expert->id, $office);
 
         $validated = $this->validateOffice($request);
+        $validated = $this->maybeGeocode($request, $validated, $office);
 
         $office->update(array_merge($validated, [
             'is_primary' => $request->boolean('is_primary'),
@@ -58,7 +73,12 @@ class OfficeController extends Controller
             $this->syncPrimary($expert->id, $office->id);
         }
 
-        return back()->with('success', 'Standort aktualisiert.');
+        $msg = 'Standort aktualisiert.';
+        if (! empty($validated['latitude']) && ! empty($validated['longitude'])) {
+            $msg = 'Standort aktualisiert und auf der Karte positioniert.';
+        }
+
+        return back()->with('success', $msg);
     }
 
     public function destroy(ExpertOffice $office): RedirectResponse
@@ -92,15 +112,77 @@ class OfficeController extends Controller
     /** @return array<string, mixed> */
     private function validateOffice(Request $request): array
     {
-        return $request->validate([
+        $data = $request->validate([
             'label' => ['nullable', 'string', 'max:120'],
-            'address_line' => ['nullable', 'string', 'max:255'],
-            'postal_code' => ['nullable', 'string', 'max:20'],
-            'city' => ['nullable', 'string', 'max:120'],
+            'address_line' => ['required', 'string', 'max:255'],
+            'postal_code' => ['required', 'string', 'max:20'],
+            'city' => ['required', 'string', 'max:120'],
             'canton_id' => ['required', 'exists:cantons,id'],
-            'latitude' => ['nullable', 'numeric'],
-            'longitude' => ['nullable', 'numeric'],
+            'latitude' => ['nullable', 'numeric', 'between:-90,90'],
+            'longitude' => ['nullable', 'numeric', 'between:-180,180'],
+            'geocode' => ['nullable', 'boolean'],
+            'is_primary' => ['nullable', 'boolean'],
         ]);
+
+        $data['latitude'] = isset($data['latitude']) && $data['latitude'] !== ''
+            ? (float) $data['latitude']
+            : null;
+        $data['longitude'] = isset($data['longitude']) && $data['longitude'] !== ''
+            ? (float) $data['longitude']
+            : null;
+
+        unset($data['geocode'], $data['is_primary']);
+
+        return $data;
+    }
+
+    /**
+     * @param  array<string, mixed>  $validated
+     * @return array<string, mixed>
+     */
+    private function maybeGeocode(Request $request, array $validated, ?ExpertOffice $existing = null): array
+    {
+        $wantsGeocode = $request->boolean('geocode')
+            || ($validated['latitude'] === null || $validated['longitude'] === null);
+
+        if (! $wantsGeocode) {
+            return $validated;
+        }
+
+        // Keep manual coords unless geocode checkbox is on or coords are empty.
+        if (
+            ! $request->boolean('geocode')
+            && $validated['latitude'] !== null
+            && $validated['longitude'] !== null
+        ) {
+            return $validated;
+        }
+
+        $canton = Canton::query()->find($validated['canton_id']);
+        $coords = $this->geocoder->geocodeSwissAddress(
+            $validated['address_line'] ?? null,
+            $validated['postal_code'] ?? null,
+            $validated['city'] ?? null,
+            $canton?->code
+        );
+
+        if ($coords === null && $canton && $canton->latitude !== null && $canton->longitude !== null) {
+            // Soft fallback: canton center so the office still appears on the map.
+            $coords = [
+                'latitude' => (float) $canton->latitude,
+                'longitude' => (float) $canton->longitude,
+            ];
+        }
+
+        if ($coords !== null) {
+            $validated['latitude'] = $coords['latitude'];
+            $validated['longitude'] = $coords['longitude'];
+        } elseif ($existing) {
+            $validated['latitude'] = $existing->latitude;
+            $validated['longitude'] = $existing->longitude;
+        }
+
+        return $validated;
     }
 
     private function syncPrimary(int $expertId, int $primaryOfficeId): void

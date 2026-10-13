@@ -6308,3 +6308,48 @@ body.admin-shell .admin-content {
         max-width: none;
     }
 }
+
+/* Expert offices / address */
+.xp-office-list {
+    display: grid;
+    gap: 1rem;
+}
+
+.xp-office-edit {
+    padding: 0 1.25rem 1.15rem;
+}
+
+.xp-office-edit > summary {
+    cursor: pointer;
+    font-weight: 700;
+    color: var(--brand-deep);
+    padding: 0.35rem 0;
+}
+
+.xp-office-edit__form {
+    margin-top: 0.85rem;
+    padding-top: 0.85rem;
+    border-top: 1px solid var(--line-soft);
+}
+
+.xp-geo-box {
+    margin-top: 0.35rem;
+    padding: 0.9rem 1rem;
+    background: #f5f9fc;
+    border: 1px solid #dde8f0;
+}
+
+.xp-geo-box__title {
+    margin: 0 0 0.25rem;
+    font-size: 0.78rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--brand-deep);
+}
+
+.label-optional {
+    font-style: normal;
+    font-weight: 400;
+    color: var(--stone);
+}

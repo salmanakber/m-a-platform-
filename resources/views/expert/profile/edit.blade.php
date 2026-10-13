@@ -182,6 +182,14 @@
 
                 <div class="xp-crawl-hint">
                     <div>
+                        <strong>Adresse &amp; Karte</strong>
+                        <p>Strasse, PLZ und Ort legen Sie unter Standorte fest — dort werden auch die Karten-Koordinaten gesetzt.</p>
+                    </div>
+                    <a class="btn btn--ghost btn--small" href="{{ route('expert.offices.index') }}">Zur Adresse</a>
+                </div>
+
+                <div class="xp-crawl-hint">
+                    <div>
                         <strong>Website-Import</strong>
                         <p>Beiträge von Ihrer Website übernehmen Sie im eigenen Import-Bereich.</p>
                     </div>
