@@ -1,15 +1,22 @@
 <?php
 
 /**
- * ONE-TIME installer for hosts without SSH.
+ * ONE-TIME installer for hosts without SSH (Plesk / Hosttech).
  *
- * 1. Upload this file into your Laravel /public folder.
- * 2. Open in browser:
- *    https://nachfolge-experten.ch/install-once.php?key=CHANGE_ME_NOW_2026
- * 3. DELETE this file immediately after success.
+ * Upload this file into the live Laravel /public folder, then open:
+ *
+ *   https://nachfolge-experten.ch/install-once.php?key=NeInstall9xK2
+ *
+ * Optional:
+ *   &seed=1     also run database seeders (usually NOT needed on live)
+ *
+ * DELETE this file immediately after a successful run.
  */
 
 use Illuminate\Contracts\Console\Kernel;
+use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 $secret = 'NeInstall9xK2';
 
@@ -28,40 +35,63 @@ $app = require_once __DIR__.'/../bootstrap/app.php';
 $kernel = $app->make(Kernel::class);
 $kernel->bootstrap();
 
-echo '<h1>nachfolge-experten.ch — Install</h1>';
-echo '<pre style="background:#111;color:#d8f5d0;padding:16px;white-space:pre-wrap;">';
+$withSeed = isset($_GET['seed']) && (string) $_GET['seed'] === '1';
+
+echo '<!DOCTYPE html><html lang="de"><head><meta charset="utf-8"><title>Install</title>';
+echo '<style>body{font-family:system-ui,sans-serif;max-width:900px;margin:2rem auto;padding:0 1rem;background:#0b1f2e;color:#e8f2f8}';
+echo 'pre{background:#07131d;color:#c8f0c0;padding:1rem;overflow:auto;border:1px solid #1e3a4f}';
+echo 'h1{font-size:1.4rem}.ok{color:#7dffa0}.warn{color:#ffd27d}.err{color:#ff8f8f}</style></head><body>';
+echo '<h1>nachfolge-experten.ch — Database install</h1>';
+echo '<pre>';
 
 try {
-    echo "Running migrate --force...\n";
+    echo "DB connection check...\n";
+    DB::connection()->getPdo();
+    echo "OK — connected.\n\n";
+
+    echo "Tables before migrate:\n";
+    echo '  events: '.(Schema::hasTable('events') ? 'EXISTS' : 'MISSING')."\n";
+    echo '  experts.professional_group: '.(Schema::hasColumn('experts', 'professional_group') ? 'EXISTS' : 'MISSING')."\n";
+    echo '  experts.crawl_import_articles: '.(Schema::hasColumn('experts', 'crawl_import_articles') ? 'EXISTS' : 'MISSING')."\n\n";
+
+    echo "Running: php artisan migrate --force\n";
     $migrate = Artisan::call('migrate', ['--force' => true]);
     echo Artisan::output();
-    echo "migrate exit: {$migrate}\n\n";
+    echo "migrate exit code: {$migrate}\n\n";
 
-    echo "Running db:seed --force...\n";
-    $seed = Artisan::call('db:seed', ['--force' => true]);
-    echo Artisan::output();
-    echo "seed exit: {$seed}\n\n";
-
-    echo "Running storage:link...\n";
-    try {
-        Artisan::call('storage:link');
+    if ($withSeed) {
+        echo "Running: php artisan db:seed --force\n";
+        $seed = Artisan::call('db:seed', ['--force' => true]);
         echo Artisan::output();
-    } catch (Throwable $e) {
-        echo 'storage:link note: '.$e->getMessage()."\n";
+        echo "seed exit code: {$seed}\n\n";
+    } else {
+        echo "Skipping seeders (safe default). Add &seed=1 only if you need them.\n\n";
     }
 
     echo "Clearing caches...\n";
     Artisan::call('config:clear');
     Artisan::call('cache:clear');
     Artisan::call('view:clear');
-    echo Artisan::output();
+    Artisan::call('route:clear');
+    echo Artisan::output() ?: "caches cleared.\n";
 
-    echo "\nDONE.\n";
-    echo "DELETE public/install-once.php NOW for security.\n";
+    echo "\nTables after migrate:\n";
+    echo '  events: '.(Schema::hasTable('events') ? 'EXISTS' : 'MISSING')."\n";
+    echo '  experts.professional_group: '.(Schema::hasColumn('experts', 'professional_group') ? 'EXISTS' : 'MISSING')."\n";
+    echo '  experts.crawl_import_articles: '.(Schema::hasColumn('experts', 'crawl_import_articles') ? 'EXISTS' : 'MISSING')."\n";
+
+    if (Schema::hasTable('events')) {
+        echo "\n<span class=\"ok\">DONE — events table is ready.</span>\n";
+    } else {
+        echo "\n<span class=\"err\">ERROR — events table still missing. Upload latest /database/migrations files, then run again.</span>\n";
+    }
+
+    echo "\nDELETE public/install-once.php NOW for security.\n";
 } catch (Throwable $e) {
-    echo 'ERROR: '.$e->getMessage()."\n";
-    echo $e->getTraceAsString();
+    echo '<span class="err">ERROR: '.htmlspecialchars($e->getMessage())."</span>\n";
+    echo htmlspecialchars($e->getTraceAsString());
 }
 
 echo '</pre>';
-echo '<p><strong style="color:#b42318;">Delete this file from the server immediately.</strong></p>';
+echo '<p class="warn"><strong>Delete this file from the server immediately after success.</strong></p>';
+echo '</body></html>';
