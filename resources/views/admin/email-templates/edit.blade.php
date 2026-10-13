@@ -26,12 +26,13 @@
         'reset_url' => 'Reset-Link',
         'expires_minutes' => 'Ablauf (Min.)',
     ];
+    $templateHeading = str_replace('_', ' ', str_replace('.', ' · ', $template->key));
 @endphp
 <div class="admin-page mail-studio">
     <header class="admin-page-hero">
         <div>
             <p class="page-kicker">E-Mail</p>
-            <h1>{{ str_replace(['_', '.'], [' ', ' · '], $template->key) }}</h1>
+            <h1>{{ $templateHeading }}</h1>
             <p>Texte bearbeiten wie in einem Editor — Platzhalter einfügen und live sehen, wie die Mail aussieht.</p>
         </div>
         <div class="admin-page-hero__actions">
@@ -61,7 +62,7 @@
                     <span class="mail-studio__tokens-label">Platzhalter einfügen</span>
                     <div class="mail-studio__token-list">
                         @foreach ($samplePlaceholders as $key => $sample)
-                            <button type="button" class="mail-token" data-token="{{ '{{'.$key.'}}' }}" title="Beispiel: {{ $sample }}">
+                            <button type="button" class="mail-token" data-key="{{ $key }}" title="Beispiel: {{ $sample }}">
                                 {{ $labels[$key] ?? $key }}
                             </button>
                         @endforeach
@@ -71,7 +72,7 @@
                 <div class="form-group">
                     <label for="body_html">E-Mail-Text</label>
                     <textarea class="form-control" name="body_html" id="body_html" rows="16" required>{{ old('body_html', $template->body_html) }}</textarea>
-                    <p class="field-hint">Formatieren Sie Absätze und Listen. Platzhalter wie <code>@{{owner_name}}</code> bleiben beim Speichern erhalten.</p>
+                    <p class="field-hint">Formatieren Sie Absätze und Listen. Platzhalter wie <code>@{{ owner_name }}</code> bleiben beim Speichern erhalten.</p>
                 </div>
 
                 <details class="mail-studio__advanced">
@@ -209,7 +210,8 @@
 
     document.querySelectorAll('.mail-token').forEach(function (el) {
         el.addEventListener('click', function () {
-            var token = el.getAttribute('data-token') || '';
+            var key = el.getAttribute('data-key') || '';
+            var token = '@{{' + key + '}}';
             if (window.tinymce && tinymce.get('body_html')) {
                 tinymce.get('body_html').insertContent(token);
             } else if (body) {
