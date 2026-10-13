@@ -30,6 +30,9 @@ class Expert extends Model
         'contact_person_name',
         'contact_person_last_name',
         'crawl_enabled',
+        'crawl_import_articles',
+        'crawl_import_events',
+        'crawl_use_ai',
         'website_crawl_url',
         'imported_from',
         'import_fingerprint',
@@ -42,6 +45,9 @@ class Expert extends Model
         'offers_sell' => 'boolean',
         'is_public' => 'boolean',
         'crawl_enabled' => 'boolean',
+        'crawl_import_articles' => 'boolean',
+        'crawl_import_events' => 'boolean',
+        'crawl_use_ai' => 'boolean',
         'logo_locked' => 'boolean',
     ];
 

@@ -45,12 +45,19 @@
         <div class="xp-panel__head">
             <div>
                 <h2>Beitrag bearbeiten</h2>
-                <p>Änderungen werden nach dem Speichern im Blog sichtbar.</p>
+                <p>@if($article->status === 'draft')Importierte oder Entwurfsbeiträge gehen erst nach Ihrer Freigabe online.@else Änderungen nach dem Speichern im Blog sichtbar.@endif</p>
             </div>
         </div>
+        @if ($article->status === 'draft')
+            <div class="xp-notice xp-notice--warn" style="margin:0 1.25rem 1rem;">
+                <strong>Freigabe erforderlich</strong>
+                <p>Dieser Beitrag ist noch nicht öffentlich. Prüfen Sie den Inhalt und veröffentlichen Sie ihn bewusst.</p>
+            </div>
+        @endif
         @include('expert.articles._form', ['article' => $article])
         <div class="xp-article-panel__actions">
-            <button type="submit" class="btn">Speichern</button>
+            <button type="submit" name="action" value="save" class="btn btn--ghost">Als Entwurf speichern</button>
+            <button type="submit" name="action" value="publish" class="btn">Prüfen &amp; veröffentlichen</button>
             <a class="btn btn--ghost" href="{{ route('expert.articles.index') }}">Zurück zur Liste</a>
         </div>
     </form>

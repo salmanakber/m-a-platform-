@@ -96,10 +96,24 @@ class EventController extends Controller
     {
         $this->authorizeEvent($event);
         $validated = $this->validateEvent($request);
+        $action = $request->input('action', 'save');
 
-        $event->update($validated);
+        $payload = $validated;
+        if ($action === 'publish') {
+            $payload['status'] = EventStatus::PUBLISHED;
+            $payload['needs_review'] = false;
+            $payload['published_at'] = $event->published_at ?: now();
+        } elseif ($action === 'draft') {
+            $payload['status'] = EventStatus::DRAFT;
+            $payload['published_at'] = null;
+        }
 
-        return back()->with('success', 'Event gespeichert.');
+        $event->update($payload);
+
+        return back()->with(
+            'success',
+            $action === 'publish' ? 'Event geprüft und veröffentlicht.' : 'Event gespeichert.'
+        );
     }
 
     public function destroy(Event $event): RedirectResponse

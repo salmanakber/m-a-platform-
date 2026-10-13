@@ -37,7 +37,11 @@
         <div class="xp-hero__copy">
             <p class="xp-hero__kicker">Inhalte</p>
             <h1>Website-Import</h1>
-            <p>Übernehmen Sie passende Beiträge von Ihrer Website automatisch in Ihren Expertenbereich und den Blog.</p>
+            <p>Scannt Ihre Website nach Blog-Beiträgen und Events. Gefundene Inhalte landen als Entwurf — Sie bestätigen vor der Veröffentlichung.</p>
+        </div>
+        <div class="xp-hero__actions">
+            <a class="btn btn--small" href="{{ route('expert.events.create') }}">Event manuell erstellen</a>
+            <a class="btn btn--ghost btn--small" href="{{ route('expert.articles.create') }}">Artikel schreiben</a>
         </div>
     </header>
 
@@ -51,12 +55,23 @@
             </div>
         @endif
 
+        <div class="xp-action-strip">
+            <div>
+                <strong>Manuell bleibt immer möglich</strong>
+                <p>Events und Artikel können Sie jederzeit selbst anlegen — unabhängig vom Website-Scan.</p>
+            </div>
+            <div class="xp-action-strip__btns">
+                <a class="btn btn--small" href="{{ route('expert.events.create') }}">Neues Event</a>
+                <a class="btn btn--ghost btn--small" href="{{ route('expert.articles.index') }}">Entwürfe prüfen</a>
+            </div>
+        </div>
+
         <div class="xp-crawl-layout">
             <section class="xp-panel">
                 <div class="xp-panel__head">
                     <div>
                         <h2>Import steuern</h2>
-                        <p>Website-Adresse hinterlegen und Import starten.</p>
+                        <p>Adresse, Inhaltstypen und optionale KI-Nachbearbeitung.</p>
                     </div>
                     <span class="pill pill--{{ $expert->crawl_enabled ? 'success' : 'muted' }}">
                         {{ $expert->crawl_enabled ? 'Aktiv' : 'Inaktiv' }}
@@ -72,8 +87,36 @@
                         <input class="form-control" type="url" name="website_crawl_url" id="website_crawl_url"
                                value="{{ old('website_crawl_url', $expert->website_crawl_url ?: $expert->website) }}"
                                placeholder="https://www.ihre-firma.ch/blog" required>
-                        <p class="field-hint">Am besten die Blog- oder News-Seite — nicht nur die Startseite, falls dort keine Beiträge verlinkt sind.</p>
+                        <p class="field-hint">Am besten Blog-/News- oder Event-Seite — nicht nur die Startseite.</p>
                     </div>
+
+                    <fieldset class="xp-crawl-opts">
+                        <legend>Was soll gescannt werden?</legend>
+                        <label class="xp-toggle">
+                            <input type="checkbox" name="crawl_import_articles" value="1" @checked(old('crawl_import_articles', $expert->crawl_import_articles ?? true))>
+                            <span class="xp-toggle__ui" aria-hidden="true"></span>
+                            <span class="xp-toggle__copy">
+                                <strong>Blog-Artikel finden</strong>
+                                <em>Als Entwurf speichern — Veröffentlichung erst nach Ihrer Bestätigung.</em>
+                            </span>
+                        </label>
+                        <label class="xp-toggle">
+                            <input type="checkbox" name="crawl_import_events" value="1" @checked(old('crawl_import_events', $expert->crawl_import_events ?? true))>
+                            <span class="xp-toggle__ui" aria-hidden="true"></span>
+                            <span class="xp-toggle__copy">
+                                <strong>Events / Workshops finden</strong>
+                                <em>Als Entwurf speichern. Fehlende Daten werden nicht erfunden.</em>
+                            </span>
+                        </label>
+                        <label class="xp-toggle">
+                            <input type="checkbox" name="crawl_use_ai" value="1" @checked(old('crawl_use_ai', $expert->crawl_use_ai ?? true))>
+                            <span class="xp-toggle__ui" aria-hidden="true"></span>
+                            <span class="xp-toggle__copy">
+                                <strong>KI-Textbereinigung erlauben</strong>
+                                <em>Optional Titel/Text glätten — nie automatisch veröffentlichen.</em>
+                            </span>
+                        </label>
+                    </fieldset>
 
                     <label class="xp-toggle">
                         <input type="checkbox" name="crawl_enabled" value="1" @checked(old('crawl_enabled', $expert->crawl_enabled))>
@@ -91,7 +134,7 @@
 
                 <div class="xp-crawl-run">
                     <div>
-                        <strong>Jetzt importieren</strong>
+                        <strong>Jetzt scannen</strong>
                         <p id="crawlRunHint">
                             @if ($hasPending)
                                 Ein Import läuft gerade…
@@ -100,12 +143,12 @@
                             @elseif ($expert->status !== 'approved')
                                 Verfügbar nach Freigabe Ihres Profils.
                             @else
-                                Scannt Ihre Website live — mit Fortschrittsanzeige.
+                                Scannt Ihre Website — Treffer landen zur Bestätigung als Entwurf.
                             @endif
                         </p>
                     </div>
                     <button type="button" class="btn" id="crawlStartBtn" @disabled(! $canRun)>
-                        <span id="crawlStartLabel">{{ $hasPending ? 'Läuft…' : 'Import starten' }}</span>
+                        <span id="crawlStartLabel">{{ $hasPending ? 'Läuft…' : 'Scan starten' }}</span>
                     </button>
                 </div>
 
@@ -138,12 +181,12 @@
                 </section>
 
                 <section class="xp-panel">
-                    <div class="xp-panel__head"><div><h2>So funktioniert’s</h2></div></div>
+                    <div class="xp-panel__head"><div><h2>Ablauf</h2></div></div>
                     <ol class="xp-steps">
-                        <li><strong>Adresse hinterlegen</strong> — idealerweise Blog oder News</li>
-                        <li><strong>Import starten</strong> — Fortschritt live im Popup</li>
-                        <li><strong>Inhalte übernehmen</strong> — Duplikate werden übersprungen</li>
-                        <li><strong>Erneut prüfen</strong> — nach der Wartezeit wieder starten</li>
+                        <li><strong>Inhaltstypen wählen</strong> — Blog und/oder Events</li>
+                        <li><strong>Scan starten</strong> — Fortschritt live im Popup</li>
+                        <li><strong>Entwürfe prüfen</strong> — nichts geht ohne Ihre Freigabe live</li>
+                        <li><strong>Oder manuell</strong> — Event/Artikel selbst anlegen</li>
                     </ol>
                 </section>
             </aside>
@@ -153,13 +196,13 @@
             <div class="xp-panel__head">
                 <div>
                     <h2>Verlauf</h2>
-                    <p>Die letzten Website-Imports für Ihr Profil.</p>
+                    <p>Die letzten Website-Scans für Ihr Profil.</p>
                 </div>
             </div>
             @if ($jobs->isEmpty())
                 <div class="xp-empty" id="crawlHistoryEmpty">
                     <strong>Noch kein Verlauf</strong>
-                    <p>Speichern Sie die Adresse und starten Sie Ihren ersten Import.</p>
+                    <p>Speichern Sie die Adresse und starten Sie Ihren ersten Scan.</p>
                 </div>
             @else
                 <div class="table-scroll" id="crawlHistoryTable">
@@ -204,7 +247,6 @@
     @endif
 </div>
 
-{{-- Compact AJAX progress modal --}}
 <div class="xp-crawl-modal" id="crawlModal" hidden>
     <div class="xp-crawl-modal__backdrop" id="crawlModalBackdrop"></div>
     <div class="xp-crawl-modal__card xp-crawl-modal__card--compact" role="dialog" aria-modal="true" aria-labelledby="crawlModalTitle">
@@ -219,12 +261,12 @@
                 </div>
             </div>
             <div class="xp-crawl-modal__copy">
-                <h2 id="crawlModalTitle">Website-Import</h2>
+                <h2 id="crawlModalTitle">Website-Scan</h2>
                 <p class="xp-crawl-modal__live" id="crawlLiveLabel">Startet…</p>
                 <div class="xp-crawl-modal__stats xp-crawl-modal__stats--inline" id="crawlModalStats">
                     <span><em id="mDisc">0</em> gefunden</span>
                     <span><em id="mProc">0</em> geladen</span>
-                    <span><em id="mRes">0</em> importiert</span>
+                    <span><em id="mRes">0</em> Entwürfe</span>
                 </div>
             </div>
         </div>
@@ -236,7 +278,9 @@
         <p class="xp-crawl-modal__notes" id="crawlModalNotes" hidden></p>
 
         <div class="xp-crawl-modal__actions" id="crawlModalActions" hidden>
-            <button type="button" class="btn btn--small" id="crawlModalReload">Fertig · Seite aktualisieren</button>
+            <a class="btn btn--small" href="{{ route('expert.articles.index') }}">Artikel prüfen</a>
+            <a class="btn btn--small" href="{{ route('expert.events.index') }}">Events prüfen</a>
+            <button type="button" class="btn btn--ghost btn--small" id="crawlModalReload">Seite aktualisieren</button>
             <button type="button" class="btn btn--ghost btn--small" id="crawlModalClose">Schliessen</button>
         </div>
     </div>
@@ -290,8 +334,8 @@
         actions.hidden = true;
         notes.hidden = true;
         setRing(3);
-        liveLabel.textContent = 'Import wird gestartet…';
-        document.getElementById('crawlModalTitle').textContent = 'Website-Import';
+        liveLabel.textContent = 'Scan wird gestartet…';
+        document.getElementById('crawlModalTitle').textContent = 'Website-Scan';
         document.getElementById('mDisc').textContent = '0';
         document.getElementById('mProc').textContent = '0';
         document.getElementById('mRes').textContent = '0';
@@ -314,7 +358,7 @@
     function setCanRun(can) {
         if (!btn) return;
         btn.disabled = !can;
-        if (can && label) label.textContent = 'Import starten';
+        if (can && label) label.textContent = 'Scan starten';
     }
 
     function startCooldown(iso) {
@@ -323,7 +367,7 @@
             if (cooldownBar) cooldownBar.hidden = true;
             if (page.getAttribute('data-approved') === '1') {
                 setCanRun(true);
-                if (hint) hint.textContent = 'Scannt Ihre Website live — ohne Seitenreload.';
+                if (hint) hint.textContent = 'Scannt Ihre Website — Treffer landen zur Bestätigung als Entwurf.';
             }
             return;
         }
@@ -336,8 +380,8 @@
                 cooldownTimer = null;
                 if (cooldownBar) cooldownBar.hidden = true;
                 setCanRun(page.getAttribute('data-approved') === '1');
-                if (label) label.textContent = 'Import starten';
-                if (hint) hint.textContent = 'Bereit für erneuten Import.';
+                if (label) label.textContent = 'Scan starten';
+                if (hint) hint.textContent = 'Bereit für erneuten Scan.';
                 return;
             }
             setCanRun(false);
@@ -347,7 +391,7 @@
             if (cooldownFill) cooldownFill.style.width = pct + '%';
             var text = formatRemain(left);
             if (cooldownStrong) cooldownStrong.textContent = text;
-            if (hint) hint.innerHTML = 'Erneuter Import in <strong>' + text + '</strong>';
+            if (hint) hint.innerHTML = 'Erneuter Scan in <strong>' + text + '</strong>';
         }
         tick();
         cooldownTimer = setInterval(tick, 250);
@@ -369,7 +413,7 @@
                 notes.textContent = data.notes;
             }
             document.getElementById('crawlModalTitle').textContent =
-                data.status === 'completed' ? 'Fertig' : 'Fehler';
+                data.status === 'completed' ? 'Fertig — bitte Entwürfe prüfen' : 'Fehler';
             if (data.cooldown_until) startCooldown(data.cooldown_until);
             else startCooldown(new Date(Date.now() + totalCooldown * 1000).toISOString());
         }
@@ -377,7 +421,6 @@
 
     function poll(statusUrl) {
         if (pollTimer) clearInterval(pollTimer);
-        // Immediate first tick, then every 600ms
         function tick() {
             fetch(statusUrl, {
                 headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
@@ -389,7 +432,6 @@
     }
 
     function fireProcess(processUrl) {
-        // Fire-and-forget: do not await — UI stays responsive and polls status.
         fetch(processUrl, {
             method: 'POST',
             headers: {
@@ -440,9 +482,8 @@
                     return;
                 }
                 if (!result.ok) {
-                    throw new Error((result.data && result.data.message) || 'Import konnte nicht gestartet werden.');
+                    throw new Error((result.data && result.data.message) || 'Scan konnte nicht gestartet werden.');
                 }
-                // 1) Kick off worker request in background  2) Poll progress
                 if (result.data.process_url) fireProcess(result.data.process_url);
                 if (result.data.status_url) poll(result.data.status_url);
             }).catch(function (err) {
@@ -450,7 +491,7 @@
                 document.getElementById('crawlModalTitle').textContent = 'Fehler';
                 actions.hidden = false;
                 setCanRun(page.getAttribute('data-approved') === '1');
-                if (label) label.textContent = 'Import starten';
+                if (label) label.textContent = 'Scan starten';
             });
         });
     }

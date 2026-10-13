@@ -9,12 +9,16 @@
 @endsection
 
 @section('content')
+@php
+    $statusLabel = ['published' => 'Veröffentlicht', 'draft' => 'Entwurf', 'blocked' => 'Gesperrt'];
+    $pill = ['published' => 'success', 'draft' => 'warning', 'blocked' => 'danger'];
+@endphp
 <div class="xp-page">
     <header class="xp-hero xp-hero--compact">
         <div class="xp-hero__copy">
             <p class="xp-hero__kicker">Wachstum</p>
             <h1>Artikel</h1>
-            <p>Fachbeiträge für Sichtbarkeit — selbst schreiben, mit KI entwerfen oder von Ihrer Website übernehmen.</p>
+            <p>Schreiben, KI-Entwurf oder Website-Import — importierte Beiträge brauchen Ihre Freigabe.</p>
         </div>
         <div class="xp-hero__actions">
             <a class="btn btn--small" href="{{ route('expert.articles.create') }}">Neuer Artikel</a>
@@ -47,10 +51,10 @@
                         @foreach ($articles as $article)
                             <tr>
                                 <td><strong>{{ $article->title }}</strong></td>
-                                <td>{{ $article->status }}</td>
-                                <td>{{ $article->is_crawled ? 'Website' : 'Manuell / KI' }}</td>
+                                <td><span class="pill pill--{{ $pill[$article->status] ?? 'muted' }}">{{ $statusLabel[$article->status] ?? $article->status }}</span></td>
+                                <td>{{ $article->is_crawled ? 'Website-Import' : 'Manuell / KI' }}</td>
                                 <td>{{ $article->published_at?->format('d.m.Y') ?? $article->created_at->format('d.m.Y') }}</td>
-                                <td><a class="btn btn--ghost btn--small" href="{{ route('expert.articles.edit', $article) }}">Bearbeiten</a></td>
+                                <td><a class="btn btn--ghost btn--small" href="{{ route('expert.articles.edit', $article) }}">{{ $article->status === 'draft' ? 'Prüfen' : 'Bearbeiten' }}</a></td>
                             </tr>
                         @endforeach
                     </tbody>

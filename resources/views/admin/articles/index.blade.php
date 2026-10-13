@@ -50,7 +50,7 @@
                     <tr>
                         <td>
                             <p class="entity-name">{{ $article->title }}</p>
-                            <p class="entity-sub">{{ optional($article->published_at)->format('d.m.Y') ?: '—' }}@if($article->is_crawled) · Crawl@importendif</p>
+                            <p class="entity-sub">{{ optional($article->published_at)->format('d.m.Y') ?: '—' }}@if($article->is_crawled) · Crawl-Import@endif</p>
                         </td>
                         <td>{{ $article->expert->company_name ?? '—' }}</td>
                         <td><span class="pill pill--{{ $pill[$article->status] ?? 'muted' }}">{{ $statusLabel[$article->status] ?? $article->status }}</span></td>

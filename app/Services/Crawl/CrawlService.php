@@ -214,12 +214,23 @@ class CrawlService
             return 'skipped';
         }
 
-        // Prefer event import when URL looks like an event page.
-        if ($this->crawler->looksLikeEventUrl($url)) {
+        // Prefer event import when URL looks like an event page and expert opted in.
+        if ($expert->crawl_import_events !== false && $this->crawler->looksLikeEventUrl($url)) {
             $eventOutcome = $this->importEventUrl($job, $expert, $url);
             if ($eventOutcome !== 'skipped') {
                 return $eventOutcome;
             }
+        }
+
+        if ($expert->crawl_import_articles === false) {
+            CrawlResult::query()->create([
+                'crawl_job_id' => $job->id,
+                'url' => $url,
+                'status' => 'skipped',
+                'message' => 'Blog-/Artikel-Import vom Experten deaktiviert',
+            ]);
+
+            return 'skipped';
         }
 
         $extracted = $this->crawler->extractArticle($url);
@@ -249,7 +260,10 @@ class CrawlService
             return 'skipped';
         }
 
-        $normalized = $this->normalizeWithAi($extracted, $expert);
+        // AI polish is optional — never auto-publish crawled content.
+        $normalized = $expert->crawl_use_ai !== false
+            ? $this->normalizeWithAi($extracted, $expert)
+            : $extracted;
         $categoryId = $this->resolveCategoryId($normalized['category'] ?? null, $defaultCategoryId);
 
         $coverPath = null;
@@ -265,12 +279,12 @@ class CrawlService
             'excerpt' => $normalized['excerpt'] ?? $extracted['excerpt'],
             'body' => $normalized['body'] ?? $extracted['body'],
             'cover_image' => $coverPath,
-            'status' => ArticleStatus::PUBLISHED,
+            'status' => ArticleStatus::DRAFT,
             'source_url' => $url,
             'source_attribution' => $expert->company_name.' · '.$url,
             'content_fingerprint' => $fingerprint,
             'is_crawled' => true,
-            'published_at' => now(),
+            'published_at' => null,
             'seo_title' => $normalized['title'] ?? $extracted['title'],
             'seo_description' => Str::limit(strip_tags($normalized['excerpt'] ?? $extracted['excerpt']), 160),
         ]);
@@ -281,7 +295,7 @@ class CrawlService
             'article_id' => $article->id,
             'status' => 'imported',
             'content_fingerprint' => $fingerprint,
-            'message' => 'Artikel importiert und veröffentlicht',
+            'message' => 'Artikel als Entwurf importiert — Expertenfreigabe erforderlich',
         ]);
 
         return 'imported';
@@ -289,6 +303,17 @@ class CrawlService
 
     private function importEventUrl(CrawlJob $job, Expert $expert, string $url): string
     {
+        if ($expert->crawl_import_events === false) {
+            CrawlResult::query()->create([
+                'crawl_job_id' => $job->id,
+                'url' => $url,
+                'status' => 'skipped',
+                'message' => 'Event-Import vom Experten deaktiviert',
+            ]);
+
+            return 'skipped';
+        }
+
         $extracted = $this->crawler->extractEvent($url);
         if ($extracted === null) {
             return 'skipped';
@@ -307,12 +332,7 @@ class CrawlService
             return 'skipped';
         }
 
-        $needsReview = (bool) ($extracted['needs_review'] ?? true);
-        // Never publish fabricated dates — incomplete events stay draft + review.
-        $status = ($extracted['starts_on'] && ! $needsReview)
-            ? EventStatus::PUBLISHED
-            : EventStatus::DRAFT;
-
+        // Crawled events always need expert confirmation — never auto-publish.
         Event::query()->create([
             'expert_id' => $expert->id,
             'title' => $extracted['title'],
@@ -327,9 +347,9 @@ class CrawlService
             'source_attribution' => $expert->company_name.' · '.$url,
             'content_fingerprint' => $fingerprint,
             'is_crawled' => true,
-            'needs_review' => $needsReview || empty($extracted['starts_on']),
-            'status' => $status,
-            'published_at' => $status === EventStatus::PUBLISHED ? now() : null,
+            'needs_review' => true,
+            'status' => EventStatus::DRAFT,
+            'published_at' => null,
         ]);
 
         CrawlResult::query()->create([
@@ -337,9 +357,7 @@ class CrawlService
             'url' => $url,
             'status' => 'imported',
             'content_fingerprint' => $fingerprint,
-            'message' => $status === EventStatus::PUBLISHED
-                ? 'Event importiert und veröffentlicht'
-                : 'Event importiert — Prüfung erforderlich (Datum/Ort unvollständig)',
+            'message' => 'Event als Entwurf importiert — Expertenfreigabe erforderlich',
         ]);
 
         return 'imported';

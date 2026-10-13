@@ -27,12 +27,20 @@
     @include('expert.events._ai-panel')
     @include('partials.flash')
 
+    @if ($event->needs_review || $event->status === 'draft')
+        <div class="xp-notice xp-notice--warn">
+            <strong>Freigabe erforderlich</strong>
+            <p>Dieses Event ist noch nicht öffentlich. Prüfen Sie Titel, Datum und Ort — dann veröffentlichen.</p>
+        </div>
+    @endif
+
     <form method="post" action="{{ route('expert.events.update', $event) }}" class="xp-panel" id="eventForm">
         @csrf
         @method('PUT')
         @include('expert.events._form', ['event' => $event])
         <div class="xp-article-panel__actions">
-            <button type="submit" class="btn">Speichern</button>
+            <button type="submit" name="action" value="save" class="btn btn--ghost">Als Entwurf speichern</button>
+            <button type="submit" name="action" value="publish" class="btn">Prüfen &amp; veröffentlichen</button>
             <a class="btn btn--ghost" href="{{ route('expert.events.index') }}">Zurück</a>
         </div>
     </form>

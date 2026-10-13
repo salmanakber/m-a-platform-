@@ -121,12 +121,22 @@ class ArticleController extends Controller
 
         $validated = $this->validateArticle($request);
 
+        $action = $request->input('action', 'save');
+
         $data = [
             'category_id' => $validated['category_id'] ?? null,
             'title' => $validated['title'],
             'excerpt' => $validated['excerpt'] ?? null,
             'body' => $validated['body'] ?? null,
         ];
+
+        if ($action === 'publish') {
+            $data['status'] = ArticleStatus::PUBLISHED;
+            $data['published_at'] = $article->published_at ?: now();
+        } elseif ($action === 'draft') {
+            $data['status'] = ArticleStatus::DRAFT;
+            $data['published_at'] = null;
+        }
 
         if ($request->hasFile('cover_image')) {
             if ($article->cover_image) {
@@ -138,7 +148,10 @@ class ArticleController extends Controller
         $article->update($data);
         $this->syncGallery($request, $article);
 
-        return back()->with('success', 'Artikel gespeichert.');
+        return back()->with(
+            'success',
+            $action === 'publish' ? 'Artikel geprüft und veröffentlicht.' : 'Artikel gespeichert.'
+        );
     }
 
     public function destroy(Article $article): RedirectResponse

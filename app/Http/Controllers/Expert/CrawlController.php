@@ -69,6 +69,9 @@ class CrawlController extends Controller
         $validated = $request->validate([
             'website_crawl_url' => ['nullable', 'url', 'max:500'],
             'crawl_enabled' => ['nullable', 'boolean'],
+            'crawl_import_articles' => ['nullable', 'boolean'],
+            'crawl_import_events' => ['nullable', 'boolean'],
+            'crawl_use_ai' => ['nullable', 'boolean'],
         ]);
 
         $url = $validated['website_crawl_url'] ?? null;
@@ -78,9 +81,16 @@ class CrawlController extends Controller
             return back()->with('error', 'Bitte eine Website-Adresse hinterlegen, bevor Sie den Import aktivieren.');
         }
 
+        if ($enabled && ! $request->boolean('crawl_import_articles') && ! $request->boolean('crawl_import_events')) {
+            return back()->with('error', 'Bitte mindestens Blog-Artikel oder Events für den Import aktivieren.');
+        }
+
         $expert->update([
             'website_crawl_url' => $url,
             'crawl_enabled' => $enabled,
+            'crawl_import_articles' => $request->boolean('crawl_import_articles'),
+            'crawl_import_events' => $request->boolean('crawl_import_events'),
+            'crawl_use_ai' => $request->boolean('crawl_use_ai'),
         ]);
 
         return back()->with('success', 'Einstellungen gespeichert.');
