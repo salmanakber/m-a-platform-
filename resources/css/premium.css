@@ -6353,3 +6353,55 @@ body.admin-shell .admin-content {
     font-weight: 400;
     color: var(--stone);
 }
+
+.xp-address-suggest__wrap {
+    position: relative;
+}
+
+.xp-address-suggest__list {
+    position: absolute;
+    z-index: 40;
+    left: 0;
+    right: 0;
+    top: calc(100% + 4px);
+    background: #fff;
+    border: 1px solid #c9d9e6;
+    box-shadow: 0 16px 36px rgba(14, 73, 113, 0.12);
+    max-height: 260px;
+    overflow: auto;
+}
+
+.xp-address-suggest__item {
+    display: block;
+    width: 100%;
+    text-align: left;
+    border: 0;
+    border-bottom: 1px solid #eef3f7;
+    background: #fff;
+    padding: 0.7rem 0.85rem;
+    cursor: pointer;
+}
+
+.xp-address-suggest__item:hover,
+.xp-address-suggest__item:focus {
+    background: #f3f8fc;
+}
+
+.xp-address-suggest__item strong {
+    display: block;
+    font-size: 0.92rem;
+    color: var(--ink);
+}
+
+.xp-address-suggest__item span {
+    display: block;
+    margin-top: 0.15rem;
+    font-size: 0.8rem;
+    color: var(--stone);
+}
+
+.xp-address-suggest__loading {
+    padding: 0.75rem 0.85rem;
+    font-size: 0.85rem;
+    color: var(--stone);
+}

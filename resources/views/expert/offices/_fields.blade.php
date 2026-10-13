@@ -4,9 +4,16 @@
     <input class="form-control" type="text" name="label" id="label_{{ $oid }}" value="{{ old('label', optional($office)->label) }}" placeholder="z. B. Hauptsitz, Filiale Zürich">
 </div>
 
-<div class="form-group">
+<div class="form-group xp-address-suggest" data-suggest-root>
     <label for="address_{{ $oid }}">Strasse / Nr. *</label>
-    <input class="form-control" type="text" name="address_line" id="address_{{ $oid }}" value="{{ old('address_line', optional($office)->address_line) }}" required placeholder="Brünigstrasse 144">
+    <div class="xp-address-suggest__wrap">
+        <input class="form-control" type="text" name="address_line" id="address_{{ $oid }}"
+               value="{{ old('address_line', optional($office)->address_line) }}"
+               required placeholder="Adresse tippen — Vorschläge erscheinen automatisch"
+               autocomplete="off" data-suggest-input>
+        <div class="xp-address-suggest__list" data-suggest-list hidden role="listbox"></div>
+    </div>
+    <p class="field-hint">Vorschläge für Schweizer Adressen — Auswahl füllt PLZ, Ort, Kanton und Kartenposition.</p>
 </div>
 
 <div class="form-row">

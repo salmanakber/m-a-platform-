@@ -6,6 +6,9 @@ use App\Http\Controllers\Controller;
 use App\Models\Canton;
 use App\Models\ExpertOffice;
 use App\Services\Maps\GeocodingService;
+use App\Services\Settings\SettingsService;
+use App\Support\SettingKey;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -13,18 +16,37 @@ use Illuminate\View\View;
 
 class OfficeController extends Controller
 {
-    public function __construct(private GeocodingService $geocoder)
-    {
+    public function __construct(
+        private GeocodingService $geocoder,
+        private SettingsService $settings
+    ) {
     }
 
     public function index(): View
     {
         $expert = Auth::user()?->expert;
+        $cantons = Canton::query()->orderBy('name_de')->get();
 
         return view('expert.offices.index', [
             'offices' => $expert?->offices()->with('canton')->orderByDesc('is_primary')->orderBy('sort_order')->get() ?? collect(),
-            'cantons' => Canton::query()->orderBy('name_de')->get(),
+            'cantons' => $cantons,
+            'cantonCodeMap' => $cantons->pluck('id', 'code'),
             'expert' => $expert,
+            'suggestUrl' => route('expert.offices.suggest'),
+            'mapsApiKey' => $this->settings->get(SettingKey::GOOGLE_MAPS_API_KEY),
+        ]);
+    }
+
+    public function suggest(Request $request): JsonResponse
+    {
+        $this->requireExpert();
+
+        $validated = $request->validate([
+            'q' => ['required', 'string', 'min:3', 'max:200'],
+        ]);
+
+        return response()->json([
+            'suggestions' => $this->geocoder->suggest($validated['q'], 6),
         ]);
     }
 

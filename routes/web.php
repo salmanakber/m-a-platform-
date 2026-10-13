@@ -142,6 +142,7 @@ Route::prefix('expert')->name('expert.')->middleware(['auth', 'role:expert'])->g
     Route::get('/crawl/status/{job}', [ExpertCrawlController::class, 'status'])->name('crawl.status');
 
     Route::get('/standorte', [ExpertOfficeController::class, 'index'])->name('offices.index');
+    Route::get('/standorte/vorschlaege', [ExpertOfficeController::class, 'suggest'])->name('offices.suggest');
     Route::post('/standorte', [ExpertOfficeController::class, 'store'])->name('offices.store');
     Route::put('/standorte/{office}', [ExpertOfficeController::class, 'update'])->name('offices.update');
     Route::delete('/standorte/{office}', [ExpertOfficeController::class, 'destroy'])->name('offices.destroy');

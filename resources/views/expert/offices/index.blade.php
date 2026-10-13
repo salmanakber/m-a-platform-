@@ -79,7 +79,7 @@
         <div class="xp-panel__head">
             <div>
                 <h2>{{ $offices->isEmpty() ? 'Hauptsitz erfassen' : 'Weiteren Standort hinzufügen' }}</h2>
-                <p>Strasse, PLZ, Ort und Kanton — Koordinaten werden automatisch berechnet.</p>
+                <p>Adresse tippen und Vorschlag wählen — PLZ, Ort, Kanton und Karte werden übernommen.</p>
             </div>
         </div>
         <form method="post" action="{{ route('expert.offices.store') }}" style="padding:0 1.25rem 1.25rem;">
@@ -89,4 +89,119 @@
         </form>
     </section>
 </div>
+
+<script type="application/json" id="officeSuggestConfig">@json([
+    'url' => $suggestUrl,
+    'cantons' => $cantonCodeMap,
+])</script>
+<script>
+(function () {
+    var cfgEl = document.getElementById('officeSuggestConfig');
+    if (!cfgEl) return;
+    var cfg = {};
+    try { cfg = JSON.parse(cfgEl.textContent || '{}'); } catch (e) { return; }
+    var url = cfg.url;
+    var cantonMap = cfg.cantons || {};
+
+    function csrf() {
+        var m = document.querySelector('meta[name="csrf-token"]');
+        return m ? m.getAttribute('content') : '';
+    }
+
+    function closestRoot(el) {
+        return el.closest('[data-suggest-root]');
+    }
+
+    function fillForm(root, item) {
+        var address = root.querySelector('[name="address_line"]');
+        var postal = root.closest('form').querySelector('[name="postal_code"]');
+        var city = root.closest('form').querySelector('[name="city"]');
+        var canton = root.closest('form').querySelector('[name="canton_id"]');
+        var lat = root.closest('form').querySelector('[name="latitude"]');
+        var lng = root.closest('form').querySelector('[name="longitude"]');
+        var geocode = root.closest('form').querySelector('[name="geocode"]');
+
+        if (address && item.address_line) address.value = item.address_line;
+        else if (address && item.label) address.value = item.label.split(',')[0].trim();
+        if (postal && item.postal_code) postal.value = item.postal_code;
+        if (city && item.city) city.value = item.city;
+        if (canton && item.canton_code && cantonMap[item.canton_code]) {
+            canton.value = String(cantonMap[item.canton_code]);
+        }
+        if (lat && item.latitude != null) lat.value = item.latitude;
+        if (lng && item.longitude != null) lng.value = item.longitude;
+        if (geocode && item.latitude != null && item.longitude != null) geocode.checked = false;
+    }
+
+    function renderList(listEl, items, root) {
+        listEl.innerHTML = '';
+        if (!items.length) {
+            listEl.hidden = true;
+            return;
+        }
+        items.forEach(function (item, idx) {
+            var btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'xp-address-suggest__item';
+            btn.setAttribute('role', 'option');
+            btn.innerHTML = '<strong></strong><span></span>';
+            btn.querySelector('strong').textContent = item.address_line || item.label || 'Adresse';
+            var meta = [item.postal_code, item.city, item.canton_code].filter(Boolean).join(' · ');
+            btn.querySelector('span').textContent = meta || item.label || '';
+            btn.addEventListener('click', function () {
+                fillForm(root, item);
+                listEl.hidden = true;
+            });
+            listEl.appendChild(btn);
+        });
+        listEl.hidden = false;
+    }
+
+    document.querySelectorAll('[data-suggest-root]').forEach(function (root) {
+        var input = root.querySelector('[data-suggest-input]');
+        var list = root.querySelector('[data-suggest-list]');
+        if (!input || !list) return;
+        var timer = null;
+        var lastQ = '';
+
+        input.addEventListener('input', function () {
+            var q = (input.value || '').trim();
+            if (timer) clearTimeout(timer);
+            if (q.length < 3) {
+                list.hidden = true;
+                list.innerHTML = '';
+                return;
+            }
+            timer = setTimeout(function () {
+                if (q === lastQ) return;
+                lastQ = q;
+                list.innerHTML = '<div class="xp-address-suggest__loading">Suche Adressen…</div>';
+                list.hidden = false;
+                fetch(url + '?q=' + encodeURIComponent(q), {
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'X-CSRF-TOKEN': csrf()
+                    },
+                    credentials: 'same-origin'
+                }).then(function (r) { return r.json(); })
+                  .then(function (data) {
+                      if ((input.value || '').trim() !== q) return;
+                      renderList(list, data.suggestions || [], root);
+                  }).catch(function () {
+                      list.innerHTML = '<div class="xp-address-suggest__loading">Keine Vorschläge verfügbar</div>';
+                  });
+            }, 320);
+        });
+
+        input.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape') list.hidden = true;
+        });
+
+        document.addEventListener('click', function (e) {
+            if (!root.contains(e.target)) list.hidden = true;
+        });
+    });
+})();
+</script>
 @endsection
