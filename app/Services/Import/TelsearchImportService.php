@@ -6,8 +6,11 @@ use App\Models\Canton;
 use App\Models\Expert;
 use App\Models\ImportRun;
 use App\Models\User;
+use App\Services\Logo\LogoDiscoveryService;
 use App\Support\ExpertStatus;
+use App\Support\ProfessionalGroup;
 use App\Support\Role;
+use App\Support\SwissPlz;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -27,16 +30,19 @@ class TelsearchImportService
         'company_name' => ['firma', 'firmenname', 'unternehmen', 'company', 'company_name', 'name', 'gesellschaft', 'betrieb'],
         'email' => ['email', 'e-mail', 'e_mail', 'mail', 'emailadresse'],
         'phone' => ['telefon', 'tel', 'phone', 'handy', 'mobil', 'telephone'],
-        'website' => ['website', 'web', 'url', 'homepage', 'webseite', 'internet'],
-        'address_line' => ['adresse', 'address', 'strasse', 'straße', 'street', 'address_line', 'anschrift'],
+        'website' => ['website', 'web', 'url', 'homepage', 'webseite', 'internet', 'www', 'link'],
+        'logo_url' => ['logo', 'logo_url', 'logo_link', 'firmenlogo', 'bild_url', 'image_url'],
+        'address_line' => ['adresse', 'address', 'strasse', 'straße', 'street', 'address_line', 'anschrift', 'str'],
         'postal_code' => ['plz', 'postal_code', 'postleitzahl', 'zip', 'zipcode'],
         'city' => ['ort', 'city', 'stadt', 'place', 'wohnort'],
         'canton' => ['kanton', 'canton', 'kt', 'canton_code', 'kantonscode'],
+        'full_address' => ['volladresse', 'full_address', 'adresse_komplett', 'anschrift_komplett', 'standort'],
         'contact_person_name' => ['vorname', 'contact_person_name', 'first_name', 'kontakt_vorname', 'ansprechpartner_vorname'],
         'contact_person_last_name' => ['nachname', 'contact_person_last_name', 'last_name', 'kontakt_nachname', 'ansprechpartner_nachname', 'name_kontakt'],
         'description' => ['beschreibung', 'description', 'taetigkeit', 'tätigkeit', 'branche', 'industry', 'bemerkung'],
         'offers_buy' => ['kauf', 'buy', 'kaufen', 'offers_buy', 'ma_kauf'],
         'offers_sell' => ['verkauf', 'sell', 'verkaufen', 'nachfolge', 'offers_sell', 'ma_verkauf'],
+        'professional_group' => ['gruppe', 'group', 'professional_group', 'kategorie', 'category', 'fachgruppe', 'berufsgruppe'],
         'latitude' => ['lat', 'latitude', 'breitengrad'],
         'longitude' => ['lng', 'lon', 'long', 'longitude', 'laengengrad', 'längengrad'],
     ];
@@ -106,20 +112,36 @@ class TelsearchImportService
                     $mapped = $this->mapRow($row);
                     if (($mapped['company_name'] ?? '') === '') {
                         $skipped++;
+                        if (count($errors) < 80) {
+                            $errors[] = [
+                                'row' => $line,
+                                'message' => 'Übersprungen: Firmenname fehlt (Spalte Firma/Name nicht erkannt oder leer).',
+                            ];
+                        }
                         continue;
                     }
 
                     $result = $this->upsertExpert($mapped, $cantonsByCode, $cantonsByName);
-                    if ($result === 'created') {
+                    if ($result['status'] === 'created') {
                         $created++;
-                    } elseif ($result === 'updated') {
+                    } elseif ($result['status'] === 'updated') {
                         $updated++;
                     } else {
                         $skipped++;
                     }
+                    if (! empty($result['warnings'])) {
+                        foreach ($result['warnings'] as $warning) {
+                            if (count($errors) < 80) {
+                                $errors[] = [
+                                    'row' => $line,
+                                    'message' => $warning,
+                                ];
+                            }
+                        }
+                    }
                 } catch (Throwable $e) {
                     $failed++;
-                    if (count($errors) < 50) {
+                    if (count($errors) < 80) {
                         $errors[] = [
                             'row' => $line,
                             'message' => $e->getMessage(),
@@ -137,6 +159,7 @@ class TelsearchImportService
                 'errors' => $errors,
                 'meta' => [
                     'mapped_fields' => array_keys(self::COLUMN_ALIASES),
+                    'notes' => 'Website/Adresse werden best-effort gespeichert; fehlender Kanton wird per PLZ abgeleitet. Manuell hochgeladene Logos (logo_locked) werden nicht überschrieben.',
                 ],
                 'finished_at' => now(),
             ]);
@@ -187,8 +210,11 @@ class TelsearchImportService
                 'Kauf',
                 'Verkauf',
                 'Beschreibung',
+                'Gruppe',
+                'Logo-URL',
             ])."\n";
-            $csv .= '"Beispiel M&A AG","info@beispiel.ch","+41 44 000 00 00","https://beispiel.ch","Musterstrasse 1","8001","Zürich","ZH","Max","Muster","ja","ja","Unternehmensnachfolge und Kaufberatung"'."\n";
+            $csv .= '"Beispiel M&A AG","info@beispiel.ch","+41 44 000 00 00","https://beispiel.ch","Musterstrasse 1","8001","Zürich","ZH","Max","Muster","ja","ja","Unternehmensnachfolge und Kaufberatung","M&A Specialists",""'."\n";
+            $csv .= '"KMU Beratungen GmbH","info@kmuberatungen.ch","+41 41 000 00 00","https://www.kmuberatungen.ch","Brünigstrasse 144","6060","Sarnen","OW","Beispiel","Kontakt","ja","ja","Nachfolge und M&A","M&A Specialists",""'."\n";
             Storage::disk('local')->put(self::TEMPLATE_PATH, $csv);
         }
 
@@ -247,8 +273,12 @@ class TelsearchImportService
         $out['company_name'] = trim((string) $out['company_name']);
         $out['email'] = strtolower(trim((string) $out['email']));
         $out['website'] = $this->normalizeWebsite((string) $out['website']);
+        $out['logo_url'] = $this->normalizeWebsite((string) $out['logo_url']);
         $out['offers_buy'] = $this->toBool($out['offers_buy']);
         $out['offers_sell'] = $this->toBool($out['offers_sell']);
+        $out['professional_group'] = $this->normalizeProfessionalGroup((string) $out['professional_group']);
+
+        $this->enrichAddressFields($out);
 
         if (! $out['offers_buy'] && ! $out['offers_sell']) {
             // Default: both true when spreadsheet has no buy/sell flags
@@ -263,8 +293,9 @@ class TelsearchImportService
      * @param  array<string, mixed>  $mapped
      * @param  \Illuminate\Support\Collection<string, Canton>  $cantonsByCode
      * @param  \Illuminate\Support\Collection<string, Canton>  $cantonsByName
+     * @return array{status: string, warnings: list<string>}
      */
-    private function upsertExpert(array $mapped, $cantonsByCode, $cantonsByName): string
+    private function upsertExpert(array $mapped, $cantonsByCode, $cantonsByName): array
     {
         $fingerprint = $this->fingerprint($mapped);
         $email = $mapped['email'] !== ''
@@ -272,44 +303,69 @@ class TelsearchImportService
             : 'import+'.substr($fingerprint, 0, 16).'@nachfolge-experten.local';
 
         $canton = $this->resolveCanton((string) $mapped['canton'], $cantonsByCode, $cantonsByName);
+        if (! $canton && $mapped['postal_code'] !== '') {
+            $fromPlz = SwissPlz::cantonCode((string) $mapped['postal_code']);
+            if ($fromPlz && $cantonsByCode->has($fromPlz)) {
+                $canton = $cantonsByCode->get($fromPlz);
+            }
+        }
 
         return DB::transaction(function () use ($mapped, $fingerprint, $email, $canton) {
+            $warnings = [];
             $existing = Expert::query()->where('import_fingerprint', $fingerprint)->first();
 
             if (! $existing && ! str_ends_with($email, '@nachfolge-experten.local')) {
                 $existing = Expert::query()->where('email', $email)->first();
             }
 
+            // Re-imports after address-parsing improvements may change the fingerprint.
+            // Fall back to same imported company name to avoid duplicates and heal missing offices.
+            if (! $existing) {
+                $existing = Expert::query()
+                    ->where('imported_from', 'telsearch')
+                    ->where('company_name', $mapped['company_name'])
+                    ->orderBy('id')
+                    ->first();
+            }
+
             if ($existing) {
                 $existing->fill([
                     'company_name' => $mapped['company_name'],
-                    'website' => $mapped['website'] ?: $existing->website,
+                    'website' => $mapped['website'] !== '' ? $mapped['website'] : $existing->website,
+                    'website_crawl_url' => $mapped['website'] !== '' ? $mapped['website'] : $existing->website_crawl_url,
                     'email' => str_ends_with($email, '@nachfolge-experten.local') ? $existing->email : $email,
                     'phone' => $mapped['phone'] !== '' ? $mapped['phone'] : $existing->phone,
                     'description' => $mapped['description'] !== '' ? $mapped['description'] : $existing->description,
                     'offers_buy' => $mapped['offers_buy'],
                     'offers_sell' => $mapped['offers_sell'],
+                    'professional_group' => $mapped['professional_group'] ?: $existing->professional_group,
                     'contact_person_name' => $mapped['contact_person_name'] !== '' ? $mapped['contact_person_name'] : $existing->contact_person_name,
                     'contact_person_last_name' => $mapped['contact_person_last_name'] !== '' ? $mapped['contact_person_last_name'] : $existing->contact_person_last_name,
                     'imported_from' => 'telsearch',
                     'import_fingerprint' => $fingerprint,
                 ])->save();
 
-                $this->upsertOffice($existing, $mapped, $canton);
+                $officeWarning = $this->upsertOffice($existing, $mapped, $canton);
+                if ($officeWarning) {
+                    $warnings[] = $officeWarning;
+                }
+                $this->maybeImportLogo($existing, (string) $mapped['logo_url']);
 
-                return 'updated';
+                return ['status' => 'updated', 'warnings' => $warnings];
             }
 
             $expert = Expert::query()->create([
                 'user_id' => $this->importOwnerUserId(),
                 'company_name' => $mapped['company_name'],
                 'slug' => $this->uniqueSlug($mapped['company_name']),
-                'website' => $mapped['website'] ?: null,
+                'website' => $mapped['website'] !== '' ? $mapped['website'] : null,
+                'website_crawl_url' => $mapped['website'] !== '' ? $mapped['website'] : null,
                 'email' => $email,
                 'phone' => $mapped['phone'] !== '' ? $mapped['phone'] : null,
                 'description' => $mapped['description'] !== '' ? $mapped['description'] : null,
                 'offers_buy' => $mapped['offers_buy'],
                 'offers_sell' => $mapped['offers_sell'],
+                'professional_group' => $mapped['professional_group'] ?: ProfessionalGroup::MA_SPECIALIST,
                 'status' => ExpertStatus::PENDING,
                 'is_public' => false,
                 'contact_person_name' => $mapped['contact_person_name'] !== '' ? $mapped['contact_person_name'] : null,
@@ -318,19 +374,31 @@ class TelsearchImportService
                 'import_fingerprint' => $fingerprint,
             ]);
 
-            $this->upsertOffice($expert, $mapped, $canton);
+            $officeWarning = $this->upsertOffice($expert, $mapped, $canton);
+            if ($officeWarning) {
+                $warnings[] = $officeWarning;
+            }
+            $this->maybeImportLogo($expert, (string) $mapped['logo_url']);
 
-            return 'created';
+            return ['status' => 'created', 'warnings' => $warnings];
         });
     }
 
     /**
      * @param  array<string, mixed>  $mapped
      */
-    private function upsertOffice(Expert $expert, array $mapped, ?Canton $canton): void
+    private function upsertOffice(Expert $expert, array $mapped, ?Canton $canton): ?string
     {
+        $hasAddressBits = $mapped['address_line'] !== ''
+            || $mapped['postal_code'] !== ''
+            || $mapped['city'] !== '';
+
         if (! $canton) {
-            return;
+            if ($hasAddressBits) {
+                return 'Hinweis: Adresse vorhanden, aber Kanton nicht erkannt — Standort nicht gespeichert (Profil trotzdem importiert). PLZ/Kanton prüfen und erneut importieren.';
+            }
+
+            return 'Hinweis: Kein Kanton/Standort in der Zeile — Experte ohne Adresse angelegt.';
         }
 
         $office = $expert->offices()->where('is_primary', true)->first()
@@ -353,6 +421,84 @@ class TelsearchImportService
         } else {
             $expert->offices()->create($payload);
         }
+
+        return null;
+    }
+
+    private function maybeImportLogo(Expert $expert, string $logoUrl): void
+    {
+        if ($logoUrl === '' || $expert->logo_locked) {
+            return;
+        }
+
+        try {
+            app(LogoDiscoveryService::class)->storeFromUrl($expert, $logoUrl);
+        } catch (Throwable) {
+            // Logo is optional — never fail the import row.
+        }
+    }
+
+    /**
+     * Parse combined address blobs used by Telsearch exports, e.g.:
+     * - "Brünigstrasse 144, 6060 Sarnen"
+     * - ort column "5600 Lenzburg AG" (PLZ + city + canton)
+     *
+     * @param  array<string, mixed>  $out
+     */
+    private function enrichAddressFields(array &$out): void
+    {
+        $blob = trim((string) ($out['full_address'] ?? ''));
+        if ($blob === '' && $out['address_line'] !== '' && $out['postal_code'] === '' && $out['city'] === '') {
+            $blob = (string) $out['address_line'];
+        }
+
+        if ($blob !== '' && preg_match('/^(.*?),\s*(\d{4})\s+(.+)$/u', $blob, $m)) {
+            if ($out['address_line'] === '' || $out['address_line'] === $blob) {
+                $out['address_line'] = trim($m[1]);
+            }
+            if ($out['postal_code'] === '') {
+                $out['postal_code'] = $m[2];
+            }
+            if ($out['city'] === '') {
+                $out['city'] = trim($m[3]);
+            }
+        }
+
+        // Telsearch "Ort" often embeds PLZ + city + optional canton: "5600 Lenzburg AG"
+        $cityRaw = trim((string) $out['city']);
+        if ($cityRaw !== '' && preg_match('/^(\d{4})\s+(.+?)(?:\s+([A-Za-z]{2}))?$/u', $cityRaw, $m)) {
+            if ($out['postal_code'] === '') {
+                $out['postal_code'] = $m[1];
+            }
+            $out['city'] = trim($m[2]);
+            if ($out['canton'] === '' && ! empty($m[3])) {
+                $out['canton'] = strtoupper($m[3]);
+            }
+        }
+
+        // "6060 Sarnen" leftover in city
+        if ($out['postal_code'] === '' && preg_match('/\b(\d{4})\b/', (string) $out['city'], $m)) {
+            $out['postal_code'] = $m[1];
+            $out['city'] = trim(preg_replace('/\b'.$m[1].'\b/', '', (string) $out['city']) ?? (string) $out['city']);
+        }
+
+        if ($out['postal_code'] === '' && preg_match('/\b(\d{4})\b/', (string) $out['address_line'], $m)) {
+            $out['postal_code'] = $m[1];
+        }
+
+        // Trailing canton code on city when PLZ already separate: "Lenzburg AG"
+        if ($out['canton'] === '' && preg_match('/\s+([A-Za-z]{2})$/u', (string) $out['city'], $m)) {
+            $maybe = strtoupper($m[1]);
+            if (strlen($maybe) === 2) {
+                $out['canton'] = $maybe;
+                $out['city'] = trim(substr((string) $out['city'], 0, -strlen($m[0])));
+            }
+        }
+
+        $out['address_line'] = trim((string) $out['address_line']);
+        $out['postal_code'] = trim((string) $out['postal_code']);
+        $out['city'] = trim((string) $out['city']);
+        $out['canton'] = trim((string) $out['canton']);
     }
 
     /**
@@ -374,6 +520,20 @@ class TelsearchImportService
         $key = $this->normalizeKey($value);
 
         return $cantonsByName->get($key);
+    }
+
+    private function normalizeProfessionalGroup(string $value): string
+    {
+        $key = $this->normalizeKey($value);
+        if ($key === '') {
+            return ProfessionalGroup::MA_SPECIALIST;
+        }
+
+        return match (true) {
+            str_contains($key, 'jurist') || str_contains($key, 'anwalt') || str_contains($key, 'recht') => ProfessionalGroup::JURIST,
+            str_contains($key, 'other') || str_contains($key, 'andere') || str_contains($key, 'sonstig') => ProfessionalGroup::OTHER,
+            default => ProfessionalGroup::MA_SPECIALIST,
+        };
     }
 
     /**
@@ -450,14 +610,36 @@ class TelsearchImportService
     private function normalizeWebsite(string $url): string
     {
         $url = trim($url);
-        if ($url === '') {
+        if ($url === '' || strcasecmp($url, 'n/a') === 0 || $url === '-' || $url === '—') {
             return '';
         }
+
+        $url = preg_replace('/\s+/', '', $url) ?? $url;
+        $url = preg_replace('#^www\.#i', 'https://www.', $url) ?? $url;
+
         if (! preg_match('#^https?://#i', $url)) {
             $url = 'https://'.$url;
         }
 
-        return $url;
+        $parts = parse_url($url);
+        if (! is_array($parts) || empty($parts['host']) || ! str_contains($parts['host'], '.')) {
+            return '';
+        }
+
+        $scheme = strtolower($parts['scheme'] ?? 'https');
+        if (! in_array($scheme, ['http', 'https'], true)) {
+            return '';
+        }
+
+        $normalized = $scheme.'://'.$parts['host'];
+        if (! empty($parts['port'])) {
+            $normalized .= ':'.$parts['port'];
+        }
+        if (! empty($parts['path']) && $parts['path'] !== '/') {
+            $normalized .= rtrim($parts['path'], '/');
+        }
+
+        return $normalized;
     }
 
     private function toBool(mixed $value): bool

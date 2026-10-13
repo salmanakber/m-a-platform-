@@ -138,7 +138,7 @@
             @foreach ($cantons as $canton)
                 @php
                     $freeHere = 0;
-                    for ($p = 1; $p <= 3; $p++) {
+                    for ($p = 1; $p <= 5; $p++) {
                         if (!$occupied->has($canton->id.'-'.$p)) $freeHere++;
                     }
                 @endphp
@@ -148,10 +148,10 @@
                             <strong>{{ $canton->name_de }}</strong>
                             <span>{{ $canton->code }}</span>
                         </div>
-                        <em>{{ $freeHere }}/3 frei</em>
+                        <em>{{ $freeHere }}/5 frei</em>
                     </header>
                     <div class="xp-slots">
-                        @for ($pos = 1; $pos <= 3; $pos++)
+                        @for ($pos = 1; $pos <= 5; $pos++)
                             @php $key = $canton->id.'-'.$pos; $taken = $occupied->has($key); @endphp
                             <div class="xp-slot {{ $taken ? 'is-taken' : 'is-free' }}">
                                 <div class="xp-slot__top">

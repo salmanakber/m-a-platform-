@@ -20,7 +20,8 @@
                 <a href="{{ route('directory.index') }}" class="{{ request()->routeIs('directory.*', 'experts.*') ? 'is-active' : '' }}">Experten</a>
                 <a href="{{ route('map.index') }}" class="{{ request()->routeIs('map.*') ? 'is-active' : '' }}">Karte</a>
                 <a href="{{ route('cantons.index') }}" class="{{ request()->routeIs('cantons.*') ? 'is-active' : '' }}">Kantone</a>
-                <a href="{{ route('blog.index') }}" class="{{ request()->routeIs('blog.*') ? 'is-active' : '' }}">Wissen</a>
+                <a href="{{ route('blog.index') }}" class="{{ request()->routeIs('blog.*') ? 'is-active' : '' }}">Blog</a>
+                <a href="{{ route('events.index') }}" class="{{ request()->routeIs('events.*') ? 'is-active' : '' }}">Events</a>
                 @auth
                     @if (auth()->user()->isAdmin())
                         <a href="{{ route('admin.dashboard') }}">Admin</a>

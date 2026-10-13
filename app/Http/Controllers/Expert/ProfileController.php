@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Expert;
 
 use App\Http\Controllers\Controller;
 use App\Models\ExpertMedia;
+use App\Support\ProfessionalGroup;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -19,6 +20,7 @@ class ProfileController extends Controller
         return view('expert.profile.edit', [
             'expert' => $expert,
             'media' => $expert?->media ?? collect(),
+            'professionalGroups' => ProfessionalGroup::labels(),
         ]);
     }
 
@@ -39,6 +41,8 @@ class ProfileController extends Controller
             'services_text' => ['nullable', 'string'],
             'offers_buy' => ['nullable', 'boolean'],
             'offers_sell' => ['nullable', 'boolean'],
+            'professional_group' => ['nullable', 'in:'.implode(',', ProfessionalGroup::all())],
+            'logo_position' => ['nullable', 'in:left,center,right'],
             'contact_person_name' => ['nullable', 'string', 'max:120'],
             'contact_person_last_name' => ['nullable', 'string', 'max:120'],
             'website_crawl_url' => ['nullable', 'url', 'max:500'],
@@ -59,6 +63,8 @@ class ProfileController extends Controller
             'services_text' => $validated['services_text'] ?? null,
             'offers_buy' => $request->boolean('offers_buy'),
             'offers_sell' => $request->boolean('offers_sell'),
+            'professional_group' => $validated['professional_group'] ?? ProfessionalGroup::MA_SPECIALIST,
+            'logo_position' => $validated['logo_position'] ?? 'left',
             'contact_person_name' => $validated['contact_person_name'] ?? null,
             'contact_person_last_name' => $validated['contact_person_last_name'] ?? null,
             'website_crawl_url' => $validated['website_crawl_url'] ?? null,
@@ -74,6 +80,7 @@ class ProfileController extends Controller
 
             Storage::disk('public')->makeDirectory('experts/logos');
             $data['logo_path'] = $request->file('logo')->store('experts/logos', 'public');
+            $data['logo_locked'] = true; // preserve manual upload against later auto-discovery
             $logoUpdated = true;
         } elseif ($request->hasFile('logo')) {
             return back()

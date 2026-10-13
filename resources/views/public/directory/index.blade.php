@@ -10,6 +10,7 @@
     $queryBase = array_filter([
         'richtung' => $direction ?? null,
         'kanton' => $cantonCode ?: null,
+        'gruppe' => $group ?? null,
         'q' => $q ?: null,
     ]);
 @endphp
@@ -58,9 +59,18 @@
                 </select>
             </div>
 
+            <div class="dx-bar__select">
+                <select name="gruppe" id="gruppe" aria-label="Fachgruppe" onchange="this.form.submit()">
+                    <option value="">Alle Fachgruppen</option>
+                    @foreach (($professionalGroups ?? []) as $groupKey => $groupLabel)
+                        <option value="{{ $groupKey }}" @selected(($group ?? '') === $groupKey)>{{ $groupLabel }}</option>
+                    @endforeach
+                </select>
+            </div>
+
             <div class="dx-bar__end">
                 <button type="submit" class="dx-bar__go">Suchen</button>
-                @if ($q || $direction || $cantonCode)
+                @if ($q || $direction || $cantonCode || !empty($group))
                     <a class="dx-bar__clear" href="{{ route('directory.index') }}" title="Filter zurücksetzen">×</a>
                 @endif
                 <a class="dx-bar__ghost" href="{{ route('map.index', $queryBase) }}">Vollkarte</a>
@@ -108,7 +118,7 @@
                             tabindex="0"
                         >
                             <div class="dx-item__index">{{ str_pad((string) $idx, 2, '0', STR_PAD_LEFT) }}</div>
-                            <div class="dx-item__media">
+                            <div class="dx-item__media logo-pos--{{ $expert->logo_position ?? 'left' }}">
                                 @if ($expert->logo_path)
                                     <img src="{{ asset('storage/'.$expert->logo_path) }}" alt="">
                                 @else
@@ -137,6 +147,7 @@
                                 </p>
 
                                 <div class="dx-item__meta">
+                                    <span class="is-soft">{{ \App\Support\ProfessionalGroup::label($expert->professional_group ?? 'ma_specialist') }}</span>
                                     @if ($expert->offers_buy)<span>Kauf</span>@endif
                                     @if ($expert->offers_sell)<span>Verkauf</span>@endif
                                     @if ($expert->offices->count() > 1)

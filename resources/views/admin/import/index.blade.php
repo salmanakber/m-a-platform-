@@ -69,11 +69,14 @@
                 <li><span>Firma / Name</span><code>company</code></li>
                 <li><span>E-Mail</span><code>email</code></li>
                 <li><span>Telefon</span><code>phone</code></li>
-                <li><span>Website</span><code>website</code></li>
-                <li><span>Adresse</span><code>address</code></li>
-                <li><span>PLZ · Ort · Kanton</span><code>location</code></li>
+                <li><span>Website</span><code>website · url</code></li>
+                <li><span>Logo-URL</span><code>logo · logo_url</code></li>
+                <li><span>Adresse</span><code>address · volladresse</code></li>
+                <li><span>PLZ · Ort · Kanton</span><code>plz · ort · kanton</code></li>
+                <li><span>Fachgruppe</span><code>gruppe · kategorie</code></li>
                 <li><span>Kauf / Verkauf</span><code>buy · sell</code></li>
             </ul>
+            <p class="field-hint" style="margin-top:0.85rem;">Fehlende Felder überspringen die Zeile nicht — Tipps und Skip-Gründe erscheinen in der Historie. Ohne Kanton wird die PLZ (z.&nbsp;B. 6060 → OW) genutzt.</p>
         </aside>
     </div>
 

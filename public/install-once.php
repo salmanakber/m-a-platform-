@@ -11,7 +11,7 @@
 
 use Illuminate\Contracts\Console\Kernel;
 
-$secret = 'CHANGE_ME_NOW_2026';
+$secret = 'NeInstall9xK2';
 
 header('Content-Type: text/html; charset=utf-8');
 

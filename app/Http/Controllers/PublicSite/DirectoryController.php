@@ -7,6 +7,7 @@ use App\Models\Canton;
 use App\Models\Expert;
 use App\Models\Promotion;
 use App\Support\ExpertStatus;
+use App\Support\ProfessionalGroup;
 use App\Support\PromotionStatus;
 use App\Support\SettingKey;
 use App\Services\Settings\SettingsService;
@@ -23,6 +24,10 @@ class DirectoryController extends Controller
     {
         $direction = $request->query('richtung');
         $cantonCode = strtoupper(trim((string) $request->query('kanton', '')));
+        $group = trim((string) $request->query('gruppe', ''));
+        if ($group !== '' && ! in_array($group, ProfessionalGroup::all(), true)) {
+            $group = '';
+        }
         $q = trim((string) $request->query('q', ''));
 
         $promotedExpertIds = Promotion::query()
@@ -39,6 +44,10 @@ class DirectoryController extends Controller
             $base->where('offers_buy', true);
         } elseif ($direction === 'verkaufen') {
             $base->where('offers_sell', true);
+        }
+
+        if ($group !== '') {
+            $base->where('professional_group', $group);
         }
 
         if ($cantonCode !== '') {
@@ -93,6 +102,8 @@ class DirectoryController extends Controller
             'experts' => $experts,
             'direction' => $direction,
             'cantonCode' => $cantonCode,
+            'group' => $group,
+            'professionalGroups' => ProfessionalGroup::labels(),
             'q' => $q,
             'promotedExpertIds' => $promotedExpertIds->flip(),
             'cantons' => $cantons,
@@ -133,9 +144,11 @@ class DirectoryController extends Controller
                     'name' => $expert->company_name,
                     'initial' => mb_strtoupper(mb_substr($expert->company_name, 0, 1)),
                     'logo' => $expert->logo_path ? asset('storage/'.$expert->logo_path) : null,
+                    'logo_position' => $expert->logo_position ?: 'left',
                     'city' => trim(($office->postal_code ?? '').' '.($office->city ?? '')),
                     'address' => trim((string) ($office->address_line ?? '')),
                     'canton' => $office->canton->code ?? '',
+                    'group' => $expert->professional_group,
                     'url' => route('experts.show', $expert->slug),
                     'promoted' => $promotedIds->contains($expert->id),
                     'buy' => (bool) $expert->offers_buy,

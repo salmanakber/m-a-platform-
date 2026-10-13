@@ -115,6 +115,27 @@
                     </div>
                 </fieldset>
 
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="professional_group">Fachgruppe</label>
+                        <select class="form-control" name="professional_group" id="professional_group">
+                            @foreach (($professionalGroups ?? []) as $groupKey => $groupLabel)
+                                <option value="{{ $groupKey }}" @selected(old('professional_group', $expert->professional_group ?? 'ma_specialist') === $groupKey)>{{ $groupLabel }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="logo_position">Logo-Position auf Karten</label>
+                        <select class="form-control" name="logo_position" id="logo_position">
+                            @php $logoPos = old('logo_position', $expert->logo_position ?? 'left'); @endphp
+                            <option value="left" @selected($logoPos === 'left')>Links</option>
+                            <option value="center" @selected($logoPos === 'center')>Mitte</option>
+                            <option value="right" @selected($logoPos === 'right')>Rechts</option>
+                        </select>
+                        <p class="field-hint" style="margin-top:0.35rem;">Steuert die Ausrichtung des Logos in Verzeichnis- und Profilkarten.</p>
+                    </div>
+                </div>
+
                 <div class="form-group">
                     <label for="logo">Logo aktualisieren</label>
                     <label class="register-upload" for="logo">
@@ -124,6 +145,9 @@
                         <span class="register-upload__meta" id="logoFileName">PNG, JPG oder WebP · max. 4 MB</span>
                     </label>
                     @error('logo')<p class="field-error">{{ $message }}</p>@enderror
+                    @if ($expert->logo_locked)
+                        <p class="field-hint">Manuelles Logo ist geschützt und wird bei Website-Importen nicht überschrieben.</p>
+                    @endif
                 </div>
 
                 <div class="form-group">

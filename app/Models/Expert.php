@@ -23,6 +23,7 @@ class Expert extends Model
         'services_text',
         'offers_buy',
         'offers_sell',
+        'professional_group',
         'status',
         'rejection_reason',
         'is_public',
@@ -32,6 +33,8 @@ class Expert extends Model
         'website_crawl_url',
         'imported_from',
         'import_fingerprint',
+        'logo_position',
+        'logo_locked',
     ];
 
     protected $casts = [
@@ -39,6 +42,7 @@ class Expert extends Model
         'offers_sell' => 'boolean',
         'is_public' => 'boolean',
         'crawl_enabled' => 'boolean',
+        'logo_locked' => 'boolean',
     ];
 
     public function user(): BelongsTo
@@ -65,6 +69,11 @@ class Expert extends Model
     public function articles(): HasMany
     {
         return $this->hasMany(Article::class);
+    }
+
+    public function events(): HasMany
+    {
+        return $this->hasMany(Event::class);
     }
 
     public function crawlJobs(): HasMany

@@ -18,6 +18,7 @@ use App\Http\Controllers\Auth\ResetPasswordController;
 use App\Http\Controllers\Expert\ArticleController as ExpertArticleController;
 use App\Http\Controllers\Expert\CrawlController as ExpertCrawlController;
 use App\Http\Controllers\Expert\DashboardController as ExpertDashboardController;
+use App\Http\Controllers\Expert\EventController as ExpertEventController;
 use App\Http\Controllers\Expert\LeadController as ExpertLeadController;
 use App\Http\Controllers\Expert\OfficeController as ExpertOfficeController;
 use App\Http\Controllers\Expert\ProfileController as ExpertProfileController;
@@ -25,6 +26,7 @@ use App\Http\Controllers\Expert\PromotionController as ExpertPromotionController
 use App\Http\Controllers\PublicSite\ArticleController as PublicArticleController;
 use App\Http\Controllers\PublicSite\CantonController;
 use App\Http\Controllers\PublicSite\DirectoryController;
+use App\Http\Controllers\PublicSite\EventController as PublicEventController;
 use App\Http\Controllers\PublicSite\ExpertProfileController as PublicExpertProfileController;
 use App\Http\Controllers\PublicSite\HomeController;
 use App\Http\Controllers\PublicSite\LeadController as PublicLeadController;
@@ -45,6 +47,9 @@ Route::get('/karte', [MapController::class, 'index'])->name('map.index');
 
 Route::get('/blog', [PublicArticleController::class, 'index'])->name('blog.index');
 Route::get('/blog/{slug}', [PublicArticleController::class, 'show'])->name('blog.show');
+
+Route::get('/events', [PublicEventController::class, 'index'])->name('events.index');
+Route::get('/events/{slug}', [PublicEventController::class, 'show'])->name('events.show');
 
 Route::get('/registrierung', [RegistrationController::class, 'create'])->name('registration.create');
 Route::post('/registrierung', [RegistrationController::class, 'store'])->name('registration.store');
@@ -116,6 +121,8 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin'])->grou
     Route::get('/e-mail-vorlagen', [AdminEmailTemplateController::class, 'index'])->name('email-templates.index');
     Route::get('/e-mail-vorlagen/{emailTemplate}/bearbeiten', [AdminEmailTemplateController::class, 'edit'])->name('email-templates.edit');
     Route::put('/e-mail-vorlagen/{emailTemplate}', [AdminEmailTemplateController::class, 'update'])->name('email-templates.update');
+    Route::post('/e-mail-vorlagen/{emailTemplate}/vorschau', [AdminEmailTemplateController::class, 'preview'])->name('email-templates.preview');
+    Route::post('/e-mail-vorlagen/{emailTemplate}/testmail', [AdminEmailTemplateController::class, 'sendTest'])->name('email-templates.test');
 
     Route::get('/import', [AdminImportController::class, 'index'])->name('import.index');
     Route::post('/import', [AdminImportController::class, 'store'])->name('import.store');
@@ -150,6 +157,14 @@ Route::prefix('expert')->name('expert.')->middleware(['auth', 'role:expert'])->g
     Route::get('/artikel/{article}/bearbeiten', [ExpertArticleController::class, 'edit'])->name('articles.edit');
     Route::put('/artikel/{article}', [ExpertArticleController::class, 'update'])->name('articles.update');
     Route::delete('/artikel/{article}', [ExpertArticleController::class, 'destroy'])->name('articles.destroy');
+
+    Route::get('/events', [ExpertEventController::class, 'index'])->name('events.index');
+    Route::get('/events/neu', [ExpertEventController::class, 'create'])->name('events.create');
+    Route::post('/events/ki-generieren', [ExpertEventController::class, 'generateAi'])->name('events.generate-ai');
+    Route::post('/events', [ExpertEventController::class, 'store'])->name('events.store');
+    Route::get('/events/{event}/bearbeiten', [ExpertEventController::class, 'edit'])->name('events.edit');
+    Route::put('/events/{event}', [ExpertEventController::class, 'update'])->name('events.update');
+    Route::delete('/events/{event}', [ExpertEventController::class, 'destroy'])->name('events.destroy');
 
     Route::get('/promotionen', [ExpertPromotionController::class, 'index'])->name('promotions.index');
     Route::post('/promotionen/anfragen', [ExpertPromotionController::class, 'requestPromotion'])->name('promotions.request');

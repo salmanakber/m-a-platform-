@@ -6,7 +6,7 @@
     <a href="{{ route('admin.experts.show', $expert) }}" class="back-link">← Zurück</a>
     <h1 style="font-family:var(--font-display);margin-top:0;">{{ $expert->company_name }} bearbeiten</h1>
 
-    <form method="post" action="{{ route('admin.experts.update', $expert) }}" class="card">
+    <form method="post" action="{{ route('admin.experts.update', $expert) }}" class="card" enctype="multipart/form-data">
         @csrf
         @method('PUT')
 
@@ -27,7 +27,7 @@
             </div>
             <div class="form-group">
                 <label for="website">Website</label>
-                <input class="form-control" type="url" name="website" id="website" value="{{ old('website', $expert->website) }}">
+                <input class="form-control" type="url" name="website" id="website" value="{{ old('website', $expert->website) }}" placeholder="https://">
             </div>
         </div>
         <div class="form-row">
@@ -47,6 +47,35 @@
         <div class="form-group">
             <label for="services_text">Leistungen</label>
             <textarea class="form-control" name="services_text" id="services_text" rows="3">{{ old('services_text', $expert->services_text) }}</textarea>
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label for="professional_group">Fachgruppe</label>
+                <select class="form-control" name="professional_group" id="professional_group">
+                    @foreach (($professionalGroups ?? []) as $groupKey => $groupLabel)
+                        <option value="{{ $groupKey }}" @selected(old('professional_group', $expert->professional_group ?? 'ma_specialist') === $groupKey)>{{ $groupLabel }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="logo_position">Logo-Position</label>
+                <select class="form-control" name="logo_position" id="logo_position">
+                    @php $logoPos = old('logo_position', $expert->logo_position ?? 'left'); @endphp
+                    <option value="left" @selected($logoPos === 'left')>Links</option>
+                    <option value="center" @selected($logoPos === 'center')>Mitte</option>
+                    <option value="right" @selected($logoPos === 'right')>Rechts</option>
+                </select>
+            </div>
+        </div>
+        <div class="form-group">
+            <label for="logo">Logo hochladen</label>
+            <input class="form-control" type="file" name="logo" id="logo" accept="image/png,image/jpeg,image/webp,image/gif">
+            @if ($expert->logo_path)
+                <p style="margin:0.5rem 0 0;"><img src="{{ asset('storage/'.$expert->logo_path) }}" alt="" style="max-height:64px;"></p>
+            @endif
+            @if ($expert->logo_locked)
+                <p class="field-hint">Manuelles Logo — wird bei Crawls nicht überschrieben.</p>
+            @endif
         </div>
         <div class="form-group">
             <label><input type="checkbox" name="offers_buy" value="1" @checked(old('offers_buy', $expert->offers_buy))> Bietet Kaufberatung</label>

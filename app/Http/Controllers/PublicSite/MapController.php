@@ -3,9 +3,12 @@
 namespace App\Http\Controllers\PublicSite;
 
 use App\Http\Controllers\Controller;
+use App\Models\Event;
 use App\Models\ExpertOffice;
 use App\Models\Promotion;
+use App\Support\EventStatus;
 use App\Support\ExpertStatus;
+use App\Support\ProfessionalGroup;
 use App\Support\PromotionStatus;
 use App\Support\SettingKey;
 use App\Services\Settings\SettingsService;
@@ -22,6 +25,10 @@ class MapController extends Controller
     {
         $direction = $request->query('richtung');
         $cantonCode = strtoupper(trim((string) $request->query('kanton', '')));
+        $group = trim((string) $request->query('gruppe', ''));
+        if ($group !== '' && ! in_array($group, ProfessionalGroup::all(), true)) {
+            $group = '';
+        }
 
         $promotedIds = Promotion::query()
             ->where('status', PromotionStatus::ACTIVE)
@@ -29,7 +36,7 @@ class MapController extends Controller
             ->unique();
 
         $offices = ExpertOffice::query()
-            ->whereHas('expert', function ($query) use ($direction) {
+            ->whereHas('expert', function ($query) use ($direction, $group) {
                 $query->where('status', ExpertStatus::APPROVED)
                     ->where('is_public', true);
 
@@ -37,6 +44,10 @@ class MapController extends Controller
                     $query->where('offers_buy', true);
                 } elseif ($direction === 'verkaufen') {
                     $query->where('offers_sell', true);
+                }
+
+                if ($group !== '') {
+                    $query->where('professional_group', $group);
                 }
             })
             ->when($cantonCode !== '', function ($query) use ($cantonCode) {
@@ -61,7 +72,8 @@ class MapController extends Controller
             }
 
             $markers[] = [
-                'id' => $office->id,
+                'id' => 'office-'.$office->id,
+                'type' => 'expert',
                 'expert_id' => $office->expert_id,
                 'lat' => $lat,
                 'lng' => $lng,
@@ -78,6 +90,42 @@ class MapController extends Controller
             ];
         }
 
+        // Published events with coordinates (or canton fallback) appear on the same map.
+        $showEvents = $request->boolean('events', true);
+        if ($showEvents) {
+            $events = Event::query()
+                ->where('status', EventStatus::PUBLISHED)
+                ->whereNotNull('latitude')
+                ->whereNotNull('longitude')
+                ->with(['expert', 'canton'])
+                ->when($cantonCode !== '', function ($query) use ($cantonCode) {
+                    $query->whereHas('canton', fn ($c) => $c->where('code', $cantonCode));
+                })
+                ->limit(100)
+                ->get();
+
+            foreach ($events as $event) {
+                $markers[] = [
+                    'id' => 'event-'.$event->id,
+                    'type' => 'event',
+                    'expert_id' => $event->expert_id,
+                    'lat' => (float) $event->latitude,
+                    'lng' => (float) $event->longitude,
+                    'name' => $event->title,
+                    'initial' => 'E',
+                    'logo' => null,
+                    'city' => trim(($event->postal_code ?? '').' '.($event->city ?? '')),
+                    'address' => trim((string) ($event->location_name ?? $event->address_line ?? '')),
+                    'canton' => $event->canton->code ?? '',
+                    'url' => route('events.show', $event->slug),
+                    'promoted' => false,
+                    'buy' => false,
+                    'sell' => false,
+                    'date' => $event->starts_on?->format('d.m.Y'),
+                ];
+            }
+        }
+
         return view('public.map.index', [
             'offices' => $offices,
             'markers' => $markers,
@@ -85,6 +133,7 @@ class MapController extends Controller
             'cantonCode' => $cantonCode,
             'mapsApiKey' => $this->settings->get(SettingKey::GOOGLE_MAPS_API_KEY),
             'promotedIds' => $promotedIds->flip(),
+            'showEvents' => $showEvents,
         ]);
     }
 }

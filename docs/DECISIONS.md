@@ -6,7 +6,7 @@ Updated: 2026-09-29
 |---|--------|----------|
 | 1 | Framework | Laravel (currently Laravel 9 on PHP 8.0 / XAMPP; upgrade to Laravel 11 when PHP 8.2+ is available) |
 | 2 | First build | Full MVP skeleton (all modules) |
-| 3 | Buy / Sell | Expert may offer **both**; promotion slots are **shared** (3 per canton, not per Buy/Sell) |
+| 3 | Buy / Sell | Expert may offer **both**; promotion slots are **shared** (5 per canton after client feedback; was 3, not per Buy/Sell) |
 | 4 | Registration fields | Best-effort from available SOW + email templates (no separate Anmeldung form doc) |
 | 5 | Initial import | Yes — place `Basis_telsearch.xlsx` in `storage/app/imports/` |
 | 6 | Hosting | Decide later |

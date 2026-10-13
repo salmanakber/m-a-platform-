@@ -18,7 +18,7 @@
         <div class="container">
             <a class="xp-stage__crumb" href="{{ route('directory.index') }}">← Expertenverzeichnis</a>
             <div class="xp-stage__grid reveal-on-scroll">
-                <div class="xp-mark" aria-hidden="true">
+                <div class="xp-mark logo-pos--{{ $expert->logo_position ?? 'left' }}" aria-hidden="true">
                     @if ($expert->logo_path)
                         <img src="{{ asset('storage/'.$expert->logo_path) }}" alt="">
                     @else
@@ -26,7 +26,7 @@
                     @endif
                 </div>
                 <div class="xp-stage__meta">
-                    <p class="xp-stage__eyebrow">M&amp;A · Unternehmensnachfolge · Schweiz</p>
+                    <p class="xp-stage__eyebrow">{{ \App\Support\ProfessionalGroup::label($expert->professional_group ?? 'ma_specialist') }} · Schweiz</p>
                     <h1 class="xp-stage__name">{{ $expert->company_name }}</h1>
                     @if ($office)
                         <p class="xp-stage__place">
@@ -38,6 +38,7 @@
                         </p>
                     @endif
                     <div class="xp-stage__chips">
+                        <span class="xp-chip">{{ \App\Support\ProfessionalGroup::label($expert->professional_group ?? 'ma_specialist') }}</span>
                         @if ($expert->offers_buy)<span class="xp-chip">Kauf</span>@endif
                         @if ($expert->offers_sell)<span class="xp-chip">Verkauf</span>@endif
                         @if ($office && $office->canton)<span class="xp-chip">{{ $office->canton->code }}</span>@endif

@@ -2352,6 +2352,21 @@ body.is-directory-page .site-footer {
     background: #fff;
 }
 
+.dx-item__media.logo-pos--left img,
+.xp-mark.logo-pos--left img {
+    object-position: left center;
+}
+
+.dx-item__media.logo-pos--center img,
+.xp-mark.logo-pos--center img {
+    object-position: center center;
+}
+
+.dx-item__media.logo-pos--right img,
+.xp-mark.logo-pos--right img {
+    object-position: right center;
+}
+
 .dx-item__media span {
     font-family: var(--font-display);
     font-size: 2rem;

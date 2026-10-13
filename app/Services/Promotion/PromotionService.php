@@ -16,8 +16,8 @@ class PromotionService
      */
     public function requestPosition(int $expertId, int $cantonId, int $positionNumber): Promotion|PromotionWaitlist
     {
-        if ($positionNumber < 1 || $positionNumber > 3) {
-            throw new \InvalidArgumentException('Position number must be between 1 and 3.');
+        if ($positionNumber < 1 || $positionNumber > 5) {
+            throw new \InvalidArgumentException('Position number must be between 1 and 5.');
         }
 
         return DB::transaction(function () use ($expertId, $cantonId, $positionNumber) {

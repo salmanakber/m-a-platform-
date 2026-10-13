@@ -7,9 +7,12 @@ use App\Models\ArticleCategory;
 use App\Models\CrawlError;
 use App\Models\CrawlJob;
 use App\Models\CrawlResult;
+use App\Models\Event;
 use App\Models\Expert;
 use App\Services\AI\AIManager;
+use App\Services\Logo\LogoDiscoveryService;
 use App\Support\ArticleStatus;
+use App\Support\EventStatus;
 use App\Support\ExpertStatus;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Http;
@@ -20,7 +23,8 @@ class CrawlService
 {
     public function __construct(
         private WebsiteCrawler $crawler,
-        private AIManager $ai
+        private AIManager $ai,
+        private LogoDiscoveryService $logos
     ) {
     }
 
@@ -95,6 +99,16 @@ class CrawlService
 
         try {
             $this->setProgress($job, 'discover', 'Website wird gelesen…', 12);
+
+            // Auto-discover logo unless a manual upload is locked.
+            if (! $expert->logo_locked) {
+                try {
+                    $this->logos->discoverForExpert($expert->fresh());
+                } catch (\Throwable) {
+                    // Optional enrichment — never abort crawl.
+                }
+            }
+
             $this->setProgress($job, 'sitemap', 'Sitemap & Feeds werden geprüft…', 22);
 
             $discovered = $this->crawler->discoverUrls($startUrl);
@@ -186,7 +200,10 @@ class CrawlService
 
     private function importUrl(CrawlJob $job, Expert $expert, string $url, int $defaultCategoryId): string
     {
-        if (Article::query()->where('source_url', $url)->exists()) {
+        if (
+            Article::query()->where('source_url', $url)->exists()
+            || Event::query()->where('source_url', $url)->exists()
+        ) {
             CrawlResult::query()->create([
                 'crawl_job_id' => $job->id,
                 'url' => $url,
@@ -195,6 +212,14 @@ class CrawlService
             ]);
 
             return 'skipped';
+        }
+
+        // Prefer event import when URL looks like an event page.
+        if ($this->crawler->looksLikeEventUrl($url)) {
+            $eventOutcome = $this->importEventUrl($job, $expert, $url);
+            if ($eventOutcome !== 'skipped') {
+                return $eventOutcome;
+            }
         }
 
         $extracted = $this->crawler->extractArticle($url);
@@ -260,6 +285,78 @@ class CrawlService
         ]);
 
         return 'imported';
+    }
+
+    private function importEventUrl(CrawlJob $job, Expert $expert, string $url): string
+    {
+        $extracted = $this->crawler->extractEvent($url);
+        if ($extracted === null) {
+            return 'skipped';
+        }
+
+        $fingerprint = $this->crawler->fingerprint($url, $extracted['title'], $extracted['description']);
+        if (Event::query()->where('content_fingerprint', $fingerprint)->exists()) {
+            CrawlResult::query()->create([
+                'crawl_job_id' => $job->id,
+                'url' => $url,
+                'status' => 'duplicate',
+                'content_fingerprint' => $fingerprint,
+                'message' => 'Event bereits vorhanden',
+            ]);
+
+            return 'skipped';
+        }
+
+        $needsReview = (bool) ($extracted['needs_review'] ?? true);
+        // Never publish fabricated dates — incomplete events stay draft + review.
+        $status = ($extracted['starts_on'] && ! $needsReview)
+            ? EventStatus::PUBLISHED
+            : EventStatus::DRAFT;
+
+        Event::query()->create([
+            'expert_id' => $expert->id,
+            'title' => $extracted['title'],
+            'slug' => $this->uniqueEventSlug($extracted['title']),
+            'description' => $extracted['description'],
+            'event_type' => $extracted['event_type'] ?? 'other',
+            'starts_on' => $extracted['starts_on'] ?? null,
+            'starts_at_time' => $extracted['starts_at_time'] ?? null,
+            'location_name' => $extracted['location_name'] ?? null,
+            'city' => $extracted['city'] ?? null,
+            'source_url' => $url,
+            'source_attribution' => $expert->company_name.' · '.$url,
+            'content_fingerprint' => $fingerprint,
+            'is_crawled' => true,
+            'needs_review' => $needsReview || empty($extracted['starts_on']),
+            'status' => $status,
+            'published_at' => $status === EventStatus::PUBLISHED ? now() : null,
+        ]);
+
+        CrawlResult::query()->create([
+            'crawl_job_id' => $job->id,
+            'url' => $url,
+            'status' => 'imported',
+            'content_fingerprint' => $fingerprint,
+            'message' => $status === EventStatus::PUBLISHED
+                ? 'Event importiert und veröffentlicht'
+                : 'Event importiert — Prüfung erforderlich (Datum/Ort unvollständig)',
+        ]);
+
+        return 'imported';
+    }
+
+    private function uniqueEventSlug(string $title): string
+    {
+        $base = Str::slug($title);
+        $slug = $base !== '' ? $base : Str::random(8);
+        $original = $slug;
+        $i = 1;
+        while (Event::query()->where('slug', $slug)->exists()) {
+            $slug = $original.'-'.$i;
+            $i++;
+        }
+
+        return $slug;
     }
 
     /**

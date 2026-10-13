@@ -35,6 +35,20 @@ class WebsiteCrawler
         '/de/aktuelles',
         '/en/blog',
         '/en/news',
+        // Events / workshops hubs
+        '/events',
+        '/event',
+        '/veranstaltungen',
+        '/veranstaltung',
+        '/workshops',
+        '/workshop',
+        '/seminare',
+        '/seminar',
+        '/agenda',
+        '/termine',
+        '/de/events',
+        '/de/veranstaltungen',
+        '/en/events',
     ];
 
     /**
@@ -236,6 +250,112 @@ class WebsiteCrawler
         return hash('sha256', $normalized);
     }
 
+    public function looksLikeEventUrl(string $url): bool
+    {
+        $path = strtolower((string) parse_url($url, PHP_URL_PATH));
+        foreach (['event', 'veranstaltung', 'workshop', 'seminar', 'hearing', 'agenda', 'termin', 'vortrag'] as $needle) {
+            if (str_contains($path, $needle)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Extract event-like page data. Never invents dates — only parses obvious markers.
+     *
+     * @return array{title: string, description: string, event_type: string, starts_on: ?string, starts_at_time: ?string, location_name: ?string, city: ?string, needs_review: bool}|null
+     */
+    public function extractEvent(string $url): ?array
+    {
+        $html = $this->fetchHtml($url);
+        if ($html === null || $html === '') {
+            return null;
+        }
+
+        libxml_use_internal_errors(true);
+        $dom = new DOMDocument();
+        $loaded = $dom->loadHTML('<?xml encoding="UTF-8">'.$html);
+        libxml_clear_errors();
+        if (! $loaded) {
+            return null;
+        }
+
+        $xpath = new DOMXPath($dom);
+        $title = $this->firstText($xpath, [
+            '//meta[@property="og:title"]/@content',
+            '//h1',
+            '//title',
+        ]) ?? '';
+        $title = trim(html_entity_decode(strip_tags($title), ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+        if ($title === '') {
+            return null;
+        }
+
+        $bodyNode = $this->firstNode($xpath, [
+            '//article',
+            '//*[contains(@class,"event")]',
+            '//*[contains(@class,"entry-content")]',
+            '//main',
+        ]);
+        $bodyHtml = '';
+        if ($bodyNode !== null) {
+            foreach (iterator_to_array($bodyNode->childNodes) as $child) {
+                $name = strtolower($child->nodeName ?? '');
+                if (in_array($name, ['script', 'style', 'nav', 'aside', 'footer', 'form'], true)) {
+                    continue;
+                }
+                $bodyHtml .= $dom->saveHTML($child);
+            }
+        }
+        $bodyText = trim(html_entity_decode(strip_tags($bodyHtml ?: $html), ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+        $bodyText = preg_replace('/\s+/', ' ', $bodyText) ?? $bodyText;
+        if (mb_strlen($bodyText) < 80) {
+            return null;
+        }
+
+        $startsOn = null;
+        $startsTime = null;
+        // ISO date in time[datetime] or visible YYYY-MM-DD / DD.MM.YYYY
+        $datetime = $this->firstText($xpath, ['//time/@datetime', '//meta[@property="event:start_time"]/@content']);
+        if ($datetime && preg_match('/(\d{4}-\d{2}-\d{2})/', $datetime, $m)) {
+            $startsOn = $m[1];
+            if (preg_match('/T(\d{2}:\d{2})/', $datetime, $tm)) {
+                $startsTime = $tm[1];
+            }
+        } elseif (preg_match('/\b(\d{1,2})\.(\d{1,2})\.(\d{4})\b/', $bodyText, $m)) {
+            $startsOn = sprintf('%04d-%02d-%02d', (int) $m[3], (int) $m[2], (int) $m[1]);
+        }
+
+        $path = strtolower((string) parse_url($url, PHP_URL_PATH));
+        $type = 'other';
+        if (str_contains($path, 'workshop') || str_contains(mb_strtolower($title), 'workshop')) {
+            $type = 'workshop';
+        } elseif (str_contains($path, 'hearing') || str_contains(mb_strtolower($title), 'hearing')) {
+            $type = 'hearing';
+        } elseif (str_contains($path, 'seminar') || str_contains(mb_strtolower($title), 'vortrag') || str_contains($path, 'presentation')) {
+            $type = 'presentation';
+        }
+
+        $location = $this->firstText($xpath, [
+            '//*[@itemprop="location"]',
+            '//*[contains(@class,"location")]',
+            '//*[contains(@class,"venue")]',
+        ]);
+
+        return [
+            'title' => Str::limit($title, 240),
+            'description' => '<p>'.e(Str::limit($bodyText, 4000)).'</p>',
+            'event_type' => $type,
+            'starts_on' => $startsOn,
+            'starts_at_time' => $startsTime,
+            'location_name' => $location ? Str::limit(trim($location), 255) : null,
+            'city' => null,
+            'needs_review' => $startsOn === null,
+        ];
+    }
+
     public function fetchHtml(string $url): ?string
     {
         try {
@@ -386,6 +506,8 @@ class WebsiteCrawler
             'wissen' => 30, 'aktuell' => 30, 'insights' => 30, 'post' => 28,
             'magazin' => 28, 'beitrag' => 28, 'presse' => 22, 'media' => 15,
             'nachfolge' => 18, 'unternehmen' => 10, 'fach' => 12,
+            'event' => 42, 'veranstaltung' => 42, 'workshop' => 40, 'seminar' => 38,
+            'hearing' => 36, 'agenda' => 34, 'termin' => 32, 'Vortrag' => 0, 'vortrag' => 34,
         ];
 
         foreach ($boost as $needle => $points) {

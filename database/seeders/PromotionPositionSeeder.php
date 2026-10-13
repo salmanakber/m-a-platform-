@@ -11,7 +11,7 @@ class PromotionPositionSeeder extends Seeder
     public function run(): void
     {
         Canton::query()->each(function (Canton $canton): void {
-            for ($position = 1; $position <= 3; $position++) {
+            for ($position = 1; $position <= 5; $position++) {
                 PromotionPosition::updateOrCreate(
                     [
                         'canton_id' => $canton->id,

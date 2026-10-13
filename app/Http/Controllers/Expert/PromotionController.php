@@ -45,7 +45,7 @@ class PromotionController extends Controller
         $freeSlots = 0;
         $takenSlots = 0;
         foreach ($cantons as $canton) {
-            for ($pos = 1; $pos <= 3; $pos++) {
+            for ($pos = 1; $pos <= 5; $pos++) {
                 if ($occupied->has($canton->id.'-'.$pos)) {
                     $takenSlots++;
                 } else {
@@ -74,7 +74,7 @@ class PromotionController extends Controller
 
         $validated = $request->validate([
             'canton_id' => ['required', 'exists:cantons,id'],
-            'position_number' => ['required', 'integer', 'min:1', 'max:3'],
+            'position_number' => ['required', 'integer', 'min:1', 'max:5'],
         ]);
 
         try {
@@ -100,7 +100,7 @@ class PromotionController extends Controller
 
         $validated = $request->validate([
             'canton_id' => ['required', 'exists:cantons,id'],
-            'position_number' => ['nullable', 'integer', 'min:1', 'max:3'],
+            'position_number' => ['nullable', 'integer', 'min:1', 'max:5'],
         ]);
 
         $this->promotionService->joinWaitlist(

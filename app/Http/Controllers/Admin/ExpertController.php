@@ -7,8 +7,10 @@ use App\Models\Canton;
 use App\Models\Expert;
 use App\Services\Email\NotificationService;
 use App\Support\ExpertStatus;
+use App\Support\ProfessionalGroup;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
 
 class ExpertController extends Controller
@@ -66,6 +68,7 @@ class ExpertController extends Controller
 
         return view('admin.experts.edit', [
             'expert' => $expert,
+            'professionalGroups' => ProfessionalGroup::labels(),
         ]);
     }
 
@@ -80,14 +83,17 @@ class ExpertController extends Controller
             'services_text' => ['nullable', 'string'],
             'offers_buy' => ['nullable', 'boolean'],
             'offers_sell' => ['nullable', 'boolean'],
+            'professional_group' => ['nullable', 'in:'.implode(',', ProfessionalGroup::all())],
+            'logo_position' => ['nullable', 'in:left,center,right'],
             'is_public' => ['nullable', 'boolean'],
             'crawl_enabled' => ['nullable', 'boolean'],
             'website_crawl_url' => ['nullable', 'url', 'max:500'],
             'contact_person_name' => ['nullable', 'string', 'max:120'],
             'contact_person_last_name' => ['nullable', 'string', 'max:120'],
+            'logo' => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp,gif', 'max:4096'],
         ]);
 
-        $expert->update([
+        $data = [
             'company_name' => $validated['company_name'],
             'email' => $validated['email'],
             'phone' => $validated['phone'] ?? null,
@@ -96,12 +102,25 @@ class ExpertController extends Controller
             'services_text' => $validated['services_text'] ?? null,
             'offers_buy' => $request->boolean('offers_buy'),
             'offers_sell' => $request->boolean('offers_sell'),
+            'professional_group' => $validated['professional_group'] ?? ProfessionalGroup::MA_SPECIALIST,
+            'logo_position' => $validated['logo_position'] ?? 'left',
             'is_public' => $request->boolean('is_public'),
             'crawl_enabled' => $request->boolean('crawl_enabled'),
             'website_crawl_url' => $validated['website_crawl_url'] ?? null,
             'contact_person_name' => $validated['contact_person_name'] ?? null,
             'contact_person_last_name' => $validated['contact_person_last_name'] ?? null,
-        ]);
+        ];
+
+        if ($request->hasFile('logo') && $request->file('logo')->isValid()) {
+            if ($expert->logo_path) {
+                Storage::disk('public')->delete($expert->logo_path);
+            }
+            Storage::disk('public')->makeDirectory('experts/logos');
+            $data['logo_path'] = $request->file('logo')->store('experts/logos', 'public');
+            $data['logo_locked'] = true;
+        }
+
+        $expert->update($data);
 
         return redirect()
             ->route('admin.experts.show', $expert)
