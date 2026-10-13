@@ -1,7 +1,7 @@
 @extends('layouts.public')
 
 @section('title', 'Karte — nachfolge-experten.ch')
-@section('meta_description', 'Schweizer M&A-Experten auf der Karte finden — Standorte, Kantone, Kauf und Verkauf.')
+@section('meta_description', 'Schweizer M&A-Experten und Events auf der Karte finden — Standorte, Kantone, Veranstaltungen.')
 @section('flush', true)
 @section('body_class', 'is-map-page')
 
@@ -10,8 +10,11 @@
     $queryBase = array_filter([
         'richtung' => $direction ?? null,
         'kanton' => $cantonCode ?: null,
-    ]);
+        'events' => ($showEvents ?? true) ? null : '0',
+    ], fn ($v) => $v !== null && $v !== '');
     $markerCount = count($markers ?? []);
+    $eventCount = ($mapEvents ?? collect())->count();
+    $officeCount = ($offices ?? collect())->count();
 @endphp
 
 <div class="map-theater">
@@ -28,18 +31,18 @@
         <header class="map-hud__top">
             <div class="map-hud__brand">
                 <p class="map-hud__kicker">Schweiz · Live-Karte</p>
-                <h1 class="map-hud__title">Experten finden</h1>
+                <h1 class="map-hud__title">Experten &amp; Events</h1>
                 <p class="map-hud__count">
-                    <strong>{{ $markerCount }}</strong>
-                    Standort{{ $markerCount === 1 ? '' : 'e' }}
+                    <strong>{{ $markerCount }}</strong> Marker
+                    @if ($officeCount) · {{ $officeCount }} Experten @endif
+                    @if ($eventCount) · {{ $eventCount }} Events @endif
                     @if ($cantonCode) · {{ $cantonCode }} @endif
-                    @if ($direction === 'kaufen') · Kauf @elseif ($direction === 'verkaufen') · Verkauf @endif
                 </p>
             </div>
             <nav class="map-hud__views" aria-label="Ansicht">
                 <a href="{{ route('directory.index', array_merge($queryBase, ['ansicht' => 'liste'])) }}">Liste</a>
                 <a class="is-active" href="{{ route('map.index', $queryBase) }}">Karte</a>
-                <a href="{{ route('cantons.index') }}">Kantone</a>
+                <a href="{{ route('events.index') }}">Events</a>
             </nav>
         </header>
 
@@ -63,18 +66,23 @@
                     @endforeach
                 </select>
             </div>
+            <input type="hidden" name="events" value="0">
+            <label class="map-hud__chip {{ ($showEvents ?? true) ? 'is-active' : '' }}" style="margin-left:auto;">
+                <input type="checkbox" name="events" value="1" @checked($showEvents ?? true) onchange="this.form.submit()"> Events
+            </label>
             <div class="map-hud__legend" aria-label="Legende">
-                <span><i class="map-legend__dot map-legend__dot--std"></i> Standard</span>
+                <span><i class="map-legend__dot map-legend__dot--std"></i> Experte</span>
                 <span><i class="map-legend__dot map-legend__dot--promo"></i> Empfohlen</span>
+                <span><i class="map-legend__dot map-legend__dot--event"></i> Event</span>
             </div>
         </form>
 
-        @if (($offices ?? collect())->isNotEmpty())
-            <aside class="map-hud__panel" aria-label="Standorte">
+        @if (($offices ?? collect())->isNotEmpty() || ($mapEvents ?? collect())->isNotEmpty())
+            <aside class="map-hud__panel" aria-label="Treffer">
                 <div class="map-hud__panel-head">
                     <div>
                         <p class="map-hud__kicker">Treffer</p>
-                        <h2>{{ $markerCount }} Standorte</h2>
+                        <h2>{{ $markerCount }} auf der Karte</h2>
                     </div>
                     <a href="{{ route('directory.index', array_merge($queryBase, ['ansicht' => 'liste'])) }}">Liste →</a>
                 </div>
@@ -89,6 +97,22 @@
                                 <em>{{ $office->city }}@if ($office->canton) · {{ $office->canton->code }}@endif</em>
                             </span>
                             @if ($isPromoted)<span class="map-hud__badge">Empfohlen</span>@endif
+                        </a>
+                    @endforeach
+
+                    @foreach (($mapEvents ?? collect()) as $event)
+                        <a class="map-hud__row is-event" href="{{ route('events.show', $event->slug) }}">
+                            <span class="map-hud__pin map-hud__pin--event" aria-hidden="true"></span>
+                            <span class="map-hud__row-body">
+                                <strong>{{ $event->title }}</strong>
+                                <em>
+                                    Event
+                                    @if ($event->starts_on) · {{ $event->starts_on->format('d.m.Y') }} @endif
+                                    @if ($event->city) · {{ $event->city }} @endif
+                                    @if ($event->canton) · {{ $event->canton->code }} @endif
+                                </em>
+                            </span>
+                            <span class="map-hud__badge map-hud__badge--event">Event</span>
                         </a>
                     @endforeach
                 </div>

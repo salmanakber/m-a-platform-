@@ -4,59 +4,82 @@
 @section('meta_description', 'Workshops, Vorträge und Fachveranstaltungen rund um M&A und Unternehmensnachfolge in der Schweiz.')
 
 @section('content')
-<div class="blog-page">
-    <header class="blog-hero">
-        <div class="container blog-hero__inner">
-            <p class="blog-hero__kicker">Veranstaltungen</p>
+@php
+    $typeLabels = [
+        'workshop' => 'Workshop',
+        'presentation' => 'Vortrag',
+        'hearing' => 'Hearing',
+        'other' => 'Sonstiges',
+    ];
+@endphp
+<div class="ev-page">
+    <header class="ev-hero">
+        <div class="container ev-hero__inner">
+            <p class="ev-hero__kicker">Schweiz · Fachveranstaltungen</p>
             <h1>Events</h1>
-            <p class="blog-hero__lead">Workshops, Vorträge und Hearings von Schweizer M&amp;A- und Nachfolge-Experten.</p>
+            <p class="ev-hero__lead">Workshops, Vorträge und Hearings von M&amp;A- und Nachfolge-Experten — auch auf der Karte sichtbar.</p>
+            <div class="ev-hero__actions">
+                <a class="btn btn--small" href="{{ route('map.index', ['events' => 1]) }}">Auf der Karte zeigen</a>
+                <a class="btn btn--ghost btn--small" href="{{ route('directory.index') }}">Expertenverzeichnis</a>
+            </div>
         </div>
     </header>
 
-    <div class="container blog-page__body">
-        <form method="get" class="form-row" style="margin-bottom:1.25rem;max-width:320px;">
-            <div class="form-group" style="margin:0;">
-                <label for="typ">Typ</label>
-                <select class="form-control" name="typ" id="typ" onchange="this.form.submit()">
-                    <option value="">Alle</option>
-                    <option value="workshop" @selected($type === 'workshop')>Workshop</option>
-                    <option value="presentation" @selected($type === 'presentation')>Vortrag</option>
-                    <option value="hearing" @selected($type === 'hearing')>Hearing</option>
-                    <option value="other" @selected($type === 'other')>Sonstiges</option>
-                </select>
+    <div class="container ev-body">
+        <form method="get" class="ev-filters" action="{{ route('events.index') }}">
+            <div class="ev-filters__chips" role="group" aria-label="Event-Typ">
+                <label class="ev-chip {{ $type === '' ? 'is-on' : '' }}">
+                    <input type="radio" name="typ" value="" @checked($type === '') onchange="this.form.submit()"> Alle
+                </label>
+                @foreach ($typeLabels as $value => $label)
+                    <label class="ev-chip {{ $type === $value ? 'is-on' : '' }}">
+                        <input type="radio" name="typ" value="{{ $value }}" @checked($type === $value) onchange="this.form.submit()"> {{ $label }}
+                    </label>
+                @endforeach
             </div>
+            <p class="ev-filters__count">{{ $events->total() }} Veranstaltung{{ $events->total() === 1 ? '' : 'en' }}</p>
         </form>
 
         @if ($events->isEmpty())
-            <div class="blog-empty">
+            <div class="ev-empty">
                 <strong>Noch keine Events</strong>
-                <p>Sobald Experten Veranstaltungen publizieren oder importieren, erscheinen sie hier.</p>
+                <p>Sobald Experten Veranstaltungen publizieren, erscheinen sie hier und auf der Karte.</p>
             </div>
         @else
-            <div class="blog-grid">
+            <div class="ev-grid">
                 @foreach ($events as $event)
-                    <a class="blog-card" href="{{ route('events.show', $event->slug) }}">
-                        <div class="blog-card__media" aria-hidden="true">
-                            <span class="blog-card__fallback">{{ mb_strtoupper(mb_substr($event->title, 0, 1)) }}</span>
+                    <a class="ev-card" href="{{ route('events.show', $event->slug) }}">
+                        <div class="ev-card__date" aria-hidden="true">
+                            @if ($event->starts_on)
+                                <span class="ev-card__day">{{ $event->starts_on->format('d') }}</span>
+                                <span class="ev-card__mon">{{ $event->starts_on->translatedFormat('M') }}</span>
+                            @else
+                                <span class="ev-card__day">?</span>
+                                <span class="ev-card__mon">offen</span>
+                            @endif
                         </div>
-                        <div class="blog-card__body">
-                            <div class="blog-card__meta">
-                                <span>{{ ucfirst($event->event_type) }}</span>
-                                @if ($event->starts_on)
-                                    <time>{{ $event->starts_on->format('d.m.Y') }}</time>
-                                @elseif ($event->needs_review)
-                                    <span>Datum in Prüfung</span>
+                        <div class="ev-card__body">
+                            <div class="ev-card__meta">
+                                <span>{{ $typeLabels[$event->event_type] ?? ucfirst($event->event_type) }}</span>
+                                @if ($event->starts_at_time)
+                                    <span>{{ \Illuminate\Support\Str::of($event->starts_at_time)->substr(0, 5) }} Uhr</span>
+                                @endif
+                                @if ($event->canton)
+                                    <span>{{ $event->canton->code }}</span>
                                 @endif
                             </div>
                             <h2>{{ $event->title }}</h2>
                             <p>
-                                @if ($event->city || $event->location_name)
+                                @if ($event->location_name || $event->city)
                                     {{ $event->location_name ?: $event->city }}
+                                    @if ($event->city && $event->location_name) · {{ $event->city }} @endif
                                 @else
-                                    {{ \Illuminate\Support\Str::limit(strip_tags($event->description), 120) }}
+                                    {{ \Illuminate\Support\Str::limit(strip_tags($event->description), 110) }}
                                 @endif
                             </p>
-                            <span class="blog-card__more">Details</span>
+                            @if ($event->expert)
+                                <span class="ev-card__host">{{ $event->expert->company_name }}</span>
+                            @endif
                         </div>
                     </a>
                 @endforeach

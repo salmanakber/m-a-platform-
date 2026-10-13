@@ -90,44 +90,67 @@ class MapController extends Controller
             ];
         }
 
-        // Published events with coordinates (or canton fallback) appear on the same map.
+        // Published events appear on the same map (own coords or canton center).
         $showEvents = $request->boolean('events', true);
+        $mapEvents = collect();
+
         if ($showEvents) {
-            $events = Event::query()
+            $candidates = Event::query()
                 ->where('status', EventStatus::PUBLISHED)
-                ->whereNotNull('latitude')
-                ->whereNotNull('longitude')
                 ->with(['expert', 'canton'])
-                ->when($cantonCode !== '', function ($query) use ($cantonCode) {
-                    $query->whereHas('canton', fn ($c) => $c->where('code', $cantonCode));
-                })
-                ->limit(100)
+                ->orderBy('starts_on')
+                ->limit(200)
                 ->get();
 
-            foreach ($events as $event) {
+            foreach ($candidates as $event) {
+                $lat = $event->latitude !== null ? (float) $event->latitude : null;
+                $lng = $event->longitude !== null ? (float) $event->longitude : null;
+
+                if (($lat === null || $lng === null) && $event->canton) {
+                    $lat = $event->canton->latitude !== null ? (float) $event->canton->latitude : null;
+                    $lng = $event->canton->longitude !== null ? (float) $event->canton->longitude : null;
+                }
+
+                if ($lat === null || $lng === null) {
+                    continue;
+                }
+
+                $eventCanton = $event->canton->code ?? '';
+                if ($cantonCode !== '' && $eventCanton !== '' && $eventCanton !== $cantonCode) {
+                    continue;
+                }
+
+                $mapEvents->push($event);
                 $markers[] = [
                     'id' => 'event-'.$event->id,
                     'type' => 'event',
                     'expert_id' => $event->expert_id,
-                    'lat' => (float) $event->latitude,
-                    'lng' => (float) $event->longitude,
+                    'lat' => $lat,
+                    'lng' => $lng,
                     'name' => $event->title,
                     'initial' => 'E',
                     'logo' => null,
                     'city' => trim(($event->postal_code ?? '').' '.($event->city ?? '')),
                     'address' => trim((string) ($event->location_name ?? $event->address_line ?? '')),
-                    'canton' => $event->canton->code ?? '',
+                    'canton' => $eventCanton,
                     'url' => route('events.show', $event->slug),
                     'promoted' => false,
                     'buy' => false,
                     'sell' => false,
                     'date' => $event->starts_on?->format('d.m.Y'),
+                    'event_type' => $event->event_type,
+                    'cta_label' => 'Event öffnen',
                 ];
+
+                if ($mapEvents->count() >= 100) {
+                    break;
+                }
             }
         }
 
         return view('public.map.index', [
             'offices' => $offices,
+            'mapEvents' => $mapEvents,
             'markers' => $markers,
             'direction' => $direction,
             'cantonCode' => $cantonCode,

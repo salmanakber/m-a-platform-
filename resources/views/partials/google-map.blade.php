@@ -51,10 +51,15 @@
                 }
 
                 function pinIcon(m, active) {
+                    var isEvent = m.type === 'event';
                     var promoted = !!m.promoted;
-                    var fill = active ? '#009DE1' : (promoted ? '#0E4971' : '#009DE1');
-                    var ring = active ? '#7fd0f5' : '#ffffff';
-                    var letter = esc((m.initial || (m.name || '?').charAt(0)).toString().slice(0, 1).toUpperCase());
+                    var fill = isEvent
+                        ? (active ? '#c45c26' : '#d97706')
+                        : (active ? '#009DE1' : (promoted ? '#0E4971' : '#009DE1'));
+                    var ring = active ? (isEvent ? '#f6c79a' : '#7fd0f5') : '#ffffff';
+                    var letter = isEvent
+                        ? 'E'
+                        : esc((m.initial || (m.name || '?').charAt(0)).toString().slice(0, 1).toUpperCase());
                     var scale = active ? 1.18 : 1;
                     var w = Math.round(36 * scale);
                     var h = Math.round(46 * scale);
@@ -75,16 +80,25 @@
                 }
 
                 function popupHtml(m) {
+                    var isEvent = m.type === 'event';
                     var tags = '';
-                    if (m.buy) tags += '<span class="ne-pop__tag">Kauf</span>';
-                    if (m.sell) tags += '<span class="ne-pop__tag">Verkauf</span>';
-                    if (m.promoted) tags += '<span class="ne-pop__tag ne-pop__tag--hot">Empfohlen</span>';
+                    if (isEvent) {
+                        tags += '<span class="ne-pop__tag ne-pop__tag--event">Event</span>';
+                        if (m.event_type) tags += '<span class="ne-pop__tag">' + esc(m.event_type) + '</span>';
+                        if (m.date) tags += '<span class="ne-pop__tag">' + esc(m.date) + '</span>';
+                    } else {
+                        if (m.buy) tags += '<span class="ne-pop__tag">Kauf</span>';
+                        if (m.sell) tags += '<span class="ne-pop__tag">Verkauf</span>';
+                        if (m.promoted) tags += '<span class="ne-pop__tag ne-pop__tag--hot">Empfohlen</span>';
+                    }
                     var media = m.logo
                         ? '<img src="' + esc(m.logo) + '" alt="">'
-                        : '<span>' + esc(m.initial || (m.name || '?').charAt(0)) + '</span>';
+                        : '<span>' + esc(isEvent ? 'E' : (m.initial || (m.name || '?').charAt(0))) + '</span>';
+                    var cta = esc(m.cta_label || (isEvent ? 'Event öffnen' : 'Profil & Anfrage öffnen'));
                     return (
-                        '<div class="ne-pop">' +
-                        (m.promoted ? '<div class="ne-pop__ribbon">Empfohlen</div>' : '') +
+                        '<div class="ne-pop' + (isEvent ? ' ne-pop--event' : '') + '">' +
+                        (m.promoted && !isEvent ? '<div class="ne-pop__ribbon">Empfohlen</div>' : '') +
+                        (isEvent ? '<div class="ne-pop__ribbon ne-pop__ribbon--event">Event</div>' : '') +
                         '<div class="ne-pop__row">' +
                         '<div class="ne-pop__logo">' + media + '</div>' +
                         '<div class="ne-pop__body">' +
@@ -96,7 +110,7 @@
                         (m.address ? '<div class="ne-pop__addr">' + esc(m.address) + '</div>' : '') +
                         (tags ? '<div class="ne-pop__tags">' + tags + '</div>' : '') +
                         '</div></div>' +
-                        '<a class="ne-pop__cta" href="' + esc(m.url) + '">Profil &amp; Anfrage öffnen</a>' +
+                        '<a class="ne-pop__cta" href="' + esc(m.url) + '">' + cta + '</a>' +
                         '</div>'
                     );
                 }

@@ -16,9 +16,19 @@
         <div class="xp-hero__copy">
             <p class="xp-hero__kicker">Events</p>
             <h1>Neues Event</h1>
-            <p>Manuell erfassen oder optional einen KI-Entwurf erzeugen — immer prüfen vor dem Speichern.</p>
+            <p>Manuell erfassen (empfohlen) oder optional einen KI-Entwurf erzeugen — immer prüfen vor dem Speichern.</p>
+        </div>
+        <div class="xp-hero__actions">
+            <a class="btn btn--ghost btn--small" href="{{ route('expert.crawl.index') }}">Website scannen</a>
         </div>
     </header>
+
+    <div class="xp-action-strip">
+        <div>
+            <strong>Für die Karte</strong>
+            <p>Bitte Kanton und idealerweise Koordinaten oder Ort angeben — dann erscheint das Event auf der öffentlichen Karte.</p>
+        </div>
+    </div>
 
     @include('expert.events._ai-panel')
     @include('partials.flash')

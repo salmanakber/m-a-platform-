@@ -11,12 +11,28 @@
 @endsection
 
 @section('content')
-<div class="admin-page">
+@php
+    $labels = [
+        'owner_name' => 'Name Interessent',
+        'email' => 'E-Mail',
+        'phone' => 'Telefon',
+        'message' => 'Nachricht',
+        'company_name' => 'Firma Interessent',
+        'industry' => 'Branche',
+        'canton_name' => 'Kanton',
+        'expert_company_name' => 'Firma Experte',
+        'contact_name' => 'Kontaktname',
+        'name' => 'Name',
+        'reset_url' => 'Reset-Link',
+        'expires_minutes' => 'Ablauf (Min.)',
+    ];
+@endphp
+<div class="admin-page mail-studio">
     <header class="admin-page-hero">
         <div>
             <p class="page-kicker">E-Mail</p>
-            <h1><code>{{ $template->key }}</code></h1>
-            <p>Inhalt bearbeiten und Vorschau mit dem echten E-Mail-Layout prüfen.</p>
+            <h1>{{ str_replace(['_', '.'], [' ', ' · '], $template->key) }}</h1>
+            <p>Texte bearbeiten wie in einem Editor — Platzhalter einfügen und live sehen, wie die Mail aussieht.</p>
         </div>
         <div class="admin-page-hero__actions">
             <a class="btn btn--ghost btn--small" href="{{ route('admin.email-templates.index') }}">Alle Vorlagen</a>
@@ -25,53 +41,76 @@
 
     @include('partials.flash')
 
-    <div class="xp-crawl-layout">
-        <form method="post" action="{{ route('admin.email-templates.update', $template) }}" class="admin-card" id="templateForm">
+    <div class="mail-studio__grid">
+        <form method="post" action="{{ route('admin.email-templates.update', $template) }}" class="sheet mail-studio__editor" id="templateForm">
             @csrf
             @method('PUT')
-            <div class="admin-card__head">
-                <h2>Inhalt</h2>
-                <p>Platzhalter wie <code>@{{owner_name}}</code> bleiben erhalten.</p>
+            <div class="sheet__head">
+                <div>
+                    <h2>Inhalt bearbeiten</h2>
+                    <p class="entity-sub" style="margin:0.25rem 0 0;">Schlüssel: <code>{{ $template->key }}</code></p>
+                </div>
             </div>
-            <div style="padding:1.25rem;">
+            <div class="mail-studio__pad">
                 <div class="form-group">
                     <label for="subject">Betreff</label>
-                    <input class="form-control" type="text" name="subject" id="subject" value="{{ old('subject', $template->subject) }}" required>
+                    <input class="form-control mail-studio__subject" type="text" name="subject" id="subject" value="{{ old('subject', $template->subject) }}" required>
                 </div>
+
+                <div class="mail-studio__tokens" aria-label="Platzhalter">
+                    <span class="mail-studio__tokens-label">Platzhalter einfügen</span>
+                    <div class="mail-studio__token-list">
+                        @foreach ($samplePlaceholders as $key => $sample)
+                            <button type="button" class="mail-token" data-token="{{ '{{'.$key.'}}' }}" title="Beispiel: {{ $sample }}">
+                                {{ $labels[$key] ?? $key }}
+                            </button>
+                        @endforeach
+                    </div>
+                </div>
+
                 <div class="form-group">
-                    <label for="body_html">HTML-Inhalt (innerer Block)</label>
-                    <textarea class="form-control" name="body_html" id="body_html" rows="14" required style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.82rem;line-height:1.45;">{{ old('body_html', $template->body_html) }}</textarea>
+                    <label for="body_html">E-Mail-Text</label>
+                    <textarea class="form-control" name="body_html" id="body_html" rows="16" required>{{ old('body_html', $template->body_html) }}</textarea>
+                    <p class="field-hint">Formatieren Sie Absätze und Listen. Platzhalter wie <code>@{{owner_name}}</code> bleiben beim Speichern erhalten.</p>
                 </div>
-                <div class="form-group">
-                    <label for="body_text">Text-Inhalt <span class="label-optional">(optional)</span></label>
-                    <textarea class="form-control" name="body_text" id="body_text" rows="5">{{ old('body_text', $template->body_text) }}</textarea>
-                </div>
-                <div style="display:flex;flex-wrap:wrap;gap:0.6rem;">
+
+                <details class="mail-studio__advanced">
+                    <summary>Optional: reiner Text (ohne HTML)</summary>
+                    <div class="form-group" style="margin-top:0.75rem;">
+                        <textarea class="form-control" name="body_text" id="body_text" rows="4">{{ old('body_text', $template->body_text) }}</textarea>
+                    </div>
+                </details>
+
+                <div class="mail-studio__actions">
                     <button type="submit" class="btn">Speichern</button>
                     <button type="button" class="btn btn--ghost" id="previewBtn">Vorschau aktualisieren</button>
                 </div>
             </div>
         </form>
 
-        <aside class="xp-side">
-            <section class="admin-card">
-                <div class="admin-card__head">
-                    <h2>Live-Vorschau</h2>
-                    <p>Mit Beispieldaten gerendert.</p>
+        <aside class="mail-studio__side">
+            <section class="sheet">
+                <div class="sheet__head">
+                    <div>
+                        <h2>Live-Vorschau</h2>
+                        <p class="entity-sub" style="margin:0.25rem 0 0;" id="previewSubjectLabel">Mit Beispieldaten</p>
+                    </div>
                 </div>
-                <div style="padding:0.75rem 1rem 1rem;">
-                    <iframe id="previewFrame" title="E-Mail-Vorschau" style="width:100%;min-height:420px;border:1px solid var(--line-soft);background:#fff;"></iframe>
+                <div class="mail-studio__preview-wrap">
+                    <iframe id="previewFrame" title="E-Mail-Vorschau"></iframe>
                 </div>
             </section>
             <script type="application/json" id="initialPreviewHtml">@json($previewHtml)</script>
 
-            <form method="post" action="{{ route('admin.email-templates.test', $template) }}" class="admin-card" style="margin-top:1rem;">
+            <form method="post" action="{{ route('admin.email-templates.test', $template) }}" class="sheet" style="margin-top:1rem;" id="testForm">
                 @csrf
-                <div class="admin-card__head">
-                    <h2>Testmail</h2>
-                    <p>Sendet die aktuelle Vorlage (gespeicherter Stand, falls nicht mitgesendet).</p>
+                <div class="sheet__head">
+                    <div>
+                        <h2>Testmail</h2>
+                        <p class="entity-sub" style="margin:0.25rem 0 0;">Sendet den aktuellen Editor-Inhalt.</p>
+                    </div>
                 </div>
-                <div style="padding:1rem 1.25rem 1.25rem;">
+                <div class="mail-studio__pad">
                     <div class="form-group">
                         <label for="test_email">Empfänger</label>
                         <input class="form-control" type="email" name="test_email" id="test_email" value="{{ auth()->user()->email }}" required>
@@ -85,6 +124,7 @@
     </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/tinymce@7.6.0/tinymce.min.js" referrerpolicy="origin"></script>
 <script>
 (function () {
     var btn = document.getElementById('previewBtn');
@@ -93,28 +133,31 @@
     var body = document.getElementById('body_html');
     var testBody = document.getElementById('test_body');
     var testSubject = document.getElementById('test_subject');
-    if (testBody) testBody.value = body ? body.value : '';
-    var initial = document.getElementById('initialPreviewHtml');
-    if (frame && initial) {
-        try { frame.srcdoc = JSON.parse(initial.textContent); } catch (e) {}
-    }
+    var previewLabel = document.getElementById('previewSubjectLabel');
+    var previewUrl = @json(route('admin.email-templates.preview', $template));
+    var previewTimer = null;
 
     function csrf() {
         var m = document.querySelector('meta[name="csrf-token"]');
         return m ? m.getAttribute('content') : '';
     }
+
+    function editorHtml() {
+        if (window.tinymce && tinymce.get('body_html')) {
+            return tinymce.get('body_html').getContent();
+        }
+        return body ? body.value : '';
+    }
+
     function syncTestFields() {
         if (testSubject) testSubject.value = subject.value;
-        if (testBody) testBody.value = body.value;
+        if (testBody) testBody.value = editorHtml();
     }
-    if (body) body.addEventListener('input', syncTestFields);
-    if (subject) subject.addEventListener('input', syncTestFields);
 
-    if (!btn || !frame) return;
-    btn.addEventListener('click', function () {
+    function refreshPreview() {
         syncTestFields();
-        btn.disabled = true;
-        fetch(@json(route('admin.email-templates.preview', $template)), {
+        if (btn) btn.disabled = true;
+        fetch(previewUrl, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -122,14 +165,70 @@
                 'X-CSRF-TOKEN': csrf(),
                 'X-Requested-With': 'XMLHttpRequest'
             },
-            body: JSON.stringify({ subject: subject.value, body_html: body.value })
+            body: JSON.stringify({ subject: subject.value, body_html: editorHtml() })
         }).then(function (r) { return r.json(); })
           .then(function (data) {
-              frame.srcdoc = data.html || '';
+              if (frame) frame.srcdoc = data.html || '';
+              if (previewLabel && data.subject) previewLabel.textContent = 'Betreff: ' + data.subject;
           }).catch(function () {
-              alert('Vorschau fehlgeschlagen.');
-          }).finally(function () { btn.disabled = false; });
+              /* keep last preview */
+          }).finally(function () { if (btn) btn.disabled = false; });
+    }
+
+    function schedulePreview() {
+        if (previewTimer) clearTimeout(previewTimer);
+        previewTimer = setTimeout(refreshPreview, 700);
+    }
+
+    var initial = document.getElementById('initialPreviewHtml');
+    if (frame && initial) {
+        try { frame.srcdoc = JSON.parse(initial.textContent); } catch (e) {}
+    }
+    syncTestFields();
+
+    if (window.tinymce) {
+        tinymce.init({
+            selector: '#body_html',
+            height: 420,
+            menubar: false,
+            branding: false,
+            promotion: false,
+            plugins: 'lists link autolink code',
+            toolbar: 'undo redo | blocks | bold italic underline | bullist numlist | link | removeformat | code',
+            block_formats: 'Absatz=p; Überschrift=h2',
+            content_style: 'body{font-family:Manrope,system-ui,sans-serif;font-size:15px;line-height:1.6;color:#1a2b3a;} p{margin:0 0 .85em;} a{color:#0E4971;}',
+            setup: function (editor) {
+                editor.on('change keyup SetContent', function () {
+                    editor.save();
+                    syncTestFields();
+                    schedulePreview();
+                });
+            }
+        });
+    }
+
+    document.querySelectorAll('.mail-token').forEach(function (el) {
+        el.addEventListener('click', function () {
+            var token = el.getAttribute('data-token') || '';
+            if (window.tinymce && tinymce.get('body_html')) {
+                tinymce.get('body_html').insertContent(token);
+            } else if (body) {
+                var start = body.selectionStart || 0;
+                var end = body.selectionEnd || 0;
+                body.value = body.value.slice(0, start) + token + body.value.slice(end);
+            }
+            syncTestFields();
+            schedulePreview();
+        });
     });
+
+    if (subject) subject.addEventListener('input', schedulePreview);
+    if (btn) btn.addEventListener('click', refreshPreview);
+
+    var testForm = document.getElementById('testForm');
+    if (testForm) {
+        testForm.addEventListener('submit', function () { syncTestFields(); });
+    }
 })();
 </script>
 @endsection

@@ -4,8 +4,10 @@ namespace App\Http\Controllers\PublicSite;
 
 use App\Http\Controllers\Controller;
 use App\Models\Canton;
+use App\Models\Event;
 use App\Models\Expert;
 use App\Models\Promotion;
+use App\Support\EventStatus;
 use App\Support\ExpertStatus;
 use App\Support\ProfessionalGroup;
 use App\Support\PromotionStatus;
@@ -108,7 +110,7 @@ class DirectoryController extends Controller
             'promotedExpertIds' => $promotedExpertIds->flip(),
             'cantons' => $cantons,
             'totalPublic' => $totalPublic,
-            'mapMarkers' => $this->buildMarkers($mapExperts, $promotedExpertIds),
+            'mapMarkers' => $this->buildMarkers($mapExperts, $promotedExpertIds, $cantonCode),
             'mapsApiKey' => $this->settings->get(SettingKey::GOOGLE_MAPS_API_KEY),
         ]);
     }
@@ -118,7 +120,7 @@ class DirectoryController extends Controller
      * @param  \Illuminate\Support\Collection<int, int>  $promotedIds
      * @return list<array<string, mixed>>
      */
-    private function buildMarkers($experts, $promotedIds): array
+    private function buildMarkers($experts, $promotedIds, string $cantonCode = ''): array
     {
         $markers = [];
 
@@ -137,7 +139,8 @@ class DirectoryController extends Controller
                 }
 
                 $markers[] = [
-                    'id' => $office->id,
+                    'id' => 'office-'.$office->id,
+                    'type' => 'expert',
                     'expert_id' => $expert->id,
                     'lat' => $lat,
                     'lng' => $lng,
@@ -155,6 +158,50 @@ class DirectoryController extends Controller
                     'sell' => (bool) $expert->offers_sell,
                 ];
             }
+        }
+
+        $events = Event::query()
+            ->where('status', EventStatus::PUBLISHED)
+            ->with('canton')
+            ->orderBy('starts_on')
+            ->limit(80)
+            ->get();
+
+        foreach ($events as $event) {
+            $lat = $event->latitude !== null ? (float) $event->latitude : null;
+            $lng = $event->longitude !== null ? (float) $event->longitude : null;
+            if (($lat === null || $lng === null) && $event->canton) {
+                $lat = $event->canton->latitude !== null ? (float) $event->canton->latitude : null;
+                $lng = $event->canton->longitude !== null ? (float) $event->canton->longitude : null;
+            }
+            if ($lat === null || $lng === null) {
+                continue;
+            }
+            $code = $event->canton->code ?? '';
+            if ($cantonCode !== '' && $code !== '' && $code !== $cantonCode) {
+                continue;
+            }
+
+            $markers[] = [
+                'id' => 'event-'.$event->id,
+                'type' => 'event',
+                'expert_id' => $event->expert_id,
+                'lat' => $lat,
+                'lng' => $lng,
+                'name' => $event->title,
+                'initial' => 'E',
+                'logo' => null,
+                'city' => trim(($event->postal_code ?? '').' '.($event->city ?? '')),
+                'address' => trim((string) ($event->location_name ?? $event->address_line ?? '')),
+                'canton' => $code,
+                'url' => route('events.show', $event->slug),
+                'promoted' => false,
+                'buy' => false,
+                'sell' => false,
+                'date' => $event->starts_on?->format('d.m.Y'),
+                'event_type' => $event->event_type,
+                'cta_label' => 'Event öffnen',
+            ];
         }
 
         return $markers;
