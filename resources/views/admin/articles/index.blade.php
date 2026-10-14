@@ -90,7 +90,7 @@
             </div>
         </div>
     @else
-        <form method="post" action="{{ route('admin.articles.bulk') }}" id="articlesBulkForm" class="admin-card">
+        <form method="post" action="{{ route('admin.articles.bulk') }}" id="articlesBulkForm" class="admin-bulk-form">
             @csrf
             <div class="admin-card__head admin-card__head--row">
                 <div>
@@ -98,23 +98,25 @@
                     <p>Seite {{ $articles->currentPage() }} von {{ max(1, $articles->lastPage()) }} · Mehrfachauswahl auf dieser Seite</p>
                 </div>
                 <div class="bulk-bar">
-                    <select class="form-control" name="action" id="bulkAction" required>
+                    <select class="form-control" name="action" id="bulkAction">
                         <option value="">Bulk-Aktion…</option>
                         <option value="block">Sperren / Deaktivieren</option>
                         <option value="unblock">Veröffentlichen</option>
                         <option value="draft">Als Entwurf</option>
                         <option value="delete">Löschen</option>
                     </select>
-                    <button type="submit" class="btn btn--small" onclick="return confirmArticlesBulk();">Ausführen</button>
+                    <button type="submit" class="btn btn--small">Ausführen</button>
                 </div>
             </div>
+        </form>
 
+        <div class="admin-card admin-card--flush-top">
             <div class="table-scroll">
                 <table class="entity-table">
                     <thead>
                         <tr>
                             <th class="col-check">
-                                <input type="checkbox" id="checkAll" aria-label="Alle auf dieser Seite auswählen">
+                                <input type="checkbox" id="checkAll" form="articlesBulkForm" aria-label="Alle auf dieser Seite auswählen">
                             </th>
                             <th>Beitrag</th>
                             <th>Experte</th>
@@ -126,7 +128,7 @@
                         @foreach ($articles as $article)
                             <tr>
                                 <td class="col-check">
-                                    <input type="checkbox" name="ids[]" value="{{ $article->id }}" class="row-check">
+                                    <input type="checkbox" name="ids[]" value="{{ $article->id }}" class="row-check" form="articlesBulkForm">
                                 </td>
                                 <td>
                                     <p class="entity-name">{{ $article->title }}</p>
@@ -143,7 +145,7 @@
                                     </span>
                                 </td>
                                 <td>
-                                    <div class="row-actions">
+                                    <div class="row-actions row-actions--stack">
                                         <a class="btn btn--ghost btn--small" href="{{ route('admin.articles.edit', $article) }}">Bearbeiten</a>
                                         @if ($article->status !== 'blocked')
                                             <form action="{{ route('admin.articles.block', $article) }}" method="post">
@@ -172,12 +174,13 @@
                 <p class="admin-pager-meta">{{ $articles->firstItem() }}–{{ $articles->lastItem() }} von {{ $articles->total() }}</p>
                 {{ $articles->links() }}
             </div>
-        </form>
+        </div>
     @endif
 </div>
 
 <script>
 (function () {
+    var bulkForm = document.getElementById('articlesBulkForm');
     var all = document.getElementById('checkAll');
     if (all) {
         all.addEventListener('change', function () {
@@ -186,14 +189,16 @@
             });
         });
     }
-    window.confirmArticlesBulk = function () {
-        var action = document.getElementById('bulkAction').value;
-        var checked = document.querySelectorAll('.row-check:checked').length;
-        if (!action) { alert('Bitte eine Bulk-Aktion wählen.'); return false; }
-        if (!checked) { alert('Bitte mindestens einen Artikel auswählen.'); return false; }
-        var labels = { block: 'sperren', unblock: 'veröffentlichen', draft: 'als Entwurf setzen', delete: 'löschen' };
-        return confirm(checked + ' Artikel wirklich «' + (labels[action] || action) + '»?');
-    };
+    if (bulkForm) {
+        bulkForm.addEventListener('submit', function (e) {
+            var action = document.getElementById('bulkAction').value;
+            var checked = document.querySelectorAll('.row-check:checked').length;
+            if (!action) { e.preventDefault(); alert('Bitte eine Bulk-Aktion wählen.'); return; }
+            if (!checked) { e.preventDefault(); alert('Bitte mindestens einen Artikel auswählen.'); return; }
+            var labels = { block: 'sperren', unblock: 'veröffentlichen', draft: 'als Entwurf setzen', delete: 'löschen' };
+            if (!confirm(checked + ' Artikel wirklich «' + (labels[action] || action) + '»?')) e.preventDefault();
+        });
+    }
 })();
 </script>
 @endsection

@@ -2073,6 +2073,8 @@ body.is-directory-page .site-footer {
     background: rgba(255, 255, 255, 0.08);
     border: 1px solid rgba(208, 233, 255, 0.22);
     transition: border-color 0.2s var(--ease), background 0.2s var(--ease), box-shadow 0.2s var(--ease);
+    position: relative;
+    z-index: 40;
 }
 
 .dx-bar__search:focus-within {
@@ -2086,7 +2088,14 @@ body.is-directory-page .site-footer {
     flex-shrink: 0;
 }
 
-.dx-bar__search input {
+.dx-bar__suggest-wrap {
+    flex: 1;
+    min-width: 0;
+    position: relative;
+}
+
+.dx-bar__search input,
+.dx-bar__suggest-wrap input {
     width: 100%;
     border: 0;
     outline: none;
@@ -2099,6 +2108,36 @@ body.is-directory-page .site-footer {
 
 .dx-bar__search input::placeholder {
     color: rgba(208, 233, 255, 0.45);
+}
+
+.dx-bar__search .xp-address-suggest__list {
+    left: -2.4rem;
+    right: -0.95rem;
+    top: calc(100% + 10px);
+    z-index: 90;
+    background: #0b2435;
+    border-color: rgba(208, 233, 255, 0.28);
+    color: #fff;
+}
+
+.dx-bar__search .xp-address-suggest__item {
+    background: transparent;
+    border-bottom-color: rgba(208, 233, 255, 0.12);
+    color: #fff;
+}
+
+.dx-bar__search .xp-address-suggest__item:hover,
+.dx-bar__search .xp-address-suggest__item:focus {
+    background: rgba(0, 157, 225, 0.18);
+}
+
+.dx-bar__search .xp-address-suggest__item strong {
+    color: #fff;
+}
+
+.dx-bar__search .xp-address-suggest__item span,
+.dx-bar__search .xp-address-suggest__loading {
+    color: rgba(208, 233, 255, 0.65);
 }
 
 .dx-bar__seg {
@@ -2867,6 +2906,30 @@ body.is-directory-page .site-footer {
     padding: 0 0.2rem;
     color: var(--stone);
     font-weight: 500;
+}
+
+.admin-bulk-form {
+    background: #fff;
+    border: 1px solid #c5d6e4;
+    border-bottom: 0;
+    box-shadow: 0 14px 36px rgba(14, 73, 113, 0.05);
+}
+
+.admin-card--flush-top {
+    border-top: 0;
+    box-shadow: 0 14px 36px rgba(14, 73, 113, 0.05);
+}
+
+.row-actions--stack {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    justify-content: flex-end;
+}
+
+.row-actions--stack form {
+    display: inline;
+    margin: 0;
 }
 
 .admin-price-chip {

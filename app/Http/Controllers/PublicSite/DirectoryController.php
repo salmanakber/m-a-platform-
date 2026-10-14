@@ -112,6 +112,7 @@ class DirectoryController extends Controller
             'totalPublic' => $totalPublic,
             'mapMarkers' => $this->buildMarkers($mapExperts, $promotedExpertIds, $cantonCode),
             'mapsApiKey' => $this->settings->get(SettingKey::GOOGLE_MAPS_API_KEY),
+            'suggestUrl' => route('map.suggest'),
         ]);
     }
 

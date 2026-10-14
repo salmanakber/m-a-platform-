@@ -31,9 +31,12 @@
                 </div>
             </div>
 
-            <div class="dx-bar__search">
+            <div class="dx-bar__search xp-address-suggest" data-suggest-root data-dir-suggest>
                 <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="2"/><path d="M20 20l-3.5-3.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-                <input type="search" name="q" id="q" value="{{ $q }}" placeholder="Firma, Ort oder PLZ suchen…" autocomplete="off">
+                <div class="xp-address-suggest__wrap dx-bar__suggest-wrap">
+                    <input type="search" name="q" id="q" value="{{ $q }}" placeholder="Firma, Adresse, Ort oder PLZ…" autocomplete="off" data-suggest-input aria-autocomplete="list">
+                    <div class="xp-address-suggest__list" data-suggest-list hidden role="listbox"></div>
+                </div>
             </div>
 
             <div class="dx-bar__seg" role="group" aria-label="Richtung">
@@ -191,6 +194,10 @@
 </div>
 
 @push('scripts')
+<script type="application/json" id="dirSuggestConfig">@json([
+    'url' => $suggestUrl ?? route('map.suggest'),
+    'mapId' => 'directorySplitMap',
+])</script>
 <script>
 (function () {
     var root = document.getElementById('dirExplorer');
@@ -240,7 +247,7 @@
             if (map && map.focusExpert) map.focusExpert(card.getAttribute('data-expert-id'));
             return;
         }
-        if (card && !e.target.closest('a')) {
+        if (card && !e.target.closest('a') && !e.target.closest('[data-suggest-root]')) {
             setActive(card.getAttribute('data-expert-id'), false);
             var map2 = api();
             if (map2 && map2.highlightExpert) map2.highlightExpert(card.getAttribute('data-expert-id'));
@@ -253,6 +260,155 @@
             setActive(expertId, true);
         }
     };
+
+    /* Address / place autosuggest */
+    var cfgEl = document.getElementById('dirSuggestConfig');
+    var suggestRoot = root.querySelector('[data-dir-suggest]');
+    if (!cfgEl || !suggestRoot) return;
+
+    var cfg = {};
+    try { cfg = JSON.parse(cfgEl.textContent || '{}'); } catch (e) { return; }
+    var suggestUrl = cfg.url;
+    var input = suggestRoot.querySelector('[data-suggest-input]');
+    var list = suggestRoot.querySelector('[data-suggest-list]');
+    var cantonSelect = document.getElementById('kanton');
+    var filterForm = root.querySelector('.dx-bar');
+    if (!suggestUrl || !input || !list) return;
+
+    var timer = null;
+    var lastQ = '';
+    var picking = false;
+
+    function focusOnMap(item, label) {
+        function go() {
+            var map = api();
+            if (map && map.focusLocation && item.latitude != null && item.longitude != null) {
+                map.focusLocation(item.latitude, item.longitude, label);
+                return true;
+            }
+            return false;
+        }
+        if (go()) return;
+        var tries = 0;
+        var wait = setInterval(function () {
+            tries++;
+            if (go() || tries > 20) clearInterval(wait);
+        }, 150);
+    }
+
+    function applySuggestion(item) {
+        picking = true;
+        var searchBits = [item.postal_code, item.city].filter(Boolean);
+        var searchValue = searchBits.length ? searchBits.join(' ') : (item.address_line || item.label || input.value);
+        input.value = searchValue;
+
+        if (item.canton_code && cantonSelect) {
+            var code = String(item.canton_code).toUpperCase();
+            var opt = Array.prototype.find.call(cantonSelect.options, function (o) {
+                return o.value === code;
+            });
+            if (opt) cantonSelect.value = code;
+        }
+
+        var label = item.label || searchValue;
+        list.hidden = true;
+
+        // Persist pin across filter reload
+        try {
+            if (item.latitude != null && item.longitude != null) {
+                sessionStorage.setItem('ne_dir_focus', JSON.stringify({
+                    lat: item.latitude,
+                    lng: item.longitude,
+                    label: label
+                }));
+            }
+        } catch (err) {}
+
+        if (filterForm) {
+            filterForm.submit();
+            return;
+        }
+        focusOnMap(item, label);
+    }
+
+    // Restore search pin after filter submit
+    try {
+        var saved = sessionStorage.getItem('ne_dir_focus');
+        if (saved) {
+            sessionStorage.removeItem('ne_dir_focus');
+            var point = JSON.parse(saved);
+            focusOnMap({ latitude: point.lat, longitude: point.lng }, point.label || '');
+        }
+    } catch (err) {}
+
+    function renderList(items) {
+        list.innerHTML = '';
+        if (!items.length) {
+            list.hidden = true;
+            return;
+        }
+        items.forEach(function (item) {
+            var btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'xp-address-suggest__item';
+            btn.setAttribute('role', 'option');
+            btn.innerHTML = '<strong></strong><span></span>';
+            btn.querySelector('strong').textContent = item.address_line || item.city || item.label || 'Adresse';
+            var meta = [item.postal_code, item.city, item.canton_code].filter(Boolean).join(' · ');
+            btn.querySelector('span').textContent = meta || item.label || '';
+            btn.addEventListener('mousedown', function (e) {
+                e.preventDefault();
+                applySuggestion(item);
+            });
+            list.appendChild(btn);
+        });
+        list.hidden = false;
+    }
+
+    input.addEventListener('input', function () {
+        if (picking) { picking = false; return; }
+        var q = (input.value || '').trim();
+        if (timer) clearTimeout(timer);
+        if (q.length < 3) {
+            list.hidden = true;
+            list.innerHTML = '';
+            return;
+        }
+        timer = setTimeout(function () {
+            if (q === lastQ) return;
+            lastQ = q;
+            list.innerHTML = '<div class="xp-address-suggest__loading">Suche Adressen…</div>';
+            list.hidden = false;
+            fetch(suggestUrl + '?q=' + encodeURIComponent(q), {
+                headers: {
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                credentials: 'same-origin'
+            }).then(function (r) { return r.json(); })
+              .then(function (data) {
+                  if ((input.value || '').trim() !== q) return;
+                  renderList(data.suggestions || []);
+              }).catch(function () {
+                  list.innerHTML = '<div class="xp-address-suggest__loading">Keine Vorschläge verfügbar</div>';
+              });
+        }, 280);
+    });
+
+    input.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') list.hidden = true;
+        if (e.key === 'Enter' && !list.hidden) {
+            var first = list.querySelector('.xp-address-suggest__item');
+            if (first) {
+                e.preventDefault();
+                first.dispatchEvent(new Event('mousedown'));
+            }
+        }
+    });
+
+    document.addEventListener('click', function (e) {
+        if (!suggestRoot.contains(e.target)) list.hidden = true;
+    });
 })();
 </script>
 @endpush

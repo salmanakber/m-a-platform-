@@ -52,7 +52,7 @@
 
     <div class="status-help">
         <strong>Ablauf</strong>
-        <span>Experte fragt Slot an → Status <em>Ausstehend</em> → Admin erstellt Rechnung (Betrag = Monatspreis) → Zahlung markieren → Aktivieren. «Freie Slots» beim Experten meint <em>freie Plätze</em>, nicht kostenlos.</span>
+        <span>Experte fragt Slot an → Status <em>Ausstehend</em> → Admin erstellt Rechnung → Zahlung markieren → Aktivieren. «Freie Slots» = freie Plätze, nicht kostenlos.</span>
     </div>
 
     <div class="admin-status-chips" role="group" aria-label="Status schnell filtern">
@@ -63,7 +63,7 @@
         <a class="admin-status-chip {{ ($status ?? '') === 'cancelled' ? 'is-on' : '' }}" href="{{ route('admin.promotions.index', $chipBase + ['status' => 'cancelled']) }}">Storniert</a>
     </div>
 
-    <form method="get" class="admin-filterbar">
+    <form method="get" class="admin-filterbar" id="promoFilterForm">
         <div class="admin-filterbar__fields">
             <div class="form-group">
                 <label for="q">Suche</label>
@@ -104,7 +104,8 @@
             </div>
         </div>
     @else
-        <form method="post" action="{{ route('admin.promotions.bulk') }}" id="promotionsBulkForm" class="admin-card">
+        {{-- Bulk form is separate (no nesting). Checkboxes use form="…". --}}
+        <form method="post" action="{{ route('admin.promotions.bulk') }}" id="promotionsBulkForm" class="admin-bulk-form">
             @csrf
             <div class="admin-card__head admin-card__head--row">
                 <div>
@@ -112,26 +113,28 @@
                     <p>Seite {{ $promotions->currentPage() }} von {{ max(1, $promotions->lastPage()) }}</p>
                 </div>
                 <div class="bulk-bar">
-                    <select class="form-control" name="action" id="bulkAction" required>
+                    <select class="form-control" name="action" id="bulkAction">
                         <option value="">Bulk-Aktion…</option>
                         <option value="activate">Aktivieren</option>
                         <option value="expire">Beenden</option>
                         <option value="cancel">Stornieren</option>
                     </select>
-                    <button type="submit" class="btn btn--small" onclick="return confirmPromotionsBulk();">Ausführen</button>
+                    <button type="submit" class="btn btn--small" id="bulkSubmit">Ausführen</button>
                 </div>
             </div>
+        </form>
 
+        <div class="admin-card admin-card--flush-top">
             <div class="table-scroll">
                 <table class="entity-table">
                     <thead>
                         <tr>
-                            <th class="col-check"><input type="checkbox" id="checkAll" aria-label="Alle auswählen"></th>
+                            <th class="col-check"><input type="checkbox" id="checkAll" form="promotionsBulkForm" aria-label="Alle auswählen"></th>
                             <th>Experte</th>
                             <th>Kanton / Pos.</th>
                             <th>Status</th>
                             <th>Rechnung / Betrag</th>
-                            <th></th>
+                            <th>Aktionen</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -139,7 +142,7 @@
                             @php $invoice = $promotion->invoice; @endphp
                             <tr>
                                 <td class="col-check">
-                                    <input type="checkbox" name="ids[]" value="{{ $promotion->id }}" class="row-check">
+                                    <input type="checkbox" name="ids[]" value="{{ $promotion->id }}" class="row-check" form="promotionsBulkForm">
                                 </td>
                                 <td>
                                     <div class="entity-primary">
@@ -172,11 +175,11 @@
                                         </p>
                                     @else
                                         <p class="entity-name" style="color:var(--stone);">Keine Rechnung</p>
-                                        <p class="entity-sub">Preis-Vorlage: {{ number_format((float) ($monthlyPrice ?? 0), 2, '.', "'") }} CHF</p>
+                                        <p class="entity-sub">Vorlage: {{ number_format((float) ($monthlyPrice ?? 0), 2, '.', "'") }} CHF</p>
                                     @endif
                                 </td>
                                 <td>
-                                    <div class="row-actions">
+                                    <div class="row-actions row-actions--stack">
                                         @if (! $invoice && $promotion->status === 'pending')
                                             <form action="{{ route('admin.promotions.create-invoice', $promotion) }}" method="post">
                                                 @csrf
@@ -212,25 +215,38 @@
                 <p class="admin-pager-meta">{{ $promotions->firstItem() }}–{{ $promotions->lastItem() }} von {{ $promotions->total() }}</p>
                 {{ $promotions->links() }}
             </div>
-        </form>
+        </div>
     @endif
 </div>
 
 <script>
 (function () {
+    var bulkForm = document.getElementById('promotionsBulkForm');
     var all = document.getElementById('checkAll');
     if (all) {
         all.addEventListener('change', function () {
             document.querySelectorAll('.row-check').forEach(function (el) { el.checked = all.checked; });
         });
     }
-    window.confirmPromotionsBulk = function () {
-        var action = document.getElementById('bulkAction').value;
-        var checked = document.querySelectorAll('.row-check:checked').length;
-        if (!action) { alert('Bitte eine Bulk-Aktion wählen.'); return false; }
-        if (!checked) { alert('Bitte mindestens eine Promotion auswählen.'); return false; }
-        return confirm(checked + ' Promotion(en) wirklich ausführen?');
-    };
+    if (bulkForm) {
+        bulkForm.addEventListener('submit', function (e) {
+            var action = document.getElementById('bulkAction').value;
+            var checked = document.querySelectorAll('.row-check:checked').length;
+            if (!action) {
+                e.preventDefault();
+                alert('Bitte eine Bulk-Aktion wählen.');
+                return;
+            }
+            if (!checked) {
+                e.preventDefault();
+                alert('Bitte mindestens eine Promotion auswählen.');
+                return;
+            }
+            if (!confirm(checked + ' Promotion(en) wirklich ausführen?')) {
+                e.preventDefault();
+            }
+        });
+    }
 })();
 </script>
 @endsection

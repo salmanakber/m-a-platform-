@@ -47,10 +47,8 @@
     <div class="status-help">
         <strong>So funktioniert’s</strong>
         <span>
-            1) Experte fragt Promotion an → 2) unter <a href="{{ route('admin.promotions.index') }}">Promotionen</a> «Rechnung» erstellen (Betrag aus Einstellungen) →
-            3) Rechnung extern stellen → 4) hier Zahlung auf <em>Bezahlt</em> setzen (optional Promotion aktivieren) →
-            5) Slot erscheint im Verzeichnis.
-            Rechnungen werden <em>nicht</em> automatisch erzeugt — nur manuell.
+            1) Experte fragt Promotion an → 2) unter <a href="{{ route('admin.promotions.index') }}">Promotionen</a> «Rechnung» erstellen →
+            3) Rechnung extern stellen → 4) hier auf <em>Bezahlt</em> setzen (optional Promotion aktivieren).
         </span>
     </div>
 
@@ -62,7 +60,7 @@
         <a class="admin-status-chip {{ ($paymentStatus ?? '') === 'cancelled' ? 'is-on' : '' }}" href="{{ route('admin.invoices.index', $chipBase + ['payment_status' => 'cancelled']) }}">Storniert</a>
     </div>
 
-    <form method="get" class="admin-filterbar">
+    <form method="get" class="admin-filterbar" id="invoiceFilterForm">
         <div class="admin-filterbar__fields">
             <div class="form-group">
                 <label for="q">Suche</label>
@@ -102,7 +100,7 @@
             </div>
         </div>
     @else
-        <form method="post" action="{{ route('admin.invoices.bulk') }}" id="invoicesBulkForm" class="admin-card">
+        <form method="post" action="{{ route('admin.invoices.bulk') }}" id="invoicesBulkForm" class="admin-bulk-form">
             @csrf
             @method('PATCH')
             <div class="admin-card__head admin-card__head--row">
@@ -111,7 +109,7 @@
                     <p>Seite {{ $invoices->currentPage() }} von {{ max(1, $invoices->lastPage()) }}</p>
                 </div>
                 <div class="bulk-bar">
-                    <select class="form-control" name="payment_status" id="bulkStatus" required>
+                    <select class="form-control" name="payment_status" id="bulkStatus">
                         <option value="">Status setzen…</option>
                         @foreach ($paymentStatuses as $ps)
                             <option value="{{ $ps }}">{{ $statusLabel[$ps] ?? $ps }}</option>
@@ -121,15 +119,17 @@
                         <input type="checkbox" name="activate_promotion" value="1">
                         Bei «Bezahlt» Promotion aktivieren
                     </label>
-                    <button type="submit" class="btn btn--small" onclick="return confirmInvoicesBulk();">Ausführen</button>
+                    <button type="submit" class="btn btn--small">Ausführen</button>
                 </div>
             </div>
+        </form>
 
+        <div class="admin-card admin-card--flush-top">
             <div class="table-scroll">
                 <table class="entity-table">
                     <thead>
                         <tr>
-                            <th class="col-check"><input type="checkbox" id="checkAll" aria-label="Alle auswählen"></th>
+                            <th class="col-check"><input type="checkbox" id="checkAll" form="invoicesBulkForm" aria-label="Alle auswählen"></th>
                             <th>Rechnung</th>
                             <th>Experte</th>
                             <th>Promotion</th>
@@ -145,7 +145,7 @@
                             @endphp
                             <tr>
                                 <td class="col-check">
-                                    <input type="checkbox" name="ids[]" value="{{ $invoice->id }}" class="row-check">
+                                    <input type="checkbox" name="ids[]" value="{{ $invoice->id }}" class="row-check" form="invoicesBulkForm">
                                 </td>
                                 <td>
                                     <p class="entity-name">{{ $invoice->invoice_number ?? '#'.$invoice->id }}</p>
@@ -196,25 +196,38 @@
                 <p class="admin-pager-meta">{{ $invoices->firstItem() }}–{{ $invoices->lastItem() }} von {{ $invoices->total() }}</p>
                 {{ $invoices->links() }}
             </div>
-        </form>
+        </div>
     @endif
 </div>
 
 <script>
 (function () {
+    var bulkForm = document.getElementById('invoicesBulkForm');
     var all = document.getElementById('checkAll');
     if (all) {
         all.addEventListener('change', function () {
             document.querySelectorAll('.row-check').forEach(function (el) { el.checked = all.checked; });
         });
     }
-    window.confirmInvoicesBulk = function () {
-        var status = document.getElementById('bulkStatus').value;
-        var checked = document.querySelectorAll('.row-check:checked').length;
-        if (!status) { alert('Bitte einen Status wählen.'); return false; }
-        if (!checked) { alert('Bitte mindestens eine Rechnung auswählen.'); return false; }
-        return confirm(checked + ' Rechnung(en) auf «' + status + '» setzen?');
-    };
+    if (bulkForm) {
+        bulkForm.addEventListener('submit', function (e) {
+            var status = document.getElementById('bulkStatus').value;
+            var checked = document.querySelectorAll('.row-check:checked').length;
+            if (!status) {
+                e.preventDefault();
+                alert('Bitte einen Status wählen.');
+                return;
+            }
+            if (!checked) {
+                e.preventDefault();
+                alert('Bitte mindestens eine Rechnung auswählen.');
+                return;
+            }
+            if (!confirm(checked + ' Rechnung(en) auf «' + status + '» setzen?')) {
+                e.preventDefault();
+            }
+        });
+    }
 })();
 </script>
 @endsection
