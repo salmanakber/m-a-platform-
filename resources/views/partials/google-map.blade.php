@@ -162,6 +162,7 @@
                     });
                     var markerIndex = {};
                     var activeExpertId = null;
+                    var searchMarker = null;
 
                     google.maps.event.addListener(info, 'domready', function () {
                         document.querySelectorAll('.gm-style-iw-chr, .gm-ui-hover-effect').forEach(function (node) {
@@ -230,11 +231,45 @@
                         setActive(null, false);
                     }
 
+                    function focusLocation(lat, lng, label) {
+                        var pos = { lat: Number(lat), lng: Number(lng) };
+                        if (!isFinite(pos.lat) || !isFinite(pos.lng)) return;
+                        if (searchMarker) {
+                            searchMarker.setMap(null);
+                            searchMarker = null;
+                        }
+                        searchMarker = new google.maps.Marker({
+                            position: pos,
+                            map: map,
+                            title: label || 'Standort',
+                            zIndex: 2000,
+                            icon: {
+                                path: google.maps.SymbolPath.CIRCLE,
+                                scale: 10,
+                                fillColor: '#0E4971',
+                                fillOpacity: 1,
+                                strokeColor: '#ffffff',
+                                strokeWeight: 3
+                            }
+                        });
+                        map.panTo(pos);
+                        if (map.getZoom() < 12) map.setZoom(13);
+                        if (label) {
+                            info.setContent(
+                                '<div class="ne-pop"><div class="ne-pop__body"><strong class="ne-pop__name">' +
+                                esc(label) +
+                                '</strong><div class="ne-pop__meta">Gesuchter Standort</div></div></div>'
+                            );
+                            info.open({ map: map, anchor: searchMarker });
+                        }
+                    }
+
                     window.__NE_MAP_API = window.__NE_MAP_API || {};
                     window.__NE_MAP_API[mapId] = {
                         highlightExpert: function (expertId) { setActive(expertId, false); },
                         focusExpert: function (expertId) { setActive(expertId, true); },
                         clearHighlight: clearHighlight,
+                        focusLocation: focusLocation,
                         map: map
                     };
 

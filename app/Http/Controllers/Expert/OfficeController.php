@@ -46,7 +46,7 @@ class OfficeController extends Controller
         ]);
 
         return response()->json([
-            'suggestions' => $this->geocoder->suggest($validated['q'], 6),
+            'suggestions' => $this->geocoder->suggest($validated['q'], 6, 'address'),
         ]);
     }
 

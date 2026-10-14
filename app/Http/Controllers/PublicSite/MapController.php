@@ -6,19 +6,34 @@ use App\Http\Controllers\Controller;
 use App\Models\Event;
 use App\Models\ExpertOffice;
 use App\Models\Promotion;
+use App\Services\Maps\GeocodingService;
+use App\Services\Settings\SettingsService;
 use App\Support\EventStatus;
 use App\Support\ExpertStatus;
 use App\Support\ProfessionalGroup;
 use App\Support\PromotionStatus;
 use App\Support\SettingKey;
-use App\Services\Settings\SettingsService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 class MapController extends Controller
 {
-    public function __construct(private SettingsService $settings)
+    public function __construct(
+        private SettingsService $settings,
+        private GeocodingService $geocoder
+    ) {
+    }
+
+    public function suggest(Request $request): JsonResponse
     {
+        $validated = $request->validate([
+            'q' => ['required', 'string', 'min:3', 'max:200'],
+        ]);
+
+        return response()->json([
+            'suggestions' => $this->geocoder->suggest($validated['q'], 6, 'geocode'),
+        ]);
     }
 
     public function index(Request $request): View
@@ -163,6 +178,7 @@ class MapController extends Controller
             'mapsApiKey' => $this->settings->get(SettingKey::GOOGLE_MAPS_API_KEY),
             'promotedIds' => $promotedIds->flip(),
             'showEvents' => $showEvents,
+            'suggestUrl' => route('map.suggest'),
         ]);
     }
 }

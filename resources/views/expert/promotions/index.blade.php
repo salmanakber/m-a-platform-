@@ -40,9 +40,9 @@
 
     <div class="xp-stat-grid xp-stat-grid--4">
         <div class="xp-stat xp-stat--static">
-            <span>Freie Slots</span>
+            <span>Freie Plätze</span>
             <strong>{{ $freeSlots }}</strong>
-            <em>aktuell verfügbar</em>
+            <em>verfügbare Positionen (nicht kostenlos)</em>
         </div>
         <div class="xp-stat xp-stat--static">
             <span>Belegt</span>

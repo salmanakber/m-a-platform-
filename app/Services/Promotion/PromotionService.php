@@ -98,29 +98,44 @@ class PromotionService
     {
         DB::transaction(function () use ($promotion) {
             $promotion->update(['status' => PromotionStatus::EXPIRED]);
-
-            $next = PromotionWaitlist::query()
-                ->where('canton_id', $promotion->canton_id)
-                ->where(function ($query) use ($promotion) {
-                    $query->whereNull('position_number')
-                        ->orWhere('position_number', $promotion->position_number);
-                })
-                ->orderBy('queue_order')
-                ->lockForUpdate()
-                ->first();
-
-            if ($next === null) {
-                return;
-            }
-
-            Promotion::query()->create([
-                'expert_id' => $next->expert_id,
-                'canton_id' => $next->canton_id,
-                'position_number' => $promotion->position_number,
-                'status' => PromotionStatus::PENDING,
-            ]);
-
-            $next->delete();
+            $this->promoteNextFromWaitlist($promotion);
         });
+    }
+
+    public function cancelPromotion(Promotion $promotion): void
+    {
+        DB::transaction(function () use ($promotion) {
+            $promotion->update([
+                'status' => PromotionStatus::CANCELLED,
+                'ends_at' => now(),
+            ]);
+            $this->promoteNextFromWaitlist($promotion);
+        });
+    }
+
+    private function promoteNextFromWaitlist(Promotion $promotion): void
+    {
+        $next = PromotionWaitlist::query()
+            ->where('canton_id', $promotion->canton_id)
+            ->where(function ($query) use ($promotion) {
+                $query->whereNull('position_number')
+                    ->orWhere('position_number', $promotion->position_number);
+            })
+            ->orderBy('queue_order')
+            ->lockForUpdate()
+            ->first();
+
+        if ($next === null) {
+            return;
+        }
+
+        Promotion::query()->create([
+            'expert_id' => $next->expert_id,
+            'canton_id' => $next->canton_id,
+            'position_number' => $promotion->position_number,
+            'status' => PromotionStatus::PENDING,
+        ]);
+
+        $next->delete();
     }
 }

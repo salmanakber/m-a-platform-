@@ -44,6 +44,7 @@ Route::get('/kanton/{code}', [CantonController::class, 'show'])->name('cantons.s
 Route::get('/kantone', [CantonController::class, 'index'])->name('cantons.index');
 
 Route::get('/karte', [MapController::class, 'index'])->name('map.index');
+Route::get('/karte/vorschlaege', [MapController::class, 'suggest'])->name('map.suggest');
 
 Route::get('/blog', [PublicArticleController::class, 'index'])->name('blog.index');
 Route::get('/blog/{slug}', [PublicArticleController::class, 'show'])->name('blog.show');
@@ -92,6 +93,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin'])->grou
     Route::patch('/anfragen/{lead}/status', [AdminLeadController::class, 'updateStatus'])->name('leads.update-status');
 
     Route::get('/artikel', [AdminArticleController::class, 'index'])->name('articles.index');
+    Route::post('/artikel/bulk', [AdminArticleController::class, 'bulk'])->name('articles.bulk');
     Route::get('/artikel/{article}/bearbeiten', [AdminArticleController::class, 'edit'])->name('articles.edit');
     Route::put('/artikel/{article}', [AdminArticleController::class, 'update'])->name('articles.update');
     Route::post('/artikel/{article}/sperren', [AdminArticleController::class, 'block'])->name('articles.block');
@@ -99,10 +101,14 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin'])->grou
     Route::delete('/artikel/{article}', [AdminArticleController::class, 'destroy'])->name('articles.destroy');
 
     Route::get('/promotionen', [AdminPromotionController::class, 'index'])->name('promotions.index');
+    Route::post('/promotionen/bulk', [AdminPromotionController::class, 'bulk'])->name('promotions.bulk');
     Route::post('/promotionen/{promotion}/aktivieren', [AdminPromotionController::class, 'activate'])->name('promotions.activate');
     Route::post('/promotionen/{promotion}/beenden', [AdminPromotionController::class, 'expire'])->name('promotions.expire');
+    Route::post('/promotionen/{promotion}/stornieren', [AdminPromotionController::class, 'cancel'])->name('promotions.cancel');
+    Route::post('/promotionen/{promotion}/rechnung', [AdminPromotionController::class, 'createInvoice'])->name('promotions.create-invoice');
 
     Route::get('/rechnungen', [AdminInvoiceController::class, 'index'])->name('invoices.index');
+    Route::patch('/rechnungen/bulk', [AdminInvoiceController::class, 'bulk'])->name('invoices.bulk');
     Route::patch('/rechnungen/{invoice}/zahlungsstatus', [AdminInvoiceController::class, 'updatePaymentStatus'])->name('invoices.update-payment-status');
 
     Route::get('/einstellungen', [AdminSettingsController::class, 'edit'])->name('settings.edit');

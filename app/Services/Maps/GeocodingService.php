@@ -26,7 +26,10 @@ class GeocodingService
      *     longitude: float|null
      * }>
      */
-    public function suggest(string $query, int $limit = 6): array
+    /**
+     * @param  string|null  $types  Google Places Autocomplete types, e.g. "address", "geocode", or null for all
+     */
+    public function suggest(string $query, int $limit = 6, ?string $types = 'geocode'): array
     {
         $query = trim($query);
         if (mb_strlen($query) < 3) {
@@ -35,7 +38,7 @@ class GeocodingService
 
         $limit = max(1, min(8, $limit));
 
-        $google = $this->suggestViaGoogle($query, $limit);
+        $google = $this->suggestViaGoogle($query, $limit, $types);
         if ($google !== []) {
             return $google;
         }
@@ -78,7 +81,7 @@ class GeocodingService
     /**
      * @return list<array<string, mixed>>
      */
-    private function suggestViaGoogle(string $query, int $limit): array
+    private function suggestViaGoogle(string $query, int $limit, ?string $types = 'geocode'): array
     {
         $apiKey = $this->settings->get(SettingKey::GOOGLE_MAPS_API_KEY);
         if (blank($apiKey)) {
@@ -86,13 +89,17 @@ class GeocodingService
         }
 
         try {
-            $response = Http::timeout(10)->get('https://maps.googleapis.com/maps/api/place/autocomplete/json', [
+            $params = [
                 'input' => $query,
-                'types' => 'address',
                 'components' => 'country:ch',
                 'language' => 'de',
                 'key' => $apiKey,
-            ]);
+            ];
+            if ($types !== null && $types !== '') {
+                $params['types'] = $types;
+            }
+
+            $response = Http::timeout(10)->get('https://maps.googleapis.com/maps/api/place/autocomplete/json', $params);
 
             if (! $response->successful()) {
                 return [];

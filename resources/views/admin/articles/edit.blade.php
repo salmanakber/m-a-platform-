@@ -2,12 +2,38 @@
 
 @section('title', 'Artikel bearbeiten')
 
-@section('content')
-    <a href="{{ route('admin.articles.index') }}" class="back-link">← Zurück</a>
-    <h1 style="font-family:var(--font-display);margin-top:0;">{{ $article->title }}</h1>
-    <p style="color:var(--stone);">Experte: {{ $article->expert->company_name ?? '—' }}</p>
+@section('breadcrumbs')
+    <a href="{{ route('admin.dashboard') }}">Admin</a>
+    <span>/</span>
+    <a href="{{ route('admin.articles.index') }}">Artikel</a>
+    <span>/</span>
+    <span>Bearbeiten</span>
+@endsection
 
-    <form method="post" action="{{ route('admin.articles.update', $article) }}" class="card">
+@section('content')
+@php
+    $statusLabel = [
+        'published' => 'Veröffentlicht',
+        'blocked' => 'Gesperrt',
+        'draft' => 'Entwurf',
+    ];
+@endphp
+
+<div class="admin-page">
+    <header class="admin-page-hero">
+        <div>
+            <p class="page-kicker">Artikel</p>
+            <h1>{{ $article->title }}</h1>
+            <p>Experte: {{ $article->expert->company_name ?? '—' }}</p>
+        </div>
+        <div class="admin-page-hero__actions">
+            <a class="btn btn--ghost btn--small" href="{{ route('admin.articles.index') }}">← Zurück</a>
+        </div>
+    </header>
+
+    @include('partials.flash')
+
+    <form method="post" action="{{ route('admin.articles.update', $article) }}" class="admin-card" style="padding:1.15rem 1.25rem 1.35rem;">
         @csrf
         @method('PUT')
         <div class="form-group">
@@ -35,16 +61,16 @@
             <label for="status">Status</label>
             <select class="form-control" name="status" id="status">
                 @foreach ($statuses as $s)
-                    <option value="{{ $s }}" @selected(old('status', $article->status) === $s)>{{ $s }}</option>
+                    <option value="{{ $s }}" @selected(old('status', $article->status) === $s)>{{ $statusLabel[$s] ?? $s }}</option>
                 @endforeach
             </select>
         </div>
         <button type="submit" class="btn">Speichern</button>
     </form>
 
-    <div class="action-bar">
+    <div class="action-bar" style="margin-top:1rem;display:flex;flex-wrap:wrap;gap:0.5rem;">
         @if ($article->status !== 'blocked')
-            <form action="{{ route('admin.articles.block', $article) }}" method="post">@csrf<button type="submit" class="btn btn--ghost">Sperren</button></form>
+            <form action="{{ route('admin.articles.block', $article) }}" method="post">@csrf<button type="submit" class="btn btn--ghost">Sperren / Deaktivieren</button></form>
         @else
             <form action="{{ route('admin.articles.unblock', $article) }}" method="post">@csrf<button type="submit" class="btn">Entsperren</button></form>
         @endif
@@ -54,4 +80,5 @@
             <button type="submit" class="btn btn--ghost">Löschen</button>
         </form>
     </div>
+</div>
 @endsection

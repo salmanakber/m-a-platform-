@@ -102,4 +102,47 @@ class ArticleController extends Controller
             ->route('admin.articles.index')
             ->with('success', 'Artikel gelöscht.');
     }
+
+    public function bulk(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'action' => ['required', 'in:block,unblock,draft,delete'],
+            'ids' => ['required', 'array', 'min:1'],
+            'ids.*' => ['integer', 'exists:articles,id'],
+        ]);
+
+        $articles = Article::query()->whereIn('id', $validated['ids'])->get();
+        $count = 0;
+
+        foreach ($articles as $article) {
+            switch ($validated['action']) {
+                case 'block':
+                    $article->update([
+                        'status' => ArticleStatus::BLOCKED,
+                        'blocked_at' => now(),
+                        'blocked_by' => Auth::id(),
+                    ]);
+                    $count++;
+                    break;
+                case 'unblock':
+                    $article->update([
+                        'status' => ArticleStatus::PUBLISHED,
+                        'blocked_at' => null,
+                        'blocked_by' => null,
+                    ]);
+                    $count++;
+                    break;
+                case 'draft':
+                    $article->update(['status' => ArticleStatus::DRAFT]);
+                    $count++;
+                    break;
+                case 'delete':
+                    $article->delete();
+                    $count++;
+                    break;
+            }
+        }
+
+        return back()->with('success', $count.' Artikel aktualisiert.');
+    }
 }
