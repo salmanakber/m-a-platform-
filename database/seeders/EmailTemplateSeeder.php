@@ -142,7 +142,7 @@ HTML,
     Guten Tag <strong style="color:#0E4971;">{{contact_name}}</strong>,
 </p>
 <p style="margin:0 0 18px;font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.6;color:#0a2a42;">
-    anbei Ihre Rechnung für die kantonalen Promotion von
+    anbei Ihre Rechnung für die kantonale Promotion von
     <strong style="color:#0E4971;">{{company_name}}</strong>.
     Bitte begleichen Sie den Betrag gemäss den Zahlungsangaben — nach Zahlungseingang schalten wir Ihre Promotion frei.
 </p>
@@ -180,7 +180,7 @@ HTML,
         </td>
     </tr>
 </table>
-HTML
+HTML,
                 'body_text' => "Zahlung bestätigt — Rechnung {{invoice_number}}\n\nGuten Tag {{contact_name}},\n\nWir haben Ihre Zahlung ({{amount}} {{currency}}) erhalten.\nLeistung: {{service_title}} — {{service_detail}}\nIhre Promotion ist freigeschaltet.",
             ],
         ];
