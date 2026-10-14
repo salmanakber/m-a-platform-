@@ -138,6 +138,8 @@ class DirectoryController extends Controller
                     continue;
                 }
 
+                $groupKey = $expert->professional_group ?: ProfessionalGroup::MA_SPECIALIST;
+
                 $markers[] = [
                     'id' => 'office-'.$office->id,
                     'type' => 'expert',
@@ -151,7 +153,9 @@ class DirectoryController extends Controller
                     'city' => trim(($office->postal_code ?? '').' '.($office->city ?? '')),
                     'address' => trim((string) ($office->address_line ?? '')),
                     'canton' => $office->canton->code ?? '',
-                    'group' => $expert->professional_group,
+                    'group' => $groupKey,
+                    'group_label' => ProfessionalGroup::label($groupKey),
+                    'color' => ProfessionalGroup::color($groupKey),
                     'url' => route('experts.show', $expert->slug),
                     'promoted' => $promotedIds->contains($expert->id),
                     'buy' => (bool) $expert->offers_buy,

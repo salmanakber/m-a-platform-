@@ -71,6 +71,8 @@ class MapController extends Controller
                 continue;
             }
 
+            $groupKey = $office->expert->professional_group ?: ProfessionalGroup::MA_SPECIALIST;
+
             $markers[] = [
                 'id' => 'office-'.$office->id,
                 'type' => 'expert',
@@ -83,6 +85,9 @@ class MapController extends Controller
                 'city' => trim(($office->postal_code ?? '').' '.($office->city ?? '')),
                 'address' => trim((string) ($office->address_line ?? '')),
                 'canton' => $office->canton->code ?? '',
+                'group' => $groupKey,
+                'group_label' => ProfessionalGroup::label($groupKey),
+                'color' => ProfessionalGroup::color($groupKey),
                 'url' => route('experts.show', $office->expert->slug),
                 'promoted' => $promotedIds->contains($office->expert_id),
                 'buy' => (bool) $office->expert->offers_buy,
@@ -154,6 +159,7 @@ class MapController extends Controller
             'markers' => $markers,
             'direction' => $direction,
             'cantonCode' => $cantonCode,
+            'group' => $group,
             'mapsApiKey' => $this->settings->get(SettingKey::GOOGLE_MAPS_API_KEY),
             'promotedIds' => $promotedIds->flip(),
             'showEvents' => $showEvents,

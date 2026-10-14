@@ -10,11 +10,15 @@
     $queryBase = array_filter([
         'richtung' => $direction ?? null,
         'kanton' => $cantonCode ?: null,
+        'gruppe' => $group ?? null,
         'events' => ($showEvents ?? true) ? null : '0',
     ], fn ($v) => $v !== null && $v !== '');
+    $listUrl = route('directory.index', array_merge($queryBase, ['ansicht' => 'liste']));
     $markerCount = count($markers ?? []);
     $eventCount = ($mapEvents ?? collect())->count();
     $officeCount = ($offices ?? collect())->count();
+    $groupColors = \App\Support\ProfessionalGroup::colors();
+    $groupLabels = \App\Support\ProfessionalGroup::labels();
 @endphp
 
 <div class="map-theater">
@@ -39,11 +43,14 @@
                     @if ($cantonCode) · {{ $cantonCode }} @endif
                 </p>
             </div>
-            <nav class="map-hud__views" aria-label="Ansicht">
-                <a href="{{ route('directory.index', array_merge($queryBase, ['ansicht' => 'liste'])) }}">Liste</a>
-                <a class="is-active" href="{{ route('map.index', $queryBase) }}">Karte</a>
-                <a href="{{ route('events.index') }}">Events</a>
-            </nav>
+            <div class="map-hud__top-actions">
+                <a class="map-hud__back" href="{{ $listUrl }}">← Zur Expertenliste</a>
+                <nav class="map-hud__views" aria-label="Ansicht">
+                    <a href="{{ $listUrl }}">Liste</a>
+                    <a class="is-active" href="{{ route('map.index', $queryBase) }}">Karte</a>
+                    <a href="{{ route('events.index') }}">Events</a>
+                </nav>
+            </div>
         </header>
 
         <form method="get" class="map-hud__filters" action="{{ route('map.index') }}">
@@ -66,12 +73,22 @@
                     @endforeach
                 </select>
             </div>
+            <div class="map-hud__select">
+                <select class="form-control" name="gruppe" aria-label="Fachgruppe" onchange="this.form.submit()">
+                    <option value="">Alle Fachgruppen</option>
+                    @foreach ($groupLabels as $gKey => $gLabel)
+                        <option value="{{ $gKey }}" @selected(($group ?? '') === $gKey)>{{ $gLabel }}</option>
+                    @endforeach
+                </select>
+            </div>
             <input type="hidden" name="events" value="0">
             <label class="map-hud__chip {{ ($showEvents ?? true) ? 'is-active' : '' }}" style="margin-left:auto;">
                 <input type="checkbox" name="events" value="1" @checked($showEvents ?? true) onchange="this.form.submit()"> Events
             </label>
             <div class="map-hud__legend" aria-label="Legende">
-                <span><i class="map-legend__dot map-legend__dot--std"></i> Experte</span>
+                @foreach ($groupLabels as $gKey => $gLabel)
+                    <span><i class="map-legend__dot" style="background:{{ $groupColors[$gKey] }}"></i> {{ $gLabel }}</span>
+                @endforeach
                 <span><i class="map-legend__dot map-legend__dot--promo"></i> Empfohlen</span>
                 <span><i class="map-legend__dot map-legend__dot--event"></i> Event</span>
             </div>
@@ -84,17 +101,21 @@
                         <p class="map-hud__kicker">Treffer</p>
                         <h2>{{ $markerCount }} auf der Karte</h2>
                     </div>
-                    <a href="{{ route('directory.index', array_merge($queryBase, ['ansicht' => 'liste'])) }}">Liste →</a>
+                    <a class="map-hud__back map-hud__back--panel" href="{{ $listUrl }}">← Zur Liste</a>
                 </div>
                 <div class="map-hud__panel-list">
                     @foreach ($offices as $office)
                         @continue(!($office->expert))
-                        @php $isPromoted = isset($promotedIds) && $promotedIds->has($office->expert_id); @endphp
+                        @php
+                            $isPromoted = isset($promotedIds) && $promotedIds->has($office->expert_id);
+                            $gKey = $office->expert->professional_group ?: \App\Support\ProfessionalGroup::MA_SPECIALIST;
+                            $gColor = \App\Support\ProfessionalGroup::color($gKey);
+                        @endphp
                         <a class="map-hud__row @if($isPromoted) is-promoted @endif" href="{{ route('experts.show', $office->expert->slug) }}">
-                            <span class="map-hud__pin" aria-hidden="true"></span>
+                            <span class="map-hud__pin" style="background:{{ $gColor }};box-shadow:0 0 0 3px {{ $gColor }}33;" aria-hidden="true"></span>
                             <span class="map-hud__row-body">
                                 <strong>{{ $office->expert->company_name }}</strong>
-                                <em>{{ $office->city }}@if ($office->canton) · {{ $office->canton->code }}@endif</em>
+                                <em>{{ \App\Support\ProfessionalGroup::label($gKey) }} · {{ $office->city }}@if ($office->canton) · {{ $office->canton->code }}@endif</em>
                             </span>
                             @if ($isPromoted)<span class="map-hud__badge">Empfohlen</span>@endif
                         </a>

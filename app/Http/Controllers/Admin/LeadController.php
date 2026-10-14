@@ -71,4 +71,35 @@ class LeadController extends Controller
 
         return back()->with('success', 'Status aktualisiert.');
     }
+
+    public function bulkUpdateStatus(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'lead_ids' => ['required', 'array', 'min:1'],
+            'lead_ids.*' => ['integer', 'exists:leads,id'],
+            'status' => ['required', 'in:'.implode(',', LeadStatus::all())],
+        ]);
+
+        $to = $validated['status'];
+        $updated = 0;
+
+        $leads = Lead::query()->whereIn('id', $validated['lead_ids'])->get();
+
+        foreach ($leads as $lead) {
+            $from = $lead->status;
+            if ($from === $to) {
+                continue;
+            }
+
+            $lead->update(['status' => $to]);
+            LeadStatusHistory::query()->create([
+                'lead_id' => $lead->id,
+                'from_status' => $from,
+                'to_status' => $to,
+            ]);
+            $updated++;
+        }
+
+        return back()->with('success', $updated.' Anfrage(n) aktualisiert.');
+    }
 }

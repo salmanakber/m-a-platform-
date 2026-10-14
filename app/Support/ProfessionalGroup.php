@@ -30,4 +30,23 @@ final class ProfessionalGroup
     {
         return self::labels()[$key] ?? $key;
     }
+
+    /**
+     * Map pin / UI colors per professional group.
+     *
+     * @return array<string, string>
+     */
+    public static function colors(): array
+    {
+        return [
+            self::MA_SPECIALIST => '#009DE1', // blue
+            self::JURIST => '#0B6E4F', // green
+            self::OTHER => '#64748B', // slate
+        ];
+    }
+
+    public static function color(string $key): string
+    {
+        return self::colors()[$key] ?? self::colors()[self::MA_SPECIALIST];
+    }
 }

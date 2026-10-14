@@ -53,9 +53,10 @@
                 function pinIcon(m, active) {
                     var isEvent = m.type === 'event';
                     var promoted = !!m.promoted;
+                    var groupColor = m.color || '#009DE1';
                     var fill = isEvent
                         ? (active ? '#c45c26' : '#d97706')
-                        : (active ? '#009DE1' : (promoted ? '#0E4971' : '#009DE1'));
+                        : (active ? groupColor : (promoted ? '#0E4971' : groupColor));
                     var ring = active ? (isEvent ? '#f6c79a' : '#7fd0f5') : '#ffffff';
                     var letter = isEvent
                         ? 'E'
@@ -87,6 +88,7 @@
                         if (m.event_type) tags += '<span class="ne-pop__tag">' + esc(m.event_type) + '</span>';
                         if (m.date) tags += '<span class="ne-pop__tag">' + esc(m.date) + '</span>';
                     } else {
+                        if (m.group_label) tags += '<span class="ne-pop__tag">' + esc(m.group_label) + '</span>';
                         if (m.buy) tags += '<span class="ne-pop__tag">Kauf</span>';
                         if (m.sell) tags += '<span class="ne-pop__tag">Verkauf</span>';
                         if (m.promoted) tags += '<span class="ne-pop__tag ne-pop__tag--hot">Empfohlen</span>';

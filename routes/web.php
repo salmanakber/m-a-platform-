@@ -87,6 +87,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin'])->grou
     Route::post('/experten/{expert}/aktivieren', [AdminExpertController::class, 'activate'])->name('experts.activate');
 
     Route::get('/anfragen', [AdminLeadController::class, 'index'])->name('leads.index');
+    Route::patch('/anfragen/bulk-status', [AdminLeadController::class, 'bulkUpdateStatus'])->name('leads.bulk-status');
     Route::get('/anfragen/{lead}', [AdminLeadController::class, 'show'])->name('leads.show');
     Route::patch('/anfragen/{lead}/status', [AdminLeadController::class, 'updateStatus'])->name('leads.update-status');
 

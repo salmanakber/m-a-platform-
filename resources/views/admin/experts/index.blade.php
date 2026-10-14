@@ -44,6 +44,14 @@
         <span>Neue Registrierungen und Imports starten immer als pending und sind nicht öffentlich. Freigeben setzt Status auf freigegeben + öffentlich. Ablehnen oder Deaktivieren hält sie unsichtbar.</span>
     </div>
 
+    <div class="admin-status-chips" role="group" aria-label="Status schnell filtern">
+        <a class="admin-status-chip {{ ($status ?? '') === '' ? 'is-on' : '' }}" href="{{ route('admin.experts.index', array_filter(['q' => $q ?: null, 'canton_id' => $cantonId ?: null])) }}">Alle</a>
+        <a class="admin-status-chip {{ ($status ?? '') === 'pending' ? 'is-on' : '' }}" href="{{ route('admin.experts.index', array_filter(['status' => 'pending', 'q' => $q ?: null, 'canton_id' => $cantonId ?: null])) }}">Ausstehend</a>
+        <a class="admin-status-chip {{ ($status ?? '') === 'approved' ? 'is-on' : '' }}" href="{{ route('admin.experts.index', array_filter(['status' => 'approved', 'q' => $q ?: null, 'canton_id' => $cantonId ?: null])) }}">Freigegeben</a>
+        <a class="admin-status-chip {{ ($status ?? '') === 'rejected' ? 'is-on' : '' }}" href="{{ route('admin.experts.index', array_filter(['status' => 'rejected', 'q' => $q ?: null, 'canton_id' => $cantonId ?: null])) }}">Abgelehnt</a>
+        <a class="admin-status-chip {{ ($status ?? '') === 'disabled' ? 'is-on' : '' }}" href="{{ route('admin.experts.index', array_filter(['status' => 'disabled', 'q' => $q ?: null, 'canton_id' => $cantonId ?: null])) }}">Deaktiviert</a>
+    </div>
+
     <form method="get" class="admin-filterbar">
         <div class="admin-filterbar__fields">
             <div class="form-group">
@@ -54,9 +62,10 @@
                 <label for="status">Status</label>
                 <select class="form-control" name="status" id="status">
                     <option value="">Alle</option>
-                    @foreach ($statuses as $s)
-                        <option value="{{ $s }}" @selected(($status ?? '') === $s)>{{ $statusLabel[$s] ?? $s }}</option>
-                    @endforeach
+                    <option value="pending" @selected(($status ?? '') === 'pending')>Ausstehend</option>
+                    <option value="approved" @selected(($status ?? '') === 'approved')>Freigegeben</option>
+                    <option value="rejected" @selected(($status ?? '') === 'rejected')>Abgelehnt</option>
+                    <option value="disabled" @selected(($status ?? '') === 'disabled')>Deaktiviert</option>
                 </select>
             </div>
             <div class="form-group">
