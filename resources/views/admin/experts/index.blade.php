@@ -52,15 +52,15 @@
         <a class="admin-status-chip {{ ($status ?? '') === 'disabled' ? 'is-on' : '' }}" href="{{ route('admin.experts.index', array_filter(['status' => 'disabled', 'q' => $q ?: null, 'canton_id' => $cantonId ?: null])) }}">Deaktiviert</a>
     </div>
 
-    <form method="get" class="admin-filterbar">
+    <form method="get" class="admin-filterbar" novalidate>
         <div class="admin-filterbar__fields">
             <div class="form-group">
-                <label for="q">Suche</label>
-                <input class="form-control" type="search" name="q" id="q" value="{{ $q ?? '' }}" placeholder="Firma, E-Mail, Kontakt…">
+                <label for="filter_q">Suche</label>
+                <input class="form-control" type="search" name="q" id="filter_q" value="{{ $q ?? '' }}" placeholder="Firma, E-Mail, Kontakt…">
             </div>
             <div class="form-group">
-                <label for="status">Status</label>
-                <select class="form-control" name="status" id="status">
+                <label for="filter_status">Status</label>
+                <select class="form-control" name="status" id="filter_status">
                     <option value="">Alle</option>
                     <option value="pending" @selected(($status ?? '') === 'pending')>Ausstehend</option>
                     <option value="approved" @selected(($status ?? '') === 'approved')>Freigegeben</option>
@@ -69,8 +69,8 @@
                 </select>
             </div>
             <div class="form-group">
-                <label for="canton_id">Kanton</label>
-                <select class="form-control" name="canton_id" id="canton_id">
+                <label for="filter_canton_id">Kanton</label>
+                <select class="form-control" name="canton_id" id="filter_canton_id">
                     <option value="">Alle</option>
                     @foreach ($cantons as $canton)
                         <option value="{{ $canton->id }}" @selected((string) ($cantonId ?? '') === (string) $canton->id)>{{ $canton->name_de }}</option>
@@ -94,7 +94,7 @@
             </div>
         </div>
     @else
-        <form method="post" action="{{ route('admin.experts.bulk') }}" id="expertsBulkForm" class="admin-card">
+        <form method="post" action="{{ route('admin.experts.bulk') }}" id="expertsBulkForm" class="admin-bulk-form" novalidate>
             @csrf
             <div class="admin-card__head admin-card__head--row">
                 <div>
@@ -102,22 +102,24 @@
                     <p>Seite {{ $experts->currentPage() }} von {{ $experts->lastPage() }}</p>
                 </div>
                 <div class="bulk-bar">
-                    <select class="form-control" name="action" id="bulkAction" required>
+                    <select class="form-control" name="action" id="bulkAction">
                         <option value="">Bulk-Aktion…</option>
                         <option value="approve">Freigeben</option>
                         <option value="reject">Ablehnen</option>
                         <option value="deactivate">Deaktivieren</option>
                     </select>
-                    <button type="submit" class="btn btn--small" onclick="return confirmBulk();">Ausführen</button>
+                    <button type="submit" class="btn btn--small">Ausführen</button>
                 </div>
             </div>
+        </form>
 
+        <div class="admin-card admin-card--flush-top">
             <div class="table-scroll">
                 <table class="entity-table">
                     <thead>
                         <tr>
                             <th class="col-check">
-                                <input type="checkbox" id="checkAll" aria-label="Alle auswählen" title="Alle auf dieser Seite">
+                                <input type="checkbox" id="checkAll" form="expertsBulkForm" aria-label="Alle auswählen" title="Alle auf dieser Seite">
                             </th>
                             <th>Experte</th>
                             <th>Kontakt</th>
@@ -131,7 +133,7 @@
                             @php $office = $expert->offices->firstWhere('is_primary', true) ?? $expert->offices->first(); @endphp
                             <tr>
                                 <td class="col-check">
-                                    <input type="checkbox" name="ids[]" value="{{ $expert->id }}" class="row-check">
+                                    <input type="checkbox" name="ids[]" value="{{ $expert->id }}" class="row-check" form="expertsBulkForm">
                                 </td>
                                 <td>
                                     <div class="entity-primary">
@@ -174,33 +176,28 @@
                 </table>
             </div>
             <div class="admin-card__foot">{{ $experts->links() }}</div>
-        </form>
+        </div>
     @endif
 </div>
 
 <script>
 (function () {
+    var bulkForm = document.getElementById('expertsBulkForm');
     var all = document.getElementById('checkAll');
     if (all) {
         all.addEventListener('change', function () {
-            document.querySelectorAll('.row-check').forEach(function (el) {
-                el.checked = all.checked;
-            });
+            document.querySelectorAll('.row-check').forEach(function (el) { el.checked = all.checked; });
         });
     }
-    window.confirmBulk = function () {
-        var action = document.getElementById('bulkAction').value;
-        var checked = document.querySelectorAll('.row-check:checked').length;
-        if (!action) {
-            alert('Bitte eine Bulk-Aktion wählen.');
-            return false;
-        }
-        if (!checked) {
-            alert('Bitte mindestens einen Experten auswählen.');
-            return false;
-        }
-        return confirm(checked + ' Experte(n) wirklich «' + action + '»?');
-    };
+    if (bulkForm) {
+        bulkForm.addEventListener('submit', function (e) {
+            var action = document.getElementById('bulkAction').value;
+            var checked = document.querySelectorAll('.row-check:checked').length;
+            if (!action) { e.preventDefault(); alert('Bitte eine Bulk-Aktion wählen.'); return; }
+            if (!checked) { e.preventDefault(); alert('Bitte mindestens einen Experten auswählen.'); return; }
+            if (!confirm(checked + ' Experte(n) wirklich «' + action + '»?')) e.preventDefault();
+        });
+    }
 })();
 </script>
 @endsection

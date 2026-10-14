@@ -60,15 +60,15 @@
         <a class="admin-status-chip {{ ($paymentStatus ?? '') === 'cancelled' ? 'is-on' : '' }}" href="{{ route('admin.invoices.index', $chipBase + ['payment_status' => 'cancelled']) }}">Storniert</a>
     </div>
 
-    <form method="get" class="admin-filterbar" id="invoiceFilterForm">
+    <form method="get" class="admin-filterbar" id="invoiceFilterForm" novalidate>
         <div class="admin-filterbar__fields">
             <div class="form-group">
-                <label for="q">Suche</label>
-                <input class="form-control" type="search" name="q" id="q" value="{{ $q ?? '' }}" placeholder="Rechnungsnr. oder Experte…">
+                <label for="filter_q">Suche</label>
+                <input class="form-control" type="search" name="q" id="filter_q" value="{{ $q ?? '' }}" placeholder="Rechnungsnr. oder Experte…">
             </div>
             <div class="form-group">
-                <label for="payment_status">Status</label>
-                <select class="form-control" name="payment_status" id="payment_status">
+                <label for="filter_payment_status">Status</label>
+                <select class="form-control" name="payment_status" id="filter_payment_status">
                     <option value="">Alle</option>
                     @foreach ($paymentStatuses as $ps)
                         <option value="{{ $ps }}" @selected(($paymentStatus ?? '') === $ps)>{{ $statusLabel[$ps] ?? $ps }}</option>
@@ -76,12 +76,12 @@
                 </select>
             </div>
             <div class="form-group">
-                <label for="date_from">Von</label>
-                <input class="form-control" type="date" name="date_from" id="date_from" value="{{ $dateFrom ?? '' }}">
+                <label for="filter_date_from">Von</label>
+                <input class="form-control" type="date" name="date_from" id="filter_date_from" value="{{ $dateFrom ?? '' }}">
             </div>
             <div class="form-group">
-                <label for="date_to">Bis</label>
-                <input class="form-control" type="date" name="date_to" id="date_to" value="{{ $dateTo ?? '' }}">
+                <label for="filter_date_to">Bis</label>
+                <input class="form-control" type="date" name="date_to" id="filter_date_to" value="{{ $dateTo ?? '' }}">
             </div>
         </div>
         <div class="admin-filterbar__actions">
@@ -100,7 +100,8 @@
             </div>
         </div>
     @else
-        <form method="post" action="{{ route('admin.invoices.bulk') }}" id="invoicesBulkForm" class="admin-bulk-form">
+        {{-- Bulk controls only — never wrap the table --}}
+        <form method="post" action="{{ route('admin.invoices.bulk') }}" id="invoicesBulkForm" class="admin-bulk-form" novalidate>
             @csrf
             @method('PATCH')
             <div class="admin-card__head admin-card__head--row">
@@ -142,6 +143,7 @@
                         @foreach ($invoices as $invoice)
                             @php
                                 $promo = $invoice->linkedPromotion ?? $invoice->promotion;
+                                $rowFormId = 'invoice-pay-'.$invoice->id;
                             @endphp
                             <tr>
                                 <td class="col-check">
@@ -170,22 +172,20 @@
                                     </span>
                                 </td>
                                 <td>
-                                    <form method="post" action="{{ route('admin.invoices.update-payment-status', $invoice) }}" class="invoice-row-form">
-                                        @csrf
-                                        @method('PATCH')
-                                        <select name="payment_status" class="form-control">
+                                    <div class="invoice-row-form">
+                                        <select name="payment_status" class="form-control" form="{{ $rowFormId }}">
                                             @foreach ($paymentStatuses as $ps)
                                                 <option value="{{ $ps }}" @selected($invoice->payment_status === $ps)>{{ $statusLabel[$ps] ?? $ps }}</option>
                                             @endforeach
                                         </select>
                                         @if ($promo && $promo->status !== 'active')
-                                            <label class="bulk-check bulk-check--compact" title="Beim Speichern als Bezahlt die Promotion aktivieren">
-                                                <input type="checkbox" name="activate_promotion" value="1">
+                                            <label class="bulk-check bulk-check--compact">
+                                                <input type="checkbox" name="activate_promotion" value="1" form="{{ $rowFormId }}">
                                                 + aktivieren
                                             </label>
                                         @endif
-                                        <button type="submit" class="btn btn--small">Speichern</button>
-                                    </form>
+                                        <button type="submit" class="btn btn--small" form="{{ $rowFormId }}" formnovalidate>Speichern</button>
+                                    </div>
                                 </td>
                             </tr>
                         @endforeach
@@ -196,6 +196,16 @@
                 <p class="admin-pager-meta">{{ $invoices->firstItem() }}–{{ $invoices->lastItem() }} von {{ $invoices->total() }}</p>
                 {{ $invoices->links() }}
             </div>
+        </div>
+
+        {{-- Row POST targets live outside every other form --}}
+        <div class="admin-row-forms" hidden>
+            @foreach ($invoices as $invoice)
+                <form method="post" action="{{ route('admin.invoices.update-payment-status', $invoice) }}" id="invoice-pay-{{ $invoice->id }}">
+                    @csrf
+                    @method('PATCH')
+                </form>
+            @endforeach
         </div>
     @endif
 </div>
@@ -213,19 +223,9 @@
         bulkForm.addEventListener('submit', function (e) {
             var status = document.getElementById('bulkStatus').value;
             var checked = document.querySelectorAll('.row-check:checked').length;
-            if (!status) {
-                e.preventDefault();
-                alert('Bitte einen Status wählen.');
-                return;
-            }
-            if (!checked) {
-                e.preventDefault();
-                alert('Bitte mindestens eine Rechnung auswählen.');
-                return;
-            }
-            if (!confirm(checked + ' Rechnung(en) auf «' + status + '» setzen?')) {
-                e.preventDefault();
-            }
+            if (!status) { e.preventDefault(); alert('Bitte einen Status wählen.'); return; }
+            if (!checked) { e.preventDefault(); alert('Bitte mindestens eine Rechnung auswählen.'); return; }
+            if (!confirm(checked + ' Rechnung(en) auf «' + status + '» setzen?')) e.preventDefault();
         });
     }
 })();

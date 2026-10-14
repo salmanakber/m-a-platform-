@@ -63,15 +63,15 @@
         <a class="admin-status-chip {{ ($status ?? '') === 'cancelled' ? 'is-on' : '' }}" href="{{ route('admin.promotions.index', $chipBase + ['status' => 'cancelled']) }}">Storniert</a>
     </div>
 
-    <form method="get" class="admin-filterbar" id="promoFilterForm">
+    <form method="get" class="admin-filterbar" id="promoFilterForm" novalidate>
         <div class="admin-filterbar__fields">
             <div class="form-group">
-                <label for="q">Suche</label>
-                <input class="form-control" type="search" name="q" id="q" value="{{ $q ?? '' }}" placeholder="Firma oder E-Mail…">
+                <label for="filter_q">Suche</label>
+                <input class="form-control" type="search" name="q" id="filter_q" value="{{ $q ?? '' }}" placeholder="Firma oder E-Mail…">
             </div>
             <div class="form-group">
-                <label for="status">Status</label>
-                <select class="form-control" name="status" id="status">
+                <label for="filter_status">Status</label>
+                <select class="form-control" name="status" id="filter_status">
                     <option value="">Alle</option>
                     @foreach ($statuses as $s)
                         <option value="{{ $s }}" @selected(($status ?? '') === $s)>{{ $statusLabel[$s] ?? $s }}</option>
@@ -79,8 +79,8 @@
                 </select>
             </div>
             <div class="form-group">
-                <label for="canton_id">Kanton</label>
-                <select class="form-control" name="canton_id" id="canton_id">
+                <label for="filter_canton_id">Kanton</label>
+                <select class="form-control" name="canton_id" id="filter_canton_id">
                     <option value="">Alle</option>
                     @foreach ($cantons as $canton)
                         <option value="{{ $canton->id }}" @selected((string) ($cantonId ?? '') === (string) $canton->id)>{{ $canton->code }} — {{ $canton->name_de }}</option>
@@ -104,8 +104,7 @@
             </div>
         </div>
     @else
-        {{-- Bulk form is separate (no nesting). Checkboxes use form="…". --}}
-        <form method="post" action="{{ route('admin.promotions.bulk') }}" id="promotionsBulkForm" class="admin-bulk-form">
+        <form method="post" action="{{ route('admin.promotions.bulk') }}" id="promotionsBulkForm" class="admin-bulk-form" novalidate>
             @csrf
             <div class="admin-card__head admin-card__head--row">
                 <div>
@@ -119,7 +118,7 @@
                         <option value="expire">Beenden</option>
                         <option value="cancel">Stornieren</option>
                     </select>
-                    <button type="submit" class="btn btn--small" id="bulkSubmit">Ausführen</button>
+                    <button type="submit" class="btn btn--small">Ausführen</button>
                 </div>
             </div>
         </form>
@@ -181,28 +180,16 @@
                                 <td>
                                     <div class="row-actions row-actions--stack">
                                         @if (! $invoice && $promotion->status === 'pending')
-                                            <form action="{{ route('admin.promotions.create-invoice', $promotion) }}" method="post">
-                                                @csrf
-                                                <button type="submit" class="btn btn--small">Rechnung</button>
-                                            </form>
+                                            <button type="submit" class="btn btn--small" form="promo-invoice-{{ $promotion->id }}" formnovalidate>Rechnung</button>
                                         @endif
                                         @if ($promotion->status !== 'active' && $promotion->status !== 'cancelled')
-                                            <form action="{{ route('admin.promotions.activate', $promotion) }}" method="post">
-                                                @csrf
-                                                <button type="submit" class="btn btn--small">Aktivieren</button>
-                                            </form>
+                                            <button type="submit" class="btn btn--small" form="promo-activate-{{ $promotion->id }}" formnovalidate>Aktivieren</button>
                                         @endif
                                         @if ($promotion->status === 'active')
-                                            <form action="{{ route('admin.promotions.expire', $promotion) }}" method="post">
-                                                @csrf
-                                                <button type="submit" class="btn btn--ghost btn--small">Beenden</button>
-                                            </form>
+                                            <button type="submit" class="btn btn--ghost btn--small" form="promo-expire-{{ $promotion->id }}" formnovalidate>Beenden</button>
                                         @endif
                                         @if (! in_array($promotion->status, ['cancelled', 'expired'], true))
-                                            <form action="{{ route('admin.promotions.cancel', $promotion) }}" method="post" onsubmit="return confirm('Promotion wirklich stornieren?');">
-                                                @csrf
-                                                <button type="submit" class="btn btn--ghost btn--small">Stornieren</button>
-                                            </form>
+                                            <button type="submit" class="btn btn--ghost btn--small" form="promo-cancel-{{ $promotion->id }}" formnovalidate onclick="return confirm('Promotion wirklich stornieren?');">Stornieren</button>
                                         @endif
                                     </div>
                                 </td>
@@ -215,6 +202,24 @@
                 <p class="admin-pager-meta">{{ $promotions->firstItem() }}–{{ $promotions->lastItem() }} von {{ $promotions->total() }}</p>
                 {{ $promotions->links() }}
             </div>
+        </div>
+
+        <div class="admin-row-forms" hidden>
+            @foreach ($promotions as $promotion)
+                @php $invoice = $promotion->invoice; @endphp
+                @if (! $invoice && $promotion->status === 'pending')
+                    <form method="post" action="{{ route('admin.promotions.create-invoice', $promotion) }}" id="promo-invoice-{{ $promotion->id }}">@csrf</form>
+                @endif
+                @if ($promotion->status !== 'active' && $promotion->status !== 'cancelled')
+                    <form method="post" action="{{ route('admin.promotions.activate', $promotion) }}" id="promo-activate-{{ $promotion->id }}">@csrf</form>
+                @endif
+                @if ($promotion->status === 'active')
+                    <form method="post" action="{{ route('admin.promotions.expire', $promotion) }}" id="promo-expire-{{ $promotion->id }}">@csrf</form>
+                @endif
+                @if (! in_array($promotion->status, ['cancelled', 'expired'], true))
+                    <form method="post" action="{{ route('admin.promotions.cancel', $promotion) }}" id="promo-cancel-{{ $promotion->id }}">@csrf</form>
+                @endif
+            @endforeach
         </div>
     @endif
 </div>
@@ -232,19 +237,9 @@
         bulkForm.addEventListener('submit', function (e) {
             var action = document.getElementById('bulkAction').value;
             var checked = document.querySelectorAll('.row-check:checked').length;
-            if (!action) {
-                e.preventDefault();
-                alert('Bitte eine Bulk-Aktion wählen.');
-                return;
-            }
-            if (!checked) {
-                e.preventDefault();
-                alert('Bitte mindestens eine Promotion auswählen.');
-                return;
-            }
-            if (!confirm(checked + ' Promotion(en) wirklich ausführen?')) {
-                e.preventDefault();
-            }
+            if (!action) { e.preventDefault(); alert('Bitte eine Bulk-Aktion wählen.'); return; }
+            if (!checked) { e.preventDefault(); alert('Bitte mindestens eine Promotion auswählen.'); return; }
+            if (!confirm(checked + ' Promotion(en) wirklich ausführen?')) e.preventDefault();
         });
     }
 })();

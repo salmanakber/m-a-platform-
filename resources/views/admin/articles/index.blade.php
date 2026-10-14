@@ -49,15 +49,15 @@
         <a class="admin-status-chip {{ ($status ?? '') === 'blocked' ? 'is-on' : '' }}" href="{{ route('admin.articles.index', $chipBase + ['status' => 'blocked']) }}">Gesperrt</a>
     </div>
 
-    <form method="get" class="admin-filterbar">
+    <form method="get" class="admin-filterbar" novalidate>
         <div class="admin-filterbar__fields">
             <div class="form-group">
-                <label for="q">Suche</label>
-                <input class="form-control" type="search" name="q" id="q" value="{{ $q ?? '' }}" placeholder="Titel oder Auszug…">
+                <label for="filter_q">Suche</label>
+                <input class="form-control" type="search" name="q" id="filter_q" value="{{ $q ?? '' }}" placeholder="Titel oder Auszug…">
             </div>
             <div class="form-group">
-                <label for="status">Status</label>
-                <select class="form-control" name="status" id="status">
+                <label for="filter_status">Status</label>
+                <select class="form-control" name="status" id="filter_status">
                     <option value="">Alle</option>
                     @foreach ($statuses as $s)
                         <option value="{{ $s }}" @selected(($status ?? '') === $s)>{{ $statusLabel[$s] ?? $s }}</option>
@@ -65,8 +65,8 @@
                 </select>
             </div>
             <div class="form-group">
-                <label for="expert_id">Experte</label>
-                <select class="form-control" name="expert_id" id="expert_id">
+                <label for="filter_expert_id">Experte</label>
+                <select class="form-control" name="expert_id" id="filter_expert_id">
                     <option value="">Alle</option>
                     @foreach ($experts as $ex)
                         <option value="{{ $ex->id }}" @selected((string) ($expertId ?? '') === (string) $ex->id)>{{ $ex->company_name }}</option>
@@ -90,7 +90,7 @@
             </div>
         </div>
     @else
-        <form method="post" action="{{ route('admin.articles.bulk') }}" id="articlesBulkForm" class="admin-bulk-form">
+        <form method="post" action="{{ route('admin.articles.bulk') }}" id="articlesBulkForm" class="admin-bulk-form" novalidate>
             @csrf
             <div class="admin-card__head admin-card__head--row">
                 <div>
@@ -148,21 +148,11 @@
                                     <div class="row-actions row-actions--stack">
                                         <a class="btn btn--ghost btn--small" href="{{ route('admin.articles.edit', $article) }}">Bearbeiten</a>
                                         @if ($article->status !== 'blocked')
-                                            <form action="{{ route('admin.articles.block', $article) }}" method="post">
-                                                @csrf
-                                                <button type="submit" class="btn btn--ghost btn--small">Sperren</button>
-                                            </form>
+                                            <button type="submit" class="btn btn--ghost btn--small" form="article-block-{{ $article->id }}" formnovalidate>Sperren</button>
                                         @else
-                                            <form action="{{ route('admin.articles.unblock', $article) }}" method="post">
-                                                @csrf
-                                                <button type="submit" class="btn btn--small">Entsperren</button>
-                                            </form>
+                                            <button type="submit" class="btn btn--small" form="article-unblock-{{ $article->id }}" formnovalidate>Entsperren</button>
                                         @endif
-                                        <form action="{{ route('admin.articles.destroy', $article) }}" method="post" onsubmit="return confirm('Artikel wirklich löschen?');">
-                                            @csrf
-                                            @method('DELETE')
-                                            <button type="submit" class="btn btn--ghost btn--small">Löschen</button>
-                                        </form>
+                                        <button type="submit" class="btn btn--ghost btn--small" form="article-delete-{{ $article->id }}" formnovalidate onclick="return confirm('Artikel wirklich löschen?');">Löschen</button>
                                     </div>
                                 </td>
                             </tr>
@@ -175,6 +165,20 @@
                 {{ $articles->links() }}
             </div>
         </div>
+
+        <div class="admin-row-forms" hidden>
+            @foreach ($articles as $article)
+                @if ($article->status !== 'blocked')
+                    <form method="post" action="{{ route('admin.articles.block', $article) }}" id="article-block-{{ $article->id }}">@csrf</form>
+                @else
+                    <form method="post" action="{{ route('admin.articles.unblock', $article) }}" id="article-unblock-{{ $article->id }}">@csrf</form>
+                @endif
+                <form method="post" action="{{ route('admin.articles.destroy', $article) }}" id="article-delete-{{ $article->id }}">
+                    @csrf
+                    @method('DELETE')
+                </form>
+            @endforeach
+        </div>
     @endif
 </div>
 
@@ -184,9 +188,7 @@
     var all = document.getElementById('checkAll');
     if (all) {
         all.addEventListener('change', function () {
-            document.querySelectorAll('.row-check').forEach(function (el) {
-                el.checked = all.checked;
-            });
+            document.querySelectorAll('.row-check').forEach(function (el) { el.checked = all.checked; });
         });
     }
     if (bulkForm) {
