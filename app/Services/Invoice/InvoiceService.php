@@ -4,15 +4,19 @@ namespace App\Services\Invoice;
 
 use App\Models\Invoice;
 use App\Models\Promotion;
+use App\Services\Email\NotificationService;
 use App\Services\Settings\SettingsService;
 use App\Support\InvoicePaymentStatus;
 use App\Support\SettingKey;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class InvoiceService
 {
-    public function __construct(private SettingsService $settings)
-    {
+    public function __construct(
+        private SettingsService $settings,
+        private NotificationService $notifications
+    ) {
     }
 
     public function monthlyPromotionPrice(): float
@@ -20,9 +24,9 @@ class InvoiceService
         return (float) $this->settings->get(SettingKey::PROMOTION_MONTHLY_PRICE_CHF, '0');
     }
 
-    public function createForPromotion(Promotion $promotion, ?float $amount = null, string $currency = 'CHF'): Invoice
+    public function createForPromotion(Promotion $promotion, ?float $amount = null, string $currency = 'CHF', bool $notify = true): Invoice
     {
-        $promotion->loadMissing(['expert', 'invoice']);
+        $promotion->loadMissing(['expert', 'invoice', 'canton']);
 
         if ($promotion->invoice !== null) {
             return $promotion->invoice;
@@ -30,7 +34,7 @@ class InvoiceService
 
         $amount = $amount ?? $this->monthlyPromotionPrice();
 
-        return DB::transaction(function () use ($promotion, $amount, $currency) {
+        $invoice = DB::transaction(function () use ($promotion, $amount, $currency) {
             $invoice = Invoice::query()->create([
                 'expert_id' => $promotion->expert_id,
                 'invoice_number' => $this->nextInvoiceNumber(),
@@ -39,8 +43,8 @@ class InvoiceService
                 'currency' => $currency,
                 'payment_status' => InvoicePaymentStatus::PENDING,
                 'notes' => sprintf(
-                    'Promotion Kanton-ID %d · Position %d',
-                    $promotion->canton_id,
+                    'Promotion %s · Position %d',
+                    $promotion->canton->name_de ?? ('Kanton #'.$promotion->canton_id),
                     $promotion->position_number
                 ),
                 'promotion_id' => $promotion->id,
@@ -50,6 +54,38 @@ class InvoiceService
 
             return $invoice;
         });
+
+        if ($notify) {
+            $this->notifyCreated($invoice);
+        }
+
+        return $invoice;
+    }
+
+    public function notifyCreated(Invoice $invoice): bool
+    {
+        try {
+            $this->notifications->sendInvoiceCreated($invoice->fresh(['expert', 'promotion.canton', 'linkedPromotion.canton']));
+
+            return true;
+        } catch (\Throwable $e) {
+            Log::warning('Invoice created e-mail failed: '.$e->getMessage(), ['invoice_id' => $invoice->id]);
+
+            return false;
+        }
+    }
+
+    public function notifyPaid(Invoice $invoice): bool
+    {
+        try {
+            $this->notifications->sendInvoicePaid($invoice->fresh(['expert', 'promotion.canton', 'linkedPromotion.canton']));
+
+            return true;
+        } catch (\Throwable $e) {
+            Log::warning('Invoice paid e-mail failed: '.$e->getMessage(), ['invoice_id' => $invoice->id]);
+
+            return false;
+        }
     }
 
     public function nextInvoiceNumber(): string

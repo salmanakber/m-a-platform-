@@ -17,7 +17,7 @@
         'email' => 'E-Mail',
         'phone' => 'Telefon',
         'message' => 'Nachricht',
-        'company_name' => 'Firma Interessent',
+        'company_name' => 'Firma',
         'industry' => 'Branche',
         'canton_name' => 'Kanton',
         'expert_company_name' => 'Firma Experte',
@@ -25,6 +25,14 @@
         'name' => 'Name',
         'reset_url' => 'Reset-Link',
         'expires_minutes' => 'Ablauf (Min.)',
+        'invoice_number' => 'Rechnungsnr.',
+        'invoice_date' => 'Rechnungsdatum',
+        'amount' => 'Betrag',
+        'currency' => 'Währung',
+        'payment_status_label' => 'Zahlungsstatus',
+        'service_title' => 'Leistung',
+        'service_detail' => 'Leistungsdetail',
+        'notes' => 'Bemerkung',
     ];
     $templateHeading = str_replace('_', ' ', str_replace('.', ' · ', $template->key));
 @endphp
@@ -62,7 +70,8 @@
                     <span class="mail-studio__tokens-label">Platzhalter einfügen</span>
                     <div class="mail-studio__token-list">
                         @foreach ($samplePlaceholders as $key => $sample)
-                            <button type="button" class="mail-token" data-key="{{ $key }}" title="Beispiel: {{ $sample }}">
+                            @continue($key === 'invoice_document')
+                            <button type="button" class="mail-token" data-key="{{ $key }}" title="Beispiel: {{ \Illuminate\Support\Str::limit(strip_tags((string) $sample), 80) }}">
                                 {{ $labels[$key] ?? $key }}
                             </button>
                         @endforeach
@@ -72,7 +81,12 @@
                 <div class="form-group">
                     <label for="body_html">E-Mail-Text</label>
                     <textarea class="form-control" name="body_html" id="body_html" rows="16" required>{{ old('body_html', $template->body_html) }}</textarea>
-                    <p class="field-hint">Formatieren Sie Absätze und Listen. Platzhalter wie <code>@{{ owner_name }}</code> bleiben beim Speichern erhalten.</p>
+                    <p class="field-hint">
+                        Formatieren Sie Absätze und Listen. Platzhalter wie <code>@{{ owner_name }}</code> bleiben beim Speichern erhalten.
+                        @if (str_starts_with($template->key, 'invoice_'))
+                            Rechnungsvorlagen: <code>@{{ invoice_document }}</code> fügt die formatierte Rechnung ein (nicht manuell ersetzen).
+                        @endif
+                    </p>
                 </div>
 
                 <details class="mail-studio__advanced">

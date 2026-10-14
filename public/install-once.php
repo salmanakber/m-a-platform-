@@ -59,13 +59,18 @@ try {
     echo Artisan::output();
     echo "migrate exit code: {$migrate}\n\n";
 
+    echo "Upserting e-mail templates (safe)…\n";
+    $mailSeed = Artisan::call('db:seed', ['--class' => 'Database\\Seeders\\EmailTemplateSeeder', '--force' => true]);
+    echo Artisan::output();
+    echo "email template seed exit: {$mailSeed}\n\n";
+
     if ($withSeed) {
         echo "Running: php artisan db:seed --force\n";
         $seed = Artisan::call('db:seed', ['--force' => true]);
         echo Artisan::output();
         echo "seed exit code: {$seed}\n\n";
     } else {
-        echo "Skipping seeders (safe default). Add &seed=1 only if you need them.\n\n";
+        echo "Skipping full seeders (safe default). Add &seed=1 only if you need them.\n\n";
     }
 
     echo "Clearing caches...\n";

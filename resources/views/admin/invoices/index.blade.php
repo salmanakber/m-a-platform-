@@ -47,8 +47,9 @@
     <div class="status-help">
         <strong>So funktioniert’s</strong>
         <span>
-            1) Experte fragt Promotion an → 2) unter <a href="{{ route('admin.promotions.index') }}">Promotionen</a> «Rechnung» erstellen →
-            3) Rechnung extern stellen → 4) hier auf <em>Bezahlt</em> setzen (optional Promotion aktivieren).
+            1) Experte fragt Promotion an → 2) unter <a href="{{ route('admin.promotions.index') }}">Promotionen</a> «Rechnung» (sendet Rechnungs-E-Mail) →
+            3) Zahlung erhalten → 4) hier <em>Bezahlt</em> + Mail → Experte erhält Zahlungsbestätigung.
+            Vorlagen: <a href="{{ route('admin.email-templates.index') }}">invoice_created / invoice_paid</a>.
         </span>
     </div>
 
@@ -120,6 +121,10 @@
                         <input type="checkbox" name="activate_promotion" value="1">
                         Bei «Bezahlt» Promotion aktivieren
                     </label>
+                    <label class="bulk-check">
+                        <input type="checkbox" name="send_email" value="1" checked>
+                        E-Mail bei «Bezahlt»
+                    </label>
                     <button type="submit" class="btn btn--small">Ausführen</button>
                 </div>
             </div>
@@ -184,7 +189,12 @@
                                                 + aktivieren
                                             </label>
                                         @endif
+                                        <label class="bulk-check bulk-check--compact" title="Bei Wechsel auf Bezahlt E-Mail senden">
+                                            <input type="checkbox" name="send_email" value="1" form="{{ $rowFormId }}" checked>
+                                            + Mail
+                                        </label>
                                         <button type="submit" class="btn btn--small" form="{{ $rowFormId }}" formnovalidate>Speichern</button>
+                                        <button type="submit" class="btn btn--ghost btn--small" form="invoice-mail-{{ $invoice->id }}" formnovalidate title="Rechnung / Zahlungsmail erneut senden">E-Mail</button>
                                     </div>
                                 </td>
                             </tr>
@@ -204,6 +214,10 @@
                 <form method="post" action="{{ route('admin.invoices.update-payment-status', $invoice) }}" id="invoice-pay-{{ $invoice->id }}">
                     @csrf
                     @method('PATCH')
+                </form>
+                <form method="post" action="{{ route('admin.invoices.send-email', $invoice) }}" id="invoice-mail-{{ $invoice->id }}">
+                    @csrf
+                    <input type="hidden" name="type" value="auto">
                 </form>
             @endforeach
         </div>

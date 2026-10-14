@@ -95,16 +95,20 @@ class PromotionController extends Controller
 
     public function createInvoice(Promotion $promotion): RedirectResponse
     {
+        $hadInvoice = $promotion->invoice_id !== null;
+
         try {
             $invoice = $this->invoiceService->createForPromotion($promotion);
         } catch (\Throwable $e) {
             return back()->with('error', 'Rechnung fehlgeschlagen: '.$e->getMessage());
         }
 
-        return back()->with(
-            'success',
-            'Rechnung '.$invoice->invoice_number.' erstellt ('.number_format((float) $invoice->amount, 2, '.', "'").' '.$invoice->currency.').'
-        );
+        $msg = 'Rechnung '.$invoice->invoice_number.' erstellt ('.number_format((float) $invoice->amount, 2, '.', "'").' '.$invoice->currency.').';
+        if (! $hadInvoice) {
+            $msg .= ' E-Mail an den Experten wurde ausgelöst.';
+        }
+
+        return back()->with('success', $msg);
     }
 
     public function bulk(Request $request): RedirectResponse

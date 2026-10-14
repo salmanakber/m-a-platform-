@@ -109,6 +109,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin'])->grou
 
     Route::get('/rechnungen', [AdminInvoiceController::class, 'index'])->name('invoices.index');
     Route::patch('/rechnungen/bulk', [AdminInvoiceController::class, 'bulk'])->name('invoices.bulk');
+    Route::post('/rechnungen/{invoice}/email', [AdminInvoiceController::class, 'sendEmail'])->name('invoices.send-email');
     Route::patch('/rechnungen/{invoice}/zahlungsstatus', [AdminInvoiceController::class, 'updatePaymentStatus'])->name('invoices.update-payment-status');
 
     Route::get('/einstellungen', [AdminSettingsController::class, 'edit'])->name('settings.edit');

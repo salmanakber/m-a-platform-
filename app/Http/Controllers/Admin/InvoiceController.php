@@ -62,15 +62,18 @@ class InvoiceController extends Controller
         $validated = $request->validate([
             'payment_status' => ['required', 'in:'.implode(',', InvoicePaymentStatus::all())],
             'activate_promotion' => ['nullable', 'boolean'],
+            'send_email' => ['nullable', 'boolean'],
         ]);
 
+        $wasPaid = $invoice->payment_status === InvoicePaymentStatus::PAID;
         $invoice->update(['payment_status' => $validated['payment_status']]);
+        $nowPaid = $validated['payment_status'] === InvoicePaymentStatus::PAID;
 
         $msg = 'Zahlungsstatus aktualisiert.';
 
         if (
             ($validated['activate_promotion'] ?? false)
-            && $validated['payment_status'] === InvoicePaymentStatus::PAID
+            && $nowPaid
         ) {
             $promotion = $invoice->linkedPromotion ?? $invoice->promotion;
             if ($promotion && $promotion->status !== PromotionStatus::ACTIVE) {
@@ -84,7 +87,40 @@ class InvoiceController extends Controller
             }
         }
 
+        $shouldMail = $request->boolean('send_email') && $nowPaid && ! $wasPaid;
+        if ($shouldMail) {
+            if ($this->invoiceService->notifyPaid($invoice->fresh())) {
+                $msg .= ' Zahlungsbestätigung per E-Mail gesendet.';
+            } else {
+                $msg .= ' E-Mail konnte nicht gesendet werden (Resend/Vorlage prüfen).';
+            }
+        }
+
         return back()->with('success', $msg);
+    }
+
+    public function sendEmail(Request $request, Invoice $invoice): RedirectResponse
+    {
+        $validated = $request->validate([
+            'type' => ['nullable', 'in:created,paid,auto'],
+        ]);
+
+        $type = $validated['type'] ?? 'auto';
+        if ($type === 'auto') {
+            $type = $invoice->payment_status === InvoicePaymentStatus::PAID ? 'paid' : 'created';
+        }
+
+        $ok = $type === 'paid'
+            ? $this->invoiceService->notifyPaid($invoice)
+            : $this->invoiceService->notifyCreated($invoice);
+
+        if (! $ok) {
+            return back()->with('error', 'E-Mail fehlgeschlagen. Bitte Resend-Einstellungen und Vorlagen prüfen.');
+        }
+
+        return back()->with('success', $type === 'paid'
+            ? 'Zahlungsbestätigung an '.$invoice->expert->email.' gesendet.'
+            : 'Rechnung per E-Mail an '.$invoice->expert->email.' gesendet.');
     }
 
     public function bulk(Request $request): RedirectResponse
@@ -94,23 +130,28 @@ class InvoiceController extends Controller
             'ids' => ['required', 'array', 'min:1'],
             'ids.*' => ['integer', 'exists:invoices,id'],
             'activate_promotion' => ['nullable', 'boolean'],
+            'send_email' => ['nullable', 'boolean'],
         ]);
 
         $invoices = Invoice::query()
             ->whereIn('id', $validated['ids'])
-            ->with(['promotion', 'linkedPromotion'])
+            ->with(['expert', 'promotion', 'linkedPromotion'])
             ->get();
 
         $count = 0;
         $activated = 0;
+        $mailed = 0;
+        $sendEmail = $request->boolean('send_email');
+        $markPaid = $validated['payment_status'] === InvoicePaymentStatus::PAID;
 
         foreach ($invoices as $invoice) {
+            $wasPaid = $invoice->payment_status === InvoicePaymentStatus::PAID;
             $invoice->update(['payment_status' => $validated['payment_status']]);
             $count++;
 
             if (
                 ($validated['activate_promotion'] ?? false)
-                && $validated['payment_status'] === InvoicePaymentStatus::PAID
+                && $markPaid
             ) {
                 $promotion = $invoice->linkedPromotion ?? $invoice->promotion;
                 if ($promotion && $promotion->status !== PromotionStatus::ACTIVE) {
@@ -119,8 +160,14 @@ class InvoiceController extends Controller
                         $this->promotionService->activateAfterPayment($promotion->fresh('invoice'), Carbon::now(), 1);
                         $activated++;
                     } catch (\Throwable) {
-                        // keep going for other invoices
+                        // keep going
                     }
+                }
+            }
+
+            if ($sendEmail && $markPaid && ! $wasPaid) {
+                if ($this->invoiceService->notifyPaid($invoice->fresh())) {
+                    $mailed++;
                 }
             }
         }
@@ -128,6 +175,9 @@ class InvoiceController extends Controller
         $msg = $count.' Rechnung(en) aktualisiert.';
         if ($activated > 0) {
             $msg .= ' '.$activated.' Promotion(en) aktiviert.';
+        }
+        if ($mailed > 0) {
+            $msg .= ' '.$mailed.' E-Mail(s) gesendet.';
         }
 
         return back()->with('success', $msg);

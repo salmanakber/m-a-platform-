@@ -114,12 +114,27 @@ class EmailTemplateController extends Controller
     /** @return array<string, string> */
     private function samplePlaceholders(): array
     {
+        $invoiceDocument = view('emails.partials.invoice-document', [
+            'invoiceNumber' => 'NE-'.now()->format('Y').'-00042',
+            'invoiceDate' => now()->format('d.m.Y'),
+            'paymentStatus' => 'pending',
+            'companyName' => 'Muster M&A AG',
+            'contactName' => 'Anna Beispiel',
+            'email' => 'anna@muster-ma.ch',
+            'serviceTitle' => 'Promotion Platz 1',
+            'serviceDetail' => 'Zürich · Position 1',
+            'amountFormatted' => number_format(290, 2, '.', "'"),
+            'currency' => 'CHF',
+            'notes' => 'Promotion Zürich · Position 1',
+            'paymentHint' => 'Bitte überweisen Sie den Betrag unter Angabe der Rechnungsnummer.',
+        ])->render();
+
         return [
             'owner_name' => 'Max Muster',
             'email' => 'max.muster@example.ch',
             'phone' => '+41 44 123 45 67',
             'message' => 'Wir planen eine Unternehmensnachfolge und suchen eine Erstberatung.',
-            'company_name' => 'Muster AG',
+            'company_name' => 'Muster M&A AG',
             'industry' => 'Maschinenbau',
             'canton_name' => 'Zürich',
             'expert_company_name' => 'KMU Beratungen GmbH',
@@ -127,17 +142,32 @@ class EmailTemplateController extends Controller
             'name' => 'Anna Beispiel',
             'reset_url' => rtrim(config('app.url'), '/').'/passwort-zuruecksetzen/beispiel-token',
             'expires_minutes' => '60',
+            'invoice_number' => 'NE-'.now()->format('Y').'-00042',
+            'invoice_date' => now()->format('d.m.Y'),
+            'amount' => number_format(290, 2, '.', "'"),
+            'currency' => 'CHF',
+            'payment_status' => 'pending',
+            'payment_status_label' => 'Offen',
+            'service_title' => 'Promotion Platz 1',
+            'service_detail' => 'Zürich · Position 1',
+            'notes' => 'Promotion Zürich · Position 1',
+            'invoice_document' => $invoiceDocument,
         ];
     }
 
     /** @param  array<string, string>  $placeholders */
     private function replacePlaceholders(string $content, array $placeholders, bool $forHtml = false): string
     {
+        $rawKeys = ['invoice_document'];
         $search = [];
         $replace = [];
         foreach ($placeholders as $key => $value) {
             $search[] = '{{'.$key.'}}';
-            $replace[] = $forHtml ? e($value) : $value;
+            if (in_array($key, $rawKeys, true)) {
+                $replace[] = $value;
+            } else {
+                $replace[] = $forHtml ? e($value) : $value;
+            }
         }
 
         return str_replace($search, $replace, $content);

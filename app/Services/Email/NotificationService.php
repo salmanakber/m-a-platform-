@@ -4,8 +4,10 @@ namespace App\Services\Email;
 
 use App\Models\EmailTemplate;
 use App\Models\Expert;
+use App\Models\Invoice;
 use App\Models\Lead;
 use App\Services\Settings\SettingsService;
+use App\Support\InvoicePaymentStatus;
 use App\Support\SettingKey;
 
 class NotificationService
@@ -121,13 +123,139 @@ class NotificationService
         );
     }
 
+    public function sendInvoiceCreated(Invoice $invoice): void
+    {
+        $this->sendInvoiceEmail($invoice, 'invoice_created', [
+            'headline' => 'Ihre Rechnung',
+            'preheader' => 'Rechnung '.$invoice->invoice_number.' — bitte zur Zahlung',
+            'ctaUrl' => rtrim(config('app.url'), '/').'/login',
+            'ctaLabel' => 'Zum Expertenbereich',
+            'paymentHint' => 'Bitte überweisen Sie den Betrag unter Angabe der Rechnungsnummer. Nach Zahlungseingang aktivieren wir Ihre Promotion.',
+        ]);
+    }
+
+    public function sendInvoicePaid(Invoice $invoice): void
+    {
+        $this->sendInvoiceEmail($invoice, 'invoice_paid', [
+            'headline' => 'Zahlung bestätigt',
+            'preheader' => 'Rechnung '.$invoice->invoice_number.' ist bezahlt',
+            'ctaUrl' => rtrim(config('app.url'), '/').'/login',
+            'ctaLabel' => 'Zum Expertenbereich',
+            'paymentHint' => null,
+        ]);
+    }
+
+    /**
+     * @param  array{headline?: string, preheader?: string, ctaUrl?: string, ctaLabel?: string, paymentHint?: string|null}  $layout
+     */
+    private function sendInvoiceEmail(Invoice $invoice, string $templateKey, array $layout): void
+    {
+        $invoice->loadMissing(['expert', 'promotion.canton', 'linkedPromotion.canton']);
+        $expert = $invoice->expert;
+
+        if ($expert === null || blank($expert->email)) {
+            throw new \RuntimeException('Invoice has no expert e-mail recipient.');
+        }
+
+        $placeholders = $this->invoicePlaceholders($invoice, $layout['paymentHint'] ?? null);
+        $adminBcc = [];
+        $adminEmail = $this->settings->get(SettingKey::ADMIN_NOTIFICATION_EMAIL);
+        if (is_string($adminEmail) && $adminEmail !== '' && strcasecmp($adminEmail, $expert->email) !== 0) {
+            $adminBcc[] = $adminEmail;
+        }
+
+        $this->sendTemplated(
+            $templateKey,
+            [$expert->email],
+            $placeholders,
+            [
+                'headline' => $layout['headline'] ?? 'Rechnung',
+                'preheader' => $layout['preheader'] ?? null,
+                'ctaUrl' => $layout['ctaUrl'] ?? null,
+                'ctaLabel' => $layout['ctaLabel'] ?? null,
+            ],
+            ['invoice_document'],
+            $adminBcc
+        );
+    }
+
+    /**
+     * @return array<string, string|null>
+     */
+    public function invoicePlaceholders(Invoice $invoice, ?string $paymentHint = null): array
+    {
+        $invoice->loadMissing(['expert', 'promotion.canton', 'linkedPromotion.canton']);
+        $expert = $invoice->expert;
+        $promo = $invoice->linkedPromotion ?? $invoice->promotion;
+
+        $serviceTitle = 'Kantonale Promotion';
+        $serviceDetail = '';
+        if ($promo) {
+            $canton = $promo->canton->name_de ?? ($promo->canton->code ?? '');
+            $serviceDetail = trim($canton.' · Position '.$promo->position_number);
+            $serviceTitle = 'Promotion Platz '.$promo->position_number;
+        }
+
+        $contact = trim(($expert->contact_person_name ?? '').' '.($expert->contact_person_last_name ?? ''));
+        if ($contact === '') {
+            $contact = $expert->company_name ?? 'Experte';
+        }
+
+        $amountFormatted = number_format((float) $invoice->amount, 2, '.', "'");
+        $statusLabels = [
+            InvoicePaymentStatus::PENDING => 'Offen',
+            InvoicePaymentStatus::PAID => 'Bezahlt',
+            InvoicePaymentStatus::OVERDUE => 'Überfällig',
+            InvoicePaymentStatus::CANCELLED => 'Storniert',
+        ];
+
+        $document = view('emails.partials.invoice-document', [
+            'invoiceNumber' => $invoice->invoice_number,
+            'invoiceDate' => optional($invoice->invoice_date)->format('d.m.Y') ?: now()->format('d.m.Y'),
+            'paymentStatus' => $invoice->payment_status,
+            'companyName' => $expert->company_name ?? '—',
+            'contactName' => $contact,
+            'email' => $expert->email ?? '',
+            'serviceTitle' => $serviceTitle,
+            'serviceDetail' => $serviceDetail,
+            'amountFormatted' => $amountFormatted,
+            'currency' => $invoice->currency ?: 'CHF',
+            'notes' => $invoice->notes,
+            'paymentHint' => $paymentHint,
+        ])->render();
+
+        return [
+            'invoice_number' => $invoice->invoice_number,
+            'invoice_date' => optional($invoice->invoice_date)->format('d.m.Y') ?: '',
+            'amount' => $amountFormatted,
+            'currency' => $invoice->currency ?: 'CHF',
+            'payment_status' => $invoice->payment_status,
+            'payment_status_label' => $statusLabels[$invoice->payment_status] ?? $invoice->payment_status,
+            'company_name' => $expert->company_name ?? '',
+            'contact_name' => $contact,
+            'email' => $expert->email ?? '',
+            'service_title' => $serviceTitle,
+            'service_detail' => $serviceDetail,
+            'notes' => $invoice->notes,
+            'invoice_document' => $document,
+        ];
+    }
+
     /**
      * @param  list<string>  $recipients
      * @param  array<string, string|null>  $placeholders
      * @param  array{headline?: string, preheader?: string, ctaUrl?: string, ctaLabel?: string}  $layout
+     * @param  list<string>  $rawHtmlKeys  placeholder keys inserted without escaping
+     * @param  list<string>  $bcc
      */
-    private function sendTemplated(string $key, array $recipients, array $placeholders, array $layout = []): void
-    {
+    private function sendTemplated(
+        string $key,
+        array $recipients,
+        array $placeholders,
+        array $layout = [],
+        array $rawHtmlKeys = [],
+        array $bcc = []
+    ): void {
         $template = EmailTemplate::query()->where('key', $key)->first();
 
         if ($template === null) {
@@ -135,14 +263,15 @@ class NotificationService
         }
 
         $subject = $this->render($template->subject, $placeholders);
-        $bodyHtml = $this->render($template->body_html, $placeholders, true);
+        $bodyHtml = $this->render($template->body_html, $placeholders, true, $rawHtmlKeys);
         $bodyText = $template->body_text ? $this->render($template->body_text, $placeholders) : null;
 
         $this->mailer->send(
             $recipients,
             $subject,
             $this->wrap($subject, $bodyHtml, $layout),
-            $bodyText
+            $bodyText,
+            $bcc
         );
     }
 
@@ -163,8 +292,9 @@ class NotificationService
 
     /**
      * @param  array<string, string|null>  $placeholders
+     * @param  list<string>  $rawHtmlKeys
      */
-    private function render(string $content, array $placeholders, bool $forHtml = false): string
+    private function render(string $content, array $placeholders, bool $forHtml = false, array $rawHtmlKeys = []): string
     {
         $search = [];
         $replace = [];
@@ -172,7 +302,11 @@ class NotificationService
         foreach ($placeholders as $key => $value) {
             $search[] = '{{'.$key.'}}';
             $raw = $value ?? '';
-            $replace[] = $forHtml ? nl2br(e($raw), false) : $raw;
+            if (in_array($key, $rawHtmlKeys, true)) {
+                $replace[] = $raw;
+            } else {
+                $replace[] = $forHtml ? nl2br(e($raw), false) : $raw;
+            }
         }
 
         return str_replace($search, $replace, $content);

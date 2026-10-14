@@ -134,6 +134,55 @@ HTML,
 HTML,
                 'body_text' => "Guten Tag {{name}},\n\nPasswort zurücksetzen: {{reset_url}}\n\nGültig {{expires_minutes}} Minuten.",
             ],
+            [
+                'key' => 'invoice_created',
+                'subject' => 'Rechnung {{invoice_number}} — Promotion nachfolge-experten.ch',
+                'body_html' => <<<'HTML'
+<p style="margin:0 0 16px;font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.6;color:#0a2a42;">
+    Guten Tag <strong style="color:#0E4971;">{{contact_name}}</strong>,
+</p>
+<p style="margin:0 0 18px;font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.6;color:#0a2a42;">
+    anbei Ihre Rechnung für die kantonalen Promotion von
+    <strong style="color:#0E4971;">{{company_name}}</strong>.
+    Bitte begleichen Sie den Betrag gemäss den Zahlungsangaben — nach Zahlungseingang schalten wir Ihre Promotion frei.
+</p>
+
+{{invoice_document}}
+
+<p style="margin:0 0 10px;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.55;color:#5a6b78;">
+    Bei Fragen zur Rechnung antworten Sie einfach auf diese E-Mail.
+</p>
+HTML,
+                'body_text' => "Rechnung {{invoice_number}}\n\nGuten Tag {{contact_name}},\n\nRechnung für Promotion {{company_name}}.\nBetrag: {{amount}} {{currency}}\nDatum: {{invoice_date}}\nStatus: {{payment_status_label}}\nLeistung: {{service_title}} — {{service_detail}}\n\nBitte begleichen Sie den Betrag. Nach Zahlungseingang wird die Promotion freigeschaltet.",
+            ],
+            [
+                'key' => 'invoice_paid',
+                'subject' => 'Zahlung bestätigt — Rechnung {{invoice_number}}',
+                'body_html' => <<<'HTML'
+<p style="margin:0 0 16px;font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.6;color:#0a2a42;">
+    Guten Tag <strong style="color:#0E4971;">{{contact_name}}</strong>,
+</p>
+<p style="margin:0 0 18px;font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.6;color:#0a2a42;">
+    vielen Dank — wir haben Ihre Zahlung zur Rechnung
+    <strong style="color:#0E4971;">{{invoice_number}}</strong> erhalten.
+    Ihre Promotion wird bzw. ist freigeschaltet und im Verzeichnis sichtbar.
+</p>
+
+{{invoice_document}}
+
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:collapse;margin:0 0 12px;background-color:#e8f8ef;border:1px solid #a7e0c0;">
+    <tr>
+        <td style="padding:14px 16px;">
+            <p style="margin:0 0 4px;font-family:Arial,Helvetica,sans-serif;font-size:12px;font-weight:700;color:#0b6e4f;">Zahlung bestätigt</p>
+            <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.5;color:#0a2a42;">
+                Betrag {{amount}} {{currency}} · {{service_title}} · {{service_detail}}
+            </p>
+        </td>
+    </tr>
+</table>
+HTML
+                'body_text' => "Zahlung bestätigt — Rechnung {{invoice_number}}\n\nGuten Tag {{contact_name}},\n\nWir haben Ihre Zahlung ({{amount}} {{currency}}) erhalten.\nLeistung: {{service_title}} — {{service_detail}}\nIhre Promotion ist freigeschaltet.",
+            ],
         ];
 
         foreach ($templates as $template) {
