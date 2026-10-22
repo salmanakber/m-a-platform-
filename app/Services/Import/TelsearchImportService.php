@@ -7,6 +7,7 @@ use App\Models\Expert;
 use App\Models\ImportRun;
 use App\Models\User;
 use App\Services\Logo\LogoDiscoveryService;
+use App\Services\Maps\GeocodingService;
 use App\Support\ExpertStatus;
 use App\Support\ProfessionalGroup;
 use App\Support\Role;
@@ -14,6 +15,7 @@ use App\Support\SwissPlz;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use PhpOffice\PhpSpreadsheet\IOFactory;
@@ -24,6 +26,10 @@ class TelsearchImportService
     public const IMPORT_PATH = 'imports/Basis_telsearch.xlsx';
 
     public const TEMPLATE_PATH = 'imports/template_experts.csv';
+
+    public function __construct(private GeocodingService $geocoder)
+    {
+    }
 
     /** @var array<string, list<string>> */
     private const COLUMN_ALIASES = [
@@ -39,6 +45,7 @@ class TelsearchImportService
         'full_address' => ['volladresse', 'full_address', 'adresse_komplett', 'anschrift_komplett', 'standort'],
         'contact_person_name' => ['vorname', 'contact_person_name', 'first_name', 'kontakt_vorname', 'ansprechpartner_vorname'],
         'contact_person_last_name' => ['nachname', 'contact_person_last_name', 'last_name', 'kontakt_nachname', 'ansprechpartner_nachname', 'name_kontakt'],
+        'contact_person_full' => ['ansprechperson', 'ansprechpartner', 'kontaktperson', 'kontakt', 'contact', 'contact_person'],
         'description' => ['beschreibung', 'description', 'taetigkeit', 'tätigkeit', 'branche', 'industry', 'bemerkung'],
         'offers_buy' => ['kauf', 'buy', 'kaufen', 'offers_buy', 'ma_kauf'],
         'offers_sell' => ['verkauf', 'sell', 'verkaufen', 'nachfolge', 'offers_sell', 'ma_verkauf'],
@@ -53,10 +60,11 @@ class TelsearchImportService
      *     created: int,
      *     updated: int,
      *     skipped: int,
-     *     failed: int
+     *     failed: int,
+     *     geocoded: int
      * }
      */
-    public function importFromUpload(?UploadedFile $file, ?int $userId = null): array
+    public function importFromUpload(?UploadedFile $file, ?int $userId = null, bool $geocode = true): array
     {
         $path = self::IMPORT_PATH;
         $filename = basename($path);
@@ -68,7 +76,7 @@ class TelsearchImportService
             Storage::disk('local')->putFileAs('imports', $file, basename($path));
         }
 
-        return $this->importPath($path, $filename, $userId);
+        return $this->importPath($path, $filename, $userId, $geocode);
     }
 
     /**
@@ -77,10 +85,11 @@ class TelsearchImportService
      *     created: int,
      *     updated: int,
      *     skipped: int,
-     *     failed: int
+     *     failed: int,
+     *     geocoded: int
      * }
      */
-    public function importPath(string $storagePath, ?string $filename = null, ?int $userId = null): array
+    public function importPath(string $storagePath, ?string $filename = null, ?int $userId = null, bool $geocode = true): array
     {
         if (! Storage::disk('local')->exists($storagePath)) {
             throw new \RuntimeException('Import-Datei nicht gefunden: storage/app/'.$storagePath);
@@ -96,7 +105,7 @@ class TelsearchImportService
             'started_at' => now(),
         ]);
 
-        $created = $updated = $skipped = $failed = 0;
+        $created = $updated = $skipped = $failed = $geocoded = 0;
         $errors = [];
 
         try {
@@ -121,13 +130,16 @@ class TelsearchImportService
                         continue;
                     }
 
-                    $result = $this->upsertExpert($mapped, $cantonsByCode, $cantonsByName);
+                    $result = $this->upsertExpert($mapped, $cantonsByCode, $cantonsByName, $geocode);
                     if ($result['status'] === 'created') {
                         $created++;
                     } elseif ($result['status'] === 'updated') {
                         $updated++;
                     } else {
                         $skipped++;
+                    }
+                    if (! empty($result['geocoded'])) {
+                        $geocoded++;
                     }
                     if (! empty($result['warnings'])) {
                         foreach ($result['warnings'] as $warning) {
@@ -159,7 +171,8 @@ class TelsearchImportService
                 'errors' => $errors,
                 'meta' => [
                     'mapped_fields' => array_keys(self::COLUMN_ALIASES),
-                    'notes' => 'Website/Adresse werden best-effort gespeichert; fehlender Kanton wird per PLZ abgeleitet. Manuell hochgeladene Logos (logo_locked) werden nicht überschrieben.',
+                    'geocoded' => $geocoded,
+                    'notes' => 'Adressen werden geparst (PLZ/Ort/Kanton), Standorte als ExpertOffice gespeichert und per Geocoding auf die Karte gesetzt. Fehlender Kanton wird per PLZ abgeleitet.',
                 ],
                 'finished_at' => now(),
             ]);
@@ -177,7 +190,7 @@ class TelsearchImportService
             throw $e;
         }
 
-        return compact('run', 'created', 'updated', 'skipped', 'failed');
+        return compact('run', 'created', 'updated', 'skipped', 'failed', 'geocoded');
     }
 
     /**
@@ -251,7 +264,7 @@ class TelsearchImportService
                 if ($key === '') {
                     continue;
                 }
-                $assoc[$key] = isset($row[$i]) ? trim((string) $row[$i]) : '';
+                $assoc[$key] = isset($row[$i]) ? $this->cleanCell($row[$i]) : '';
             }
             $rows[] = $assoc;
         }
@@ -270,13 +283,31 @@ class TelsearchImportService
             $out[$field] = $this->pick($row, $aliases);
         }
 
-        $out['company_name'] = trim((string) $out['company_name']);
-        $out['email'] = strtolower(trim((string) $out['email']));
+        $out['company_name'] = $this->cleanCell($out['company_name']);
+        $out['email'] = strtolower($this->cleanCell($out['email']));
         $out['website'] = $this->normalizeWebsite((string) $out['website']);
         $out['logo_url'] = $this->normalizeWebsite((string) $out['logo_url']);
         $out['offers_buy'] = $this->toBool($out['offers_buy']);
         $out['offers_sell'] = $this->toBool($out['offers_sell']);
         $out['professional_group'] = $this->normalizeProfessionalGroup((string) $out['professional_group']);
+
+        // Telsearch "Ansprechperson" is often a full name in one column.
+        if (($out['contact_person_name'] === '' || $out['contact_person_last_name'] === '')
+            && ($out['contact_person_full'] ?? '') !== '') {
+            $parts = preg_split('/\s+/u', trim((string) $out['contact_person_full'])) ?: [];
+            if (count($parts) === 1) {
+                if ($out['contact_person_name'] === '') {
+                    $out['contact_person_name'] = $parts[0];
+                }
+            } elseif (count($parts) > 1) {
+                if ($out['contact_person_last_name'] === '') {
+                    $out['contact_person_last_name'] = array_pop($parts);
+                }
+                if ($out['contact_person_name'] === '') {
+                    $out['contact_person_name'] = implode(' ', $parts);
+                }
+            }
+        }
 
         $this->enrichAddressFields($out);
 
@@ -293,9 +324,9 @@ class TelsearchImportService
      * @param  array<string, mixed>  $mapped
      * @param  \Illuminate\Support\Collection<string, Canton>  $cantonsByCode
      * @param  \Illuminate\Support\Collection<string, Canton>  $cantonsByName
-     * @return array{status: string, warnings: list<string>}
+     * @return array{status: string, warnings: list<string>, geocoded?: bool}
      */
-    private function upsertExpert(array $mapped, $cantonsByCode, $cantonsByName): array
+    private function upsertExpert(array $mapped, $cantonsByCode, $cantonsByName, bool $geocode = true): array
     {
         $fingerprint = $this->fingerprint($mapped);
         $email = $mapped['email'] !== ''
@@ -310,8 +341,9 @@ class TelsearchImportService
             }
         }
 
-        return DB::transaction(function () use ($mapped, $fingerprint, $email, $canton) {
+        return DB::transaction(function () use ($mapped, $fingerprint, $email, $canton, $geocode) {
             $warnings = [];
+            $geocoded = false;
             $existing = Expert::query()->where('import_fingerprint', $fingerprint)->first();
 
             if (! $existing && ! str_ends_with($email, '@nachfolge-experten.local')) {
@@ -345,13 +377,14 @@ class TelsearchImportService
                     'import_fingerprint' => $fingerprint,
                 ])->save();
 
-                $officeWarning = $this->upsertOffice($existing, $mapped, $canton);
-                if ($officeWarning) {
-                    $warnings[] = $officeWarning;
+                $officeResult = $this->upsertOffice($existing, $mapped, $canton, $geocode);
+                if ($officeResult['warning']) {
+                    $warnings[] = $officeResult['warning'];
                 }
+                $geocoded = $officeResult['geocoded'];
                 $this->maybeImportLogo($existing, (string) $mapped['logo_url']);
 
-                return ['status' => 'updated', 'warnings' => $warnings];
+                return ['status' => 'updated', 'warnings' => $warnings, 'geocoded' => $geocoded];
             }
 
             $expert = Expert::query()->create([
@@ -374,20 +407,22 @@ class TelsearchImportService
                 'import_fingerprint' => $fingerprint,
             ]);
 
-            $officeWarning = $this->upsertOffice($expert, $mapped, $canton);
-            if ($officeWarning) {
-                $warnings[] = $officeWarning;
+            $officeResult = $this->upsertOffice($expert, $mapped, $canton, $geocode);
+            if ($officeResult['warning']) {
+                $warnings[] = $officeResult['warning'];
             }
+            $geocoded = $officeResult['geocoded'];
             $this->maybeImportLogo($expert, (string) $mapped['logo_url']);
 
-            return ['status' => 'created', 'warnings' => $warnings];
+            return ['status' => 'created', 'warnings' => $warnings, 'geocoded' => $geocoded];
         });
     }
 
     /**
      * @param  array<string, mixed>  $mapped
+     * @return array{warning: ?string, geocoded: bool}
      */
-    private function upsertOffice(Expert $expert, array $mapped, ?Canton $canton): ?string
+    private function upsertOffice(Expert $expert, array $mapped, ?Canton $canton, bool $geocode = true): array
     {
         $hasAddressBits = $mapped['address_line'] !== ''
             || $mapped['postal_code'] !== ''
@@ -395,14 +430,53 @@ class TelsearchImportService
 
         if (! $canton) {
             if ($hasAddressBits) {
-                return 'Hinweis: Adresse vorhanden, aber Kanton nicht erkannt — Standort nicht gespeichert (Profil trotzdem importiert). PLZ/Kanton prüfen und erneut importieren.';
+                return [
+                    'warning' => 'Hinweis: Adresse vorhanden, aber Kanton nicht erkannt — Standort nicht gespeichert (Profil trotzdem importiert). PLZ/Kanton prüfen und erneut importieren.',
+                    'geocoded' => false,
+                ];
             }
 
-            return 'Hinweis: Kein Kanton/Standort in der Zeile — Experte ohne Adresse angelegt.';
+            return [
+                'warning' => 'Hinweis: Kein Kanton/Standort in der Zeile — Experte ohne Adresse angelegt.',
+                'geocoded' => false,
+            ];
         }
 
         $office = $expert->offices()->where('is_primary', true)->first()
             ?? $expert->offices()->first();
+
+        $lat = is_numeric($mapped['latitude'] ?? null) ? (float) $mapped['latitude'] : null;
+        $lng = is_numeric($mapped['longitude'] ?? null) ? (float) $mapped['longitude'] : null;
+        $geocoded = false;
+
+        $needsGeocode = $geocode
+            && $hasAddressBits
+            && ($lat === null || $lng === null || $this->coordsLookLikeCantonCenter($lat, $lng, $canton, $office));
+
+        if ($needsGeocode) {
+            try {
+                $coords = $this->geocoder->geocodeSwissAddress(
+                    $mapped['address_line'] !== '' ? $mapped['address_line'] : null,
+                    $mapped['postal_code'] !== '' ? $mapped['postal_code'] : null,
+                    $mapped['city'] !== '' ? $mapped['city'] : null,
+                    $canton->code
+                );
+                if ($coords !== null) {
+                    $lat = $coords['latitude'];
+                    $lng = $coords['longitude'];
+                    $geocoded = true;
+                    // Be kind to Nominatim rate limits when Google is unavailable.
+                    usleep(200000);
+                }
+            } catch (Throwable $e) {
+                Log::warning('Import geocode failed for '.$expert->company_name.': '.$e->getMessage());
+            }
+        }
+
+        if ($lat === null || $lng === null) {
+            $lat = $canton->latitude !== null ? (float) $canton->latitude : null;
+            $lng = $canton->longitude !== null ? (float) $canton->longitude : null;
+        }
 
         $payload = [
             'label' => 'Hauptsitz',
@@ -410,8 +484,8 @@ class TelsearchImportService
             'postal_code' => $mapped['postal_code'] !== '' ? $mapped['postal_code'] : '0000',
             'city' => $mapped['city'] !== '' ? $mapped['city'] : ($canton->name_de ?? 'Schweiz'),
             'canton_id' => $canton->id,
-            'latitude' => is_numeric($mapped['latitude']) ? (float) $mapped['latitude'] : $canton->latitude,
-            'longitude' => is_numeric($mapped['longitude']) ? (float) $mapped['longitude'] : $canton->longitude,
+            'latitude' => $lat,
+            'longitude' => $lng,
             'is_primary' => true,
             'sort_order' => 0,
         ];
@@ -422,7 +496,34 @@ class TelsearchImportService
             $expert->offices()->create($payload);
         }
 
-        return null;
+        return ['warning' => null, 'geocoded' => $geocoded];
+    }
+
+    private function coordsLookLikeCantonCenter(?float $lat, ?float $lng, Canton $canton, $office = null): bool
+    {
+        if ($lat === null || $lng === null || $canton->latitude === null || $canton->longitude === null) {
+            // Existing office already parked on canton center → refresh via geocode.
+            if ($office && $office->latitude !== null && $office->longitude !== null
+                && $canton->latitude !== null && $canton->longitude !== null) {
+                return abs((float) $office->latitude - (float) $canton->latitude) < 0.0001
+                    && abs((float) $office->longitude - (float) $canton->longitude) < 0.0001;
+            }
+
+            return true;
+        }
+
+        return abs($lat - (float) $canton->latitude) < 0.0001
+            && abs($lng - (float) $canton->longitude) < 0.0001;
+    }
+
+    private function cleanCell(mixed $value): string
+    {
+        $text = (string) $value;
+        // Excel/Telsearch often uses non-breaking spaces.
+        $text = preg_replace('/[\x{00A0}\x{202F}\x{2007}\x{2009}]/u', ' ', $text) ?? $text;
+        $text = preg_replace('/\s+/u', ' ', $text) ?? $text;
+
+        return trim($text);
     }
 
     private function maybeImportLogo(Expert $expert, string $logoUrl): void
@@ -447,7 +548,13 @@ class TelsearchImportService
      */
     private function enrichAddressFields(array &$out): void
     {
-        $blob = trim((string) ($out['full_address'] ?? ''));
+        foreach (['full_address', 'address_line', 'postal_code', 'city', 'canton'] as $field) {
+            if (isset($out[$field])) {
+                $out[$field] = $this->cleanCell($out[$field]);
+            }
+        }
+
+        $blob = (string) ($out['full_address'] ?? '');
         if ($blob === '' && $out['address_line'] !== '' && $out['postal_code'] === '' && $out['city'] === '') {
             $blob = (string) $out['address_line'];
         }
@@ -465,7 +572,7 @@ class TelsearchImportService
         }
 
         // Telsearch "Ort" often embeds PLZ + city + optional canton: "5600 Lenzburg AG"
-        $cityRaw = trim((string) $out['city']);
+        $cityRaw = (string) $out['city'];
         if ($cityRaw !== '' && preg_match('/^(\d{4})\s+(.+?)(?:\s+([A-Za-z]{2}))?$/u', $cityRaw, $m)) {
             if ($out['postal_code'] === '') {
                 $out['postal_code'] = $m[1];
@@ -495,10 +602,15 @@ class TelsearchImportService
             }
         }
 
-        $out['address_line'] = trim((string) $out['address_line']);
-        $out['postal_code'] = trim((string) $out['postal_code']);
-        $out['city'] = trim((string) $out['city']);
-        $out['canton'] = trim((string) $out['canton']);
+        // Strip trailing canton from city again after PLZ split (e.g. "Muri b. Bern BE")
+        if ($out['canton'] !== '' && preg_match('/\s+'.preg_quote($out['canton'], '/').'$/iu', (string) $out['city'])) {
+            $out['city'] = trim(preg_replace('/\s+'.preg_quote($out['canton'], '/').'$/iu', '', (string) $out['city']) ?? (string) $out['city']);
+        }
+
+        $out['address_line'] = $this->cleanCell($out['address_line']);
+        $out['postal_code'] = $this->cleanCell($out['postal_code']);
+        $out['city'] = $this->cleanCell($out['city']);
+        $out['canton'] = $this->cleanCell($out['canton']);
     }
 
     /**

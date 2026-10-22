@@ -118,6 +118,7 @@
             <div class="sheet__head"><h2>Schnellaktionen</h2></div>
             <div style="padding:1rem 1.25rem;display:grid;gap:0.5rem;">
                 <a class="btn btn--block btn--ghost btn--small" href="{{ route('admin.experts.edit', $expert) }}">Alle Felder bearbeiten</a>
+                <a class="btn btn--block btn--ghost btn--small" href="{{ route('admin.experts.edit', $expert) }}#standorte">Standorte bearbeiten</a>
                 <a class="btn btn--block btn--ghost btn--small" href="{{ route('admin.leads.index', ['expert_id' => $expert->id]) }}">Anfragen dieses Experten</a>
             </div>
         </section>

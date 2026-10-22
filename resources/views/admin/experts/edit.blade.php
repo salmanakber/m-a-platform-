@@ -6,9 +6,24 @@
     <a href="{{ route('admin.experts.show', $expert) }}" class="back-link">← Zurück</a>
     <h1 style="font-family:var(--font-display);margin-top:0;">{{ $expert->company_name }} bearbeiten</h1>
 
-    <form method="post" action="{{ route('admin.experts.update', $expert) }}" class="card" enctype="multipart/form-data">
+    @if (session('success'))
+        <div class="alert alert--success" style="margin-bottom:1rem;">{{ session('success') }}</div>
+    @endif
+    @if ($errors->any())
+        <div class="alert alert--danger" style="margin-bottom:1rem;">
+            <ul style="margin:0;padding-left:1.1rem;">
+                @foreach ($errors->all() as $error)
+                    <li>{{ $error }}</li>
+                @endforeach
+            </ul>
+        </div>
+    @endif
+
+    <form method="post" action="{{ route('admin.experts.update', $expert) }}" class="card" enctype="multipart/form-data" style="margin-bottom:1.5rem;">
         @csrf
         @method('PUT')
+
+        <h2 style="margin:0 0 1rem;font-size:1.05rem;">Stammdaten</h2>
 
         <div class="form-row">
             <div class="form-group">
@@ -18,6 +33,7 @@
             <div class="form-group">
                 <label for="email">E-Mail</label>
                 <input class="form-control" type="email" name="email" id="email" value="{{ old('email', $expert->email) }}" required>
+                <p class="field-hint">Wird auch für den Login-Account übernommen (falls vorhanden).</p>
             </div>
         </div>
         <div class="form-row">
@@ -94,6 +110,184 @@
             <input class="form-control" type="url" name="website_crawl_url" id="website_crawl_url" value="{{ old('website_crawl_url', $expert->website_crawl_url) }}">
         </div>
 
-        <button type="submit" class="btn">Speichern</button>
+        <button type="submit" class="btn">Stammdaten speichern</button>
     </form>
+
+    <section class="card" id="standorte">
+        <h2 style="margin:0 0 0.35rem;font-size:1.05rem;">Standorte &amp; Adressen</h2>
+        <p class="field-hint" style="margin-top:0;">Adressen hinzufügen, bearbeiten oder löschen — inkl. Kartenkoordinaten.</p>
+
+        @forelse ($expert->offices as $office)
+            <details class="admin-office" @if($errors->any() && (int) old('office_id') === (int) $office->id) open @endif>
+                <summary>
+                    <strong>{{ $office->label ?: ($office->is_primary ? 'Hauptsitz' : 'Standort') }}</strong>
+                    @if($office->is_primary)<span class="pill pill--success">Haupt</span>@endif
+                    <span>{{ $office->address_line }}, {{ $office->postal_code }} {{ $office->city }}@if($office->canton) · {{ $office->canton->code }}@endif</span>
+                </summary>
+                <form method="post" action="{{ route('admin.experts.offices.update', [$expert, $office]) }}" style="padding:1rem 0 0;">
+                    @csrf
+                    @method('PUT')
+                    <input type="hidden" name="office_id" value="{{ $office->id }}">
+                    @include('expert.offices._fields', ['office' => $office, 'cantons' => $cantons])
+                    <div style="display:flex;flex-wrap:wrap;gap:0.5rem;margin-top:0.75rem;">
+                        <button type="submit" class="btn btn--small">Standort speichern</button>
+                    </div>
+                </form>
+                <form method="post" action="{{ route('admin.experts.offices.destroy', [$expert, $office]) }}" onsubmit="return confirm('Standort wirklich löschen?');" style="margin-top:0.75rem;">
+                    @csrf
+                    @method('DELETE')
+                    <button type="submit" class="btn btn--ghost btn--small">Standort löschen</button>
+                </form>
+            </details>
+        @empty
+            <p style="color:var(--stone);">Noch keine Standorte — unten den ersten erfassen.</p>
+        @endforelse
+
+        <div style="margin-top:1.25rem;padding-top:1.25rem;border-top:1px solid var(--line, #e5e8e5);">
+            <h3 style="margin:0 0 0.75rem;font-size:0.95rem;">{{ $expert->offices->isEmpty() ? 'Hauptsitz erfassen' : 'Weiteren Standort hinzufügen' }}</h3>
+            <form method="post" action="{{ route('admin.experts.offices.store', $expert) }}">
+                @csrf
+                @include('expert.offices._fields', ['office' => null, 'cantons' => $cantons])
+                <button type="submit" class="btn" style="margin-top:0.5rem;">Adresse speichern</button>
+            </form>
+        </div>
+    </section>
+
+<style>
+.admin-office {
+    margin: 0.85rem 0;
+    border: 1px solid var(--line, #e5e8e5);
+    border-radius: 8px;
+    background: #fafbfa;
+}
+.admin-office > summary {
+    cursor: pointer;
+    list-style: none;
+    display: grid;
+    gap: 0.2rem;
+    padding: 0.85rem 1rem;
+}
+.admin-office > summary::-webkit-details-marker { display: none; }
+.admin-office > summary span:last-child {
+    color: var(--stone);
+    font-size: 0.88rem;
+}
+.admin-office[open] > summary {
+    border-bottom: 1px solid var(--line, #e5e8e5);
+}
+.admin-office form { padding-left: 1rem; padding-right: 1rem; padding-bottom: 1rem; }
+</style>
+
+<script type="application/json" id="officeSuggestConfig">@json([
+    'url' => $suggestUrl,
+    'cantons' => $cantonCodeMap,
+])</script>
+<script>
+(function () {
+    var cfgEl = document.getElementById('officeSuggestConfig');
+    if (!cfgEl) return;
+    var cfg = {};
+    try { cfg = JSON.parse(cfgEl.textContent || '{}'); } catch (e) { return; }
+    var url = cfg.url;
+    var cantonMap = cfg.cantons || {};
+
+    function csrf() {
+        var m = document.querySelector('meta[name="csrf-token"]');
+        return m ? m.getAttribute('content') : '';
+    }
+
+    function fillForm(root, item) {
+        var form = root.closest('form');
+        if (!form) return;
+        var address = root.querySelector('[name="address_line"]');
+        var postal = form.querySelector('[name="postal_code"]');
+        var city = form.querySelector('[name="city"]');
+        var canton = form.querySelector('[name="canton_id"]');
+        var lat = form.querySelector('[name="latitude"]');
+        var lng = form.querySelector('[name="longitude"]');
+        var geocode = form.querySelector('[name="geocode"]');
+
+        if (address && item.address_line) address.value = item.address_line;
+        else if (address && item.label) address.value = item.label.split(',')[0].trim();
+        if (postal && item.postal_code) postal.value = item.postal_code;
+        if (city && item.city) city.value = item.city;
+        if (canton && item.canton_code && cantonMap[item.canton_code]) {
+            canton.value = String(cantonMap[item.canton_code]);
+        }
+        if (lat && item.latitude != null) lat.value = item.latitude;
+        if (lng && item.longitude != null) lng.value = item.longitude;
+        if (geocode && item.latitude != null && item.longitude != null) geocode.checked = false;
+    }
+
+    function renderList(listEl, items, root) {
+        listEl.innerHTML = '';
+        if (!items.length) {
+            listEl.hidden = true;
+            return;
+        }
+        items.forEach(function (item) {
+            var btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'xp-address-suggest__item';
+            btn.setAttribute('role', 'option');
+            btn.innerHTML = '<strong></strong><span></span>';
+            btn.querySelector('strong').textContent = item.address_line || item.label || 'Adresse';
+            var meta = [item.postal_code, item.city, item.canton_code].filter(Boolean).join(' · ');
+            btn.querySelector('span').textContent = meta || item.label || '';
+            btn.addEventListener('click', function () {
+                fillForm(root, item);
+                listEl.hidden = true;
+            });
+            listEl.appendChild(btn);
+        });
+        listEl.hidden = false;
+    }
+
+    document.querySelectorAll('[data-suggest-root]').forEach(function (root) {
+        var input = root.querySelector('[data-suggest-input]');
+        var list = root.querySelector('[data-suggest-list]');
+        if (!input || !list) return;
+        var timer = null;
+        var lastQ = '';
+
+        input.addEventListener('input', function () {
+            var q = (input.value || '').trim();
+            if (timer) clearTimeout(timer);
+            if (q.length < 3) {
+                list.hidden = true;
+                list.innerHTML = '';
+                return;
+            }
+            timer = setTimeout(function () {
+                if (q === lastQ) return;
+                lastQ = q;
+                list.innerHTML = '<div class="xp-address-suggest__loading">Suche Adressen…</div>';
+                list.hidden = false;
+                fetch(url + '?q=' + encodeURIComponent(q), {
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'X-CSRF-TOKEN': csrf()
+                    },
+                    credentials: 'same-origin'
+                }).then(function (r) { return r.json(); })
+                  .then(function (data) {
+                      if ((input.value || '').trim() !== q) return;
+                      renderList(list, data.suggestions || [], root);
+                  }).catch(function () {
+                      list.innerHTML = '<div class="xp-address-suggest__loading">Keine Vorschläge verfügbar</div>';
+                  });
+            }, 320);
+        });
+
+        input.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape') list.hidden = true;
+        });
+
+        document.addEventListener('click', function (e) {
+            if (!root.contains(e.target)) list.hidden = true;
+        });
+    });
+})();
+</script>
 @endsection

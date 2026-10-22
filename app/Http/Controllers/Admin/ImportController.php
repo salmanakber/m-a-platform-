@@ -47,10 +47,12 @@ class ImportController extends Controller
         $validated = $request->validate([
             'file' => ['nullable', 'file', 'mimes:xlsx,xls,csv,txt', 'max:51200'],
             'use_default' => ['nullable', 'boolean'],
+            'geocode' => ['nullable', 'boolean'],
         ]);
 
         $file = $request->file('file');
-        $useDefault = (bool) ($validated['use_default'] ?? false);
+        $useDefault = $request->boolean('use_default');
+        $geocode = $request->has('geocode') ? $request->boolean('geocode') : true;
 
         if (! $file && ! $useDefault) {
             return back()->withErrors([
@@ -67,7 +69,8 @@ class ImportController extends Controller
         try {
             $result = $this->imports->importFromUpload(
                 $useDefault ? null : $file,
-                $request->user()?->id
+                $request->user()?->id,
+                $geocode
             );
         } catch (Throwable $e) {
             report($e);
@@ -80,11 +83,12 @@ class ImportController extends Controller
         return back()->with(
             'success',
             sprintf(
-                'Import abgeschlossen: %d neu, %d aktualisiert, %d übersprungen, %d Fehler.',
+                'Import abgeschlossen: %d neu, %d aktualisiert, %d übersprungen, %d Fehler, %d Standorte geocodiert.',
                 $result['created'],
                 $result['updated'],
                 $result['skipped'],
-                $result['failed']
+                $result['failed'],
+                $result['geocoded'] ?? 0
             )
         );
     }

@@ -5,18 +5,24 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Canton;
 use App\Models\Expert;
+use App\Models\User;
 use App\Services\Email\NotificationService;
+use App\Services\Settings\SettingsService;
 use App\Support\ExpertStatus;
 use App\Support\ProfessionalGroup;
+use App\Support\SettingKey;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class ExpertController extends Controller
 {
-    public function __construct(private NotificationService $notifications)
-    {
+    public function __construct(
+        private NotificationService $notifications,
+        private SettingsService $settings
+    ) {
     }
 
     public function index(Request $request): View
@@ -65,10 +71,15 @@ class ExpertController extends Controller
     public function edit(Expert $expert): View
     {
         $expert->load('offices.canton');
+        $cantons = Canton::query()->orderBy('name_de')->get();
 
         return view('admin.experts.edit', [
             'expert' => $expert,
             'professionalGroups' => ProfessionalGroup::labels(),
+            'cantons' => $cantons,
+            'cantonCodeMap' => $cantons->pluck('id', 'code'),
+            'suggestUrl' => route('admin.experts.offices.suggest', $expert),
+            'mapsApiKey' => $this->settings->get(SettingKey::GOOGLE_MAPS_API_KEY),
         ]);
     }
 
@@ -76,7 +87,13 @@ class ExpertController extends Controller
     {
         $validated = $request->validate([
             'company_name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'email', 'max:255'],
+            'email' => [
+                'required',
+                'email',
+                'max:255',
+                Rule::unique('experts', 'email')->ignore($expert->id),
+                Rule::unique('users', 'email')->ignore($expert->user_id),
+            ],
             'phone' => ['nullable', 'string', 'max:50'],
             'website' => ['nullable', 'url', 'max:500'],
             'description' => ['nullable', 'string'],
@@ -91,6 +108,8 @@ class ExpertController extends Controller
             'contact_person_name' => ['nullable', 'string', 'max:120'],
             'contact_person_last_name' => ['nullable', 'string', 'max:120'],
             'logo' => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp,gif', 'max:4096'],
+        ], [
+            'email.unique' => 'Diese E-Mail-Adresse wird bereits verwendet.',
         ]);
 
         $data = [
@@ -122,8 +141,19 @@ class ExpertController extends Controller
 
         $expert->update($data);
 
+        if ($expert->user_id) {
+            $userUpdate = [
+                'email' => $validated['email'],
+            ];
+            $contactName = trim(($validated['contact_person_name'] ?? '').' '.($validated['contact_person_last_name'] ?? ''));
+            if ($contactName !== '') {
+                $userUpdate['name'] = $contactName;
+            }
+            User::query()->where('id', $expert->user_id)->update($userUpdate);
+        }
+
         return redirect()
-            ->route('admin.experts.show', $expert)
+            ->route('admin.experts.edit', $expert)
             ->with('success', 'Experte aktualisiert.');
     }
 

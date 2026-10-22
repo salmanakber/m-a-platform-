@@ -18,65 +18,74 @@
 <div class="dir-explorer" id="dirExplorer" data-map-id="directorySplitMap">
     <div class="dir-explorer__chrome">
         <form method="get" class="dx-bar" action="{{ route('directory.index') }}">
-            <div class="dx-bar__identity">
-                <span class="dx-bar__mark" aria-hidden="true"></span>
-                <div>
-                    <h1 class="dx-bar__title">Expertenverzeichnis</h1>
-                    <p class="dx-bar__sub">
-                        <b>{{ $experts->total() }}</b> passende Profile
-                        @if ($totalPublic !== $experts->total())
-                            <span>· {{ $totalPublic }} schweizweit</span>
-                        @endif
-                    </p>
+            <div class="dx-bar__top">
+                <div class="dx-bar__identity">
+                    <span class="dx-bar__mark" aria-hidden="true"></span>
+                    <div>
+                        <h1 class="dx-bar__title">Expertenverzeichnis</h1>
+                        <p class="dx-bar__sub">
+                            <b>{{ $experts->total() }}</b> passende Profile
+                            @if ($totalPublic !== $experts->total())
+                                <span>· {{ $totalPublic }} schweizweit</span>
+                            @endif
+                        </p>
+                    </div>
                 </div>
+                <a class="dx-bar__maplink" href="{{ route('map.index', $queryBase) }}">
+                    <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M12 2C8.1 2 5 5.1 5 9c0 5.2 7 13 7 13s7-7.8 7-13c0-3.9-3.1-7-7-7zm0 9.5A2.5 2.5 0 1 1 12 6a2.5 2.5 0 0 1 0 5.5z"/></svg>
+                    Vollkarte
+                </a>
             </div>
 
-            <div class="dx-bar__search xp-address-suggest" data-suggest-root data-dir-suggest>
-                <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="2"/><path d="M20 20l-3.5-3.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-                <div class="xp-address-suggest__wrap dx-bar__suggest-wrap">
-                    <input type="search" name="q" id="q" value="{{ $q }}" placeholder="Firma, Adresse, Ort oder PLZ…" autocomplete="off" data-suggest-input aria-autocomplete="list">
-                    <div class="xp-address-suggest__list" data-suggest-list hidden role="listbox"></div>
+            <div class="dx-bar__filters">
+                <div class="dx-bar__search xp-address-suggest" data-suggest-root data-dir-suggest>
+                    <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="2"/><path d="M20 20l-3.5-3.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                    <div class="xp-address-suggest__wrap dx-bar__suggest-wrap">
+                        <input type="search" name="q" id="q" value="{{ $q }}" placeholder="Firma, Adresse, Ort oder PLZ suchen…" autocomplete="off" data-suggest-input aria-autocomplete="list">
+                        <div class="xp-address-suggest__list" data-suggest-list hidden role="listbox"></div>
+                    </div>
+                    <button type="submit" class="dx-bar__go">Suchen</button>
                 </div>
-            </div>
 
-            <div class="dx-bar__seg" role="group" aria-label="Richtung">
-                <label class="{{ empty($direction) ? 'is-on' : '' }}">
-                    <input type="radio" name="richtung" value="" @checked(empty($direction)) onchange="this.form.submit()"> Alle
-                </label>
-                <label class="{{ ($direction ?? '') === 'kaufen' ? 'is-on' : '' }}">
-                    <input type="radio" name="richtung" value="kaufen" @checked(($direction ?? '') === 'kaufen') onchange="this.form.submit()"> Kauf
-                </label>
-                <label class="{{ ($direction ?? '') === 'verkaufen' ? 'is-on' : '' }}">
-                    <input type="radio" name="richtung" value="verkaufen" @checked(($direction ?? '') === 'verkaufen') onchange="this.form.submit()"> Verkauf
-                </label>
-            </div>
+                <div class="dx-bar__controls">
+                    <div class="dx-bar__seg" role="group" aria-label="Richtung">
+                        <label class="{{ empty($direction) ? 'is-on' : '' }}">
+                            <input type="radio" name="richtung" value="" @checked(empty($direction)) onchange="this.form.submit()"> Alle
+                        </label>
+                        <label class="{{ ($direction ?? '') === 'kaufen' ? 'is-on' : '' }}">
+                            <input type="radio" name="richtung" value="kaufen" @checked(($direction ?? '') === 'kaufen') onchange="this.form.submit()"> Kauf
+                        </label>
+                        <label class="{{ ($direction ?? '') === 'verkaufen' ? 'is-on' : '' }}">
+                            <input type="radio" name="richtung" value="verkaufen" @checked(($direction ?? '') === 'verkaufen') onchange="this.form.submit()"> Verkauf
+                        </label>
+                    </div>
 
-            <div class="dx-bar__select">
-                <select name="kanton" id="kanton" aria-label="Kanton" onchange="this.form.submit()">
-                    <option value="">Alle Kantone</option>
-                    @foreach ($cantons as $canton)
-                        <option value="{{ $canton->code }}" @selected(($cantonCode ?? '') === $canton->code)>
-                            {{ $canton->code }} — {{ $canton->name_de }}@if($canton->experts_count) ({{ $canton->experts_count }})@endif
-                        </option>
-                    @endforeach
-                </select>
-            </div>
+                    <div class="dx-bar__select">
+                        <label class="dx-bar__field-label" for="kanton">Kanton</label>
+                        <select name="kanton" id="kanton" aria-label="Kanton" onchange="this.form.submit()">
+                            <option value="">Alle Kantone</option>
+                            @foreach ($cantons as $canton)
+                                <option value="{{ $canton->code }}" @selected(($cantonCode ?? '') === $canton->code)>
+                                    {{ $canton->code }} — {{ $canton->name_de }}@if($canton->experts_count) ({{ $canton->experts_count }})@endif
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
 
-            <div class="dx-bar__select">
-                <select name="gruppe" id="gruppe" aria-label="Fachgruppe" onchange="this.form.submit()">
-                    <option value="">Alle Fachgruppen</option>
-                    @foreach (($professionalGroups ?? []) as $groupKey => $groupLabel)
-                        <option value="{{ $groupKey }}" @selected(($group ?? '') === $groupKey)>{{ $groupLabel }}</option>
-                    @endforeach
-                </select>
-            </div>
+                    <div class="dx-bar__select">
+                        <label class="dx-bar__field-label" for="gruppe">Fachgruppe</label>
+                        <select name="gruppe" id="gruppe" aria-label="Fachgruppe" onchange="this.form.submit()">
+                            <option value="">Alle Fachgruppen</option>
+                            @foreach (($professionalGroups ?? []) as $groupKey => $groupLabel)
+                                <option value="{{ $groupKey }}" @selected(($group ?? '') === $groupKey)>{{ $groupLabel }}</option>
+                            @endforeach
+                        </select>
+                    </div>
 
-            <div class="dx-bar__end">
-                <button type="submit" class="dx-bar__go">Suchen</button>
-                @if ($q || $direction || $cantonCode || !empty($group))
-                    <a class="dx-bar__clear" href="{{ route('directory.index') }}" title="Filter zurücksetzen">×</a>
-                @endif
-                <a class="dx-bar__ghost" href="{{ route('map.index', $queryBase) }}">Vollkarte</a>
+                    @if ($q || $direction || $cantonCode || !empty($group))
+                        <a class="dx-bar__reset" href="{{ route('directory.index') }}">Filter zurücksetzen</a>
+                    @endif
+                </div>
             </div>
         </form>
     </div>

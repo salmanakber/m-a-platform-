@@ -53,9 +53,18 @@
                 </label>
                 @error('use_default')<div class="field-error">{{ $message }}</div>@enderror
 
+                <label class="import-option is-ready">
+                    <input type="checkbox" name="geocode" value="1" @checked(old('geocode', true))>
+                    <span>
+                        <b>Adressen auf die Karte geocodieren</b>
+                        <em>PLZ/Ort/Strasse → Lat/Lng (Google Maps oder OpenStreetMap)</em>
+                        <i>Empfohlen</i>
+                    </span>
+                </label>
+
                 <div class="import-form__foot">
                     <button type="submit" class="btn">Import starten</button>
-                    <p>Duplikate werden aktualisiert, nicht doppelt angelegt.</p>
+                    <p>Duplikate werden aktualisiert. Adressen (Adresse + Ort wie «5600 Lenzburg AG») werden als Standorte gespeichert und geocodiert.</p>
                 </div>
             </form>
         </section>
@@ -71,8 +80,9 @@
                 <li><span>Telefon</span><code>phone</code></li>
                 <li><span>Website</span><code>website · url</code></li>
                 <li><span>Logo-URL</span><code>logo · logo_url</code></li>
-                <li><span>Adresse</span><code>address · volladresse</code></li>
-                <li><span>PLZ · Ort · Kanton</span><code>plz · ort · kanton</code></li>
+                <li><span>Adresse</span><code>adresse · address</code></li>
+                <li><span>PLZ · Ort · Kanton</span><code>plz · ort («5600 Lenzburg AG») · kanton</code></li>
+                <li><span>Ansprechperson</span><code>ansprechperson · vorname/nachname</code></li>
                 <li><span>Fachgruppe</span><code>gruppe · kategorie</code></li>
                 <li><span>Kauf / Verkauf</span><code>buy · sell</code></li>
             </ul>

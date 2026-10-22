@@ -4,9 +4,12 @@ namespace App\Http\Controllers\PublicSite;
 
 use App\Http\Controllers\Controller;
 use App\Models\Canton;
+use App\Models\Expert;
+use App\Models\User;
 use App\Services\Expert\ExpertRegistrationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class RegistrationController extends Controller
@@ -32,7 +35,24 @@ class RegistrationController extends Controller
             'company_name' => ['required', 'string', 'max:255'],
             'contact_person_name' => ['required', 'string', 'max:255'],
             'contact_person_last_name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'email', 'max:255', 'unique:users,email'],
+            'email' => [
+                'required',
+                'email',
+                'max:255',
+                Rule::unique('users', 'email'),
+                Rule::unique('experts', 'email'),
+                function (string $attribute, mixed $value, \Closure $fail) {
+                    $email = mb_strtolower(trim((string) $value));
+                    if ($email === '') {
+                        return;
+                    }
+                    $userExists = User::query()->whereRaw('LOWER(email) = ?', [$email])->exists();
+                    $expertExists = Expert::query()->whereRaw('LOWER(email) = ?', [$email])->exists();
+                    if ($userExists || $expertExists) {
+                        $fail('Diese E-Mail-Adresse ist bereits registriert. Bitte melden Sie sich an oder verwenden Sie eine andere Adresse.');
+                    }
+                },
+            ],
             'password' => ['required', 'string', 'min:8', 'confirmed'],
             'phone' => ['required', 'string', 'max:50'],
             'website' => ['nullable', 'url', 'max:255'],
@@ -45,6 +65,8 @@ class RegistrationController extends Controller
             'city' => ['required', 'string', 'max:255'],
             'canton_id' => ['required', 'exists:cantons,id'],
             'logo' => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp,gif', 'max:4096'],
+        ], [
+            'email.unique' => 'Diese E-Mail-Adresse ist bereits registriert. Bitte melden Sie sich an oder verwenden Sie eine andere Adresse.',
         ]);
 
         $logoPath = null;

@@ -6,6 +6,7 @@ use App\Http\Controllers\Admin\CrawlController as AdminCrawlController;
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Admin\EmailTemplateController as AdminEmailTemplateController;
 use App\Http\Controllers\Admin\ExpertController as AdminExpertController;
+use App\Http\Controllers\Admin\ExpertOfficeController as AdminExpertOfficeController;
 use App\Http\Controllers\Admin\ImportController as AdminImportController;
 use App\Http\Controllers\Admin\InvoiceController as AdminInvoiceController;
 use App\Http\Controllers\Admin\LeadController as AdminLeadController;
@@ -86,6 +87,11 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin'])->grou
     Route::post('/experten/{expert}/ablehnen', [AdminExpertController::class, 'reject'])->name('experts.reject');
     Route::post('/experten/{expert}/deaktivieren', [AdminExpertController::class, 'deactivate'])->name('experts.deactivate');
     Route::post('/experten/{expert}/aktivieren', [AdminExpertController::class, 'activate'])->name('experts.activate');
+
+    Route::get('/experten/{expert}/standorte/vorschlaege', [AdminExpertOfficeController::class, 'suggest'])->name('experts.offices.suggest');
+    Route::post('/experten/{expert}/standorte', [AdminExpertOfficeController::class, 'store'])->name('experts.offices.store');
+    Route::put('/experten/{expert}/standorte/{office}', [AdminExpertOfficeController::class, 'update'])->name('experts.offices.update');
+    Route::delete('/experten/{expert}/standorte/{office}', [AdminExpertOfficeController::class, 'destroy'])->name('experts.offices.destroy');
 
     Route::get('/anfragen', [AdminLeadController::class, 'index'])->name('leads.index');
     Route::patch('/anfragen/bulk-status', [AdminLeadController::class, 'bulkUpdateStatus'])->name('leads.bulk-status');
