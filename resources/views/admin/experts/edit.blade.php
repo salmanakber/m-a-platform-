@@ -29,10 +29,8 @@
         <h2 style="margin:0 0 0.35rem;font-size:1.05rem;">Login-Zugang (E-Mail &amp; Passwort)</h2>
         <p class="field-hint" style="margin-top:0;">
             Hier setzen Sie die Anmelde-E-Mail und optional ein Passwort.
-            @if (!empty($isSharedImportLogin))
-                <strong>Dieser Experte hat noch kein persönliches Login</strong> (Import-Konto) — Speichern legt eines an.
-            @elseif (!empty($hasPersonalLogin))
-                Persönliches Login vorhanden@if($expert->user) ({{ $expert->user->is_active ? 'aktiv' : 'deaktiviert' }})@endif.
+            @if (! empty($loginStatusHint))
+                <strong>{{ $loginStatusHint }}</strong>
             @endif
         </p>
 
@@ -171,11 +169,18 @@
         <p class="field-hint" style="margin-top:0;">Adressen hinzufügen, bearbeiten oder löschen — inkl. Kartenkoordinaten.</p>
 
         @forelse ($expert->offices as $office)
-            <details class="admin-office" @if($errors->any() && (int) old('office_id') === (int) $office->id) open @endif>
+            <details class="admin-office" @if ($errors->any() && (int) old('office_id') === (int) $office->id) open @endif>
                 <summary>
                     <strong>{{ $office->label ?: ($office->is_primary ? 'Hauptsitz' : 'Standort') }}</strong>
-                    @if($office->is_primary)<span class="pill pill--success">Haupt</span>@endif
-                    <span>{{ $office->address_line }}, {{ $office->postal_code }} {{ $office->city }}@if($office->canton) · {{ $office->canton->code }}@endif</span>
+                    @if ($office->is_primary)
+                        <span class="pill pill--success">Haupt</span>
+                    @endif
+                    <span>
+                        {{ $office->address_line }}, {{ $office->postal_code }} {{ $office->city }}
+                        @if ($office->canton)
+                            · {{ $office->canton->code }}
+                        @endif
+                    </span>
                 </summary>
                 <form method="post" action="{{ route('admin.experts.offices.update', [$expert, $office]) }}" style="padding:1rem 0 0;">
                     @csrf

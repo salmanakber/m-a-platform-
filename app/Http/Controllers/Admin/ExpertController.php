@@ -76,6 +76,16 @@ class ExpertController extends Controller
         $expert->load(['offices.canton', 'user']);
         $cantons = Canton::query()->orderBy('name_de')->get();
 
+        $isSharedImportLogin = $this->accounts->isSharedImportUser($expert->user);
+        $hasPersonalLogin = $this->accounts->hasPersonalLogin($expert);
+        $loginStatusHint = null;
+        if ($isSharedImportLogin) {
+            $loginStatusHint = 'Dieser Experte hat noch kein persönliches Login (Import-Konto) — Speichern legt eines an.';
+        } elseif ($hasPersonalLogin) {
+            $state = ($expert->user && $expert->user->is_active) ? 'aktiv' : 'deaktiviert';
+            $loginStatusHint = 'Persönliches Login vorhanden ('.$state.').';
+        }
+
         return view('admin.experts.edit', [
             'expert' => $expert,
             'professionalGroups' => ProfessionalGroup::labels(),
@@ -83,8 +93,9 @@ class ExpertController extends Controller
             'cantonCodeMap' => $cantons->pluck('id', 'code'),
             'suggestUrl' => route('admin.experts.offices.suggest', $expert),
             'mapsApiKey' => $this->settings->get(SettingKey::GOOGLE_MAPS_API_KEY),
-            'hasPersonalLogin' => $this->accounts->hasPersonalLogin($expert),
-            'isSharedImportLogin' => $this->accounts->isSharedImportUser($expert->user),
+            'hasPersonalLogin' => $hasPersonalLogin,
+            'isSharedImportLogin' => $isSharedImportLogin,
+            'loginStatusHint' => $loginStatusHint,
         ]);
     }
 
