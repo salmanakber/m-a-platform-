@@ -9,6 +9,12 @@
     @if (session('success'))
         <div class="alert alert--success" style="margin-bottom:1rem;">{{ session('success') }}</div>
     @endif
+    @if (session('credentials_hint'))
+        <div class="status-help" style="margin-bottom:1rem;">
+            <strong>Hinweis für den Experten</strong>
+            <span>Bitte den Experten bitten, auch den <em>Spam-/Junk-Ordner</em> zu prüfen, falls die E-Mail nicht im Posteingang erscheint. Der Reset-Link ist zeitlich begrenzt gültig.</span>
+        </div>
+    @endif
     @if ($errors->any())
         <div class="alert alert--danger" style="margin-bottom:1rem;">
             <ul style="margin:0;padding-left:1.1rem;">
@@ -18,6 +24,53 @@
             </ul>
         </div>
     @endif
+
+    <section class="card" id="zugang" style="margin-bottom:1.5rem;">
+        <h2 style="margin:0 0 0.35rem;font-size:1.05rem;">Login-Zugang (E-Mail &amp; Passwort)</h2>
+        <p class="field-hint" style="margin-top:0;">
+            Hier setzen Sie die Anmelde-E-Mail und optional ein Passwort.
+            @if (!empty($isSharedImportLogin))
+                <strong>Dieser Experte hat noch kein persönliches Login</strong> (Import-Konto) — Speichern legt eines an.
+            @elseif (!empty($hasPersonalLogin))
+                Persönliches Login vorhanden@if($expert->user) ({{ $expert->user->is_active ? 'aktiv' : 'deaktiviert' }})@endif.
+            @endif
+        </p>
+
+        <form method="post" action="{{ route('admin.experts.credentials', $expert) }}">
+            @csrf
+            @method('PUT')
+            <div class="form-group">
+                <label for="login_email">Login-E-Mail *</label>
+                <input class="form-control" type="email" name="login_email" id="login_email" value="{{ old('login_email', $expert->email) }}" required autocomplete="off">
+                <p class="field-hint">Gleichzeitig die Profil-E-Mail des Experten.</p>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="password">Neues Passwort <em class="label-optional">(optional)</em></label>
+                    <input class="form-control" type="password" name="password" id="password" minlength="8" autocomplete="new-password" placeholder="Mindestens 8 Zeichen">
+                </div>
+                <div class="form-group">
+                    <label for="password_confirmation">Passwort bestätigen</label>
+                    <input class="form-control" type="password" name="password_confirmation" id="password_confirmation" minlength="8" autocomplete="new-password">
+                </div>
+            </div>
+            <div class="form-group">
+                <label>
+                    <input type="checkbox" name="send_reset_link" value="1" @checked(old('send_reset_link'))>
+                    Zusätzlich Passwort-Reset-Link per E-Mail senden
+                </label>
+                <p class="field-hint">Empfohlen, wenn Sie kein Passwort setzen — Experte wählt selbst eines. Bitte Spam-Ordner erwähnen.</p>
+            </div>
+            <div style="display:flex;flex-wrap:wrap;gap:0.5rem;align-items:center;">
+                <button type="submit" class="btn">Zugang speichern</button>
+            </div>
+        </form>
+
+        <form method="post" action="{{ route('admin.experts.password-reset', $expert) }}" style="margin-top:0.85rem;padding-top:0.85rem;border-top:1px solid var(--line,#e5e8e5);" onsubmit="return confirm('Passwort-Reset-Link an {{ $expert->email }} senden?\n\nBitte den Experten darauf hinweisen, auch den Spam-/Junk-Ordner zu prüfen.');">
+            @csrf
+            <button type="submit" class="btn btn--ghost btn--small">Nur Reset-Link senden</button>
+        </form>
+    </section>
 
     <form method="post" action="{{ route('admin.experts.update', $expert) }}" class="card" enctype="multipart/form-data" style="margin-bottom:1.5rem;">
         @csrf
@@ -31,9 +84,9 @@
                 <input class="form-control" type="text" name="company_name" id="company_name" value="{{ old('company_name', $expert->company_name) }}" required>
             </div>
             <div class="form-group">
-                <label for="email">E-Mail</label>
+                <label for="email">E-Mail (Profil)</label>
                 <input class="form-control" type="email" name="email" id="email" value="{{ old('email', $expert->email) }}" required>
-                <p class="field-hint">Wird auch für den Login-Account übernommen (falls vorhanden).</p>
+                <p class="field-hint">Für Login-Zugang oben die Sektion «Login-Zugang» nutzen — dort können Sie auch das Passwort setzen.</p>
             </div>
         </div>
         <div class="form-row">

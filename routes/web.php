@@ -83,6 +83,8 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin'])->grou
     Route::get('/experten/{expert}', [AdminExpertController::class, 'show'])->name('experts.show');
     Route::get('/experten/{expert}/bearbeiten', [AdminExpertController::class, 'edit'])->name('experts.edit');
     Route::put('/experten/{expert}', [AdminExpertController::class, 'update'])->name('experts.update');
+    Route::put('/experten/{expert}/zugang', [AdminExpertController::class, 'updateCredentials'])->name('experts.credentials');
+    Route::post('/experten/{expert}/passwort-reset', [AdminExpertController::class, 'sendPasswordReset'])->name('experts.password-reset');
     Route::post('/experten/{expert}/freigeben', [AdminExpertController::class, 'approve'])->name('experts.approve');
     Route::post('/experten/{expert}/ablehnen', [AdminExpertController::class, 'reject'])->name('experts.reject');
     Route::post('/experten/{expert}/deaktivieren', [AdminExpertController::class, 'deactivate'])->name('experts.deactivate');

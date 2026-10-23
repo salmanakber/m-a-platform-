@@ -115,6 +115,31 @@
         </section>
 
         <section class="sheet">
+            <div class="sheet__head"><h2>Login-Zugang</h2></div>
+            <div style="padding:1rem 1.25rem;">
+                @php
+                    $loginUser = $expert->user;
+                    $isImportLogin = $loginUser && mb_strtolower((string) $loginUser->email) === 'import@nachfolge-experten.local';
+                @endphp
+                @if ($isImportLogin || ! $loginUser)
+                    <p style="margin:0 0 0.75rem;color:var(--stone);font-size:0.92rem;">Noch kein persönliches Login — unter Bearbeiten E-Mail/Passwort setzen oder Reset-Link senden.</p>
+                @else
+                    <dl class="meta-list" style="margin-bottom:0.75rem;">
+                        <div class="meta-list__row"><dt>Login</dt><dd>{{ $loginUser->email }}</dd></div>
+                        <div class="meta-list__row"><dt>Status</dt><dd>{{ $loginUser->is_active ? 'Aktiv' : 'Deaktiviert' }}</dd></div>
+                    </dl>
+                @endif
+                <div style="display:grid;gap:0.5rem;">
+                    <a class="btn btn--block btn--small" href="{{ route('admin.experts.edit', $expert) }}#zugang">E-Mail / Passwort setzen</a>
+                    <form method="post" action="{{ route('admin.experts.password-reset', $expert) }}" onsubmit="return confirm('Reset-Link an {{ $expert->email }} senden?\n\nBitte den Experten auf den Spam-Ordner hinweisen.');">
+                        @csrf
+                        <button type="submit" class="btn btn--block btn--ghost btn--small">Passwort-Reset-Link senden</button>
+                    </form>
+                </div>
+            </div>
+        </section>
+
+        <section class="sheet">
             <div class="sheet__head"><h2>Schnellaktionen</h2></div>
             <div style="padding:1rem 1.25rem;display:grid;gap:0.5rem;">
                 <a class="btn btn--block btn--ghost btn--small" href="{{ route('admin.experts.edit', $expert) }}">Alle Felder bearbeiten</a>

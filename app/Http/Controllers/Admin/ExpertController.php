@@ -5,8 +5,8 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Canton;
 use App\Models\Expert;
-use App\Models\User;
 use App\Services\Email\NotificationService;
+use App\Services\Expert\ExpertAccountService;
 use App\Services\Settings\SettingsService;
 use App\Support\ExpertStatus;
 use App\Support\ProfessionalGroup;
@@ -16,12 +16,15 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
+use RuntimeException;
+use Throwable;
 
 class ExpertController extends Controller
 {
     public function __construct(
         private NotificationService $notifications,
-        private SettingsService $settings
+        private SettingsService $settings,
+        private ExpertAccountService $accounts
     ) {
     }
 
@@ -70,7 +73,7 @@ class ExpertController extends Controller
 
     public function edit(Expert $expert): View
     {
-        $expert->load('offices.canton');
+        $expert->load(['offices.canton', 'user']);
         $cantons = Canton::query()->orderBy('name_de')->get();
 
         return view('admin.experts.edit', [
@@ -80,6 +83,8 @@ class ExpertController extends Controller
             'cantonCodeMap' => $cantons->pluck('id', 'code'),
             'suggestUrl' => route('admin.experts.offices.suggest', $expert),
             'mapsApiKey' => $this->settings->get(SettingKey::GOOGLE_MAPS_API_KEY),
+            'hasPersonalLogin' => $this->accounts->hasPersonalLogin($expert),
+            'isSharedImportLogin' => $this->accounts->isSharedImportUser($expert->user),
         ]);
     }
 
@@ -92,7 +97,6 @@ class ExpertController extends Controller
                 'email',
                 'max:255',
                 Rule::unique('experts', 'email')->ignore($expert->id),
-                Rule::unique('users', 'email')->ignore($expert->user_id),
             ],
             'phone' => ['nullable', 'string', 'max:50'],
             'website' => ['nullable', 'url', 'max:500'],
@@ -114,7 +118,6 @@ class ExpertController extends Controller
 
         $data = [
             'company_name' => $validated['company_name'],
-            'email' => $validated['email'],
             'phone' => $validated['phone'] ?? null,
             'website' => $validated['website'] ?? null,
             'description' => $validated['description'] ?? null,
@@ -141,20 +144,79 @@ class ExpertController extends Controller
 
         $expert->update($data);
 
-        if ($expert->user_id) {
-            $userUpdate = [
-                'email' => $validated['email'],
-            ];
-            $contactName = trim(($validated['contact_person_name'] ?? '').' '.($validated['contact_person_last_name'] ?? ''));
-            if ($contactName !== '') {
-                $userUpdate['name'] = $contactName;
-            }
-            User::query()->where('id', $expert->user_id)->update($userUpdate);
+        try {
+            $this->accounts->updateCredentials($expert->fresh(), $validated['email'], null, true);
+        } catch (RuntimeException $e) {
+            return back()->withInput()->withErrors(['email' => $e->getMessage()]);
+        } catch (Throwable $e) {
+            report($e);
+
+            return back()->withInput()->withErrors(['email' => 'Login konnte nicht aktualisiert werden: '.$e->getMessage()]);
         }
 
         return redirect()
             ->route('admin.experts.edit', $expert)
             ->with('success', 'Experte aktualisiert.');
+    }
+
+    public function updateCredentials(Request $request, Expert $expert): RedirectResponse
+    {
+        $validated = $request->validate([
+            'login_email' => ['required', 'email', 'max:255'],
+            'password' => ['nullable', 'string', 'min:8', 'confirmed'],
+            'send_reset_link' => ['nullable', 'boolean'],
+        ], [
+            'password.min' => 'Das Passwort muss mindestens 8 Zeichen haben.',
+            'password.confirmed' => 'Passwort und Bestätigung stimmen nicht überein.',
+        ]);
+
+        try {
+            $result = $this->accounts->updateCredentials(
+                $expert,
+                $validated['login_email'],
+                $validated['password'] ?? null,
+                true
+            );
+        } catch (RuntimeException $e) {
+            return back()->withInput()->withErrors(['login_email' => $e->getMessage()]);
+        } catch (Throwable $e) {
+            report($e);
+
+            return back()->withInput()->withErrors(['login_email' => $e->getMessage()]);
+        }
+
+        $parts = ['Login-Zugang gespeichert.'];
+        if ($result['created']) {
+            $parts[] = 'Persönliches Konto wurde angelegt.';
+        }
+        if ($result['password_set']) {
+            $parts[] = 'Neues Passwort gesetzt.';
+        }
+
+        if ($request->boolean('send_reset_link')) {
+            $reset = $this->accounts->sendPasswordResetLink($expert->fresh());
+            $parts[] = $reset['ok']
+                ? 'Passwort-Reset-Link an '.$reset['email'].' gesendet.'
+                : 'Reset-Link fehlgeschlagen: '.$reset['message'];
+        }
+
+        return redirect()
+            ->route('admin.experts.edit', $expert)
+            ->with('success', implode(' ', $parts))
+            ->with('credentials_hint', true);
+    }
+
+    public function sendPasswordReset(Expert $expert): RedirectResponse
+    {
+        $result = $this->accounts->sendPasswordResetLink($expert);
+
+        if (! $result['ok']) {
+            return back()->withErrors(['credentials' => $result['message']]);
+        }
+
+        return back()
+            ->with('success', 'Passwort-Reset-Link an '.$result['email'].' gesendet.')
+            ->with('credentials_hint', true);
     }
 
     public function approve(Expert $expert): RedirectResponse
@@ -214,15 +276,58 @@ class ExpertController extends Controller
         $validated = $request->validate([
             'ids' => ['required', 'array', 'min:1'],
             'ids.*' => ['integer', 'exists:experts,id'],
-            'action' => ['required', 'in:approve,reject,deactivate'],
+            'action' => ['required', 'in:approve,reject,deactivate,set_password,send_password_reset'],
             'rejection_reason' => ['nullable', 'string', 'max:2000'],
+            'bulk_password' => ['nullable', 'string', 'min:8'],
+            'bulk_password_confirmation' => ['nullable', 'same:bulk_password'],
+            'confirm_reset_spam_notice' => ['nullable', 'boolean'],
+        ], [
+            'bulk_password.min' => 'Das Bulk-Passwort muss mindestens 8 Zeichen haben.',
+            'bulk_password_confirmation.same' => 'Passwort und Bestätigung stimmen nicht überein.',
         ]);
 
-        $experts = Expert::query()->whereIn('id', $validated['ids'])->get();
+        $experts = Expert::query()->whereIn('id', $validated['ids'])->with('user')->get();
+        $action = $validated['action'];
+
+        if ($action === 'set_password') {
+            if (empty($validated['bulk_password'])) {
+                return back()->withErrors(['bulk_password' => 'Bitte ein neues Passwort für die Auswahl eingeben.']);
+            }
+
+            $result = $this->accounts->setPasswordBulk($experts, $validated['bulk_password']);
+            $msg = $result['updated'].' Passwort(e) gesetzt.';
+            if ($result['failed'] > 0) {
+                $msg .= ' '.$result['failed'].' fehlgeschlagen.';
+            }
+
+            return back()
+                ->with('success', $msg)
+                ->with('bulk_errors', $result['errors']);
+        }
+
+        if ($action === 'send_password_reset') {
+            if (! $request->boolean('confirm_reset_spam_notice')) {
+                return back()->withErrors([
+                    'confirm_reset_spam_notice' => 'Bitte bestätigen Sie den Hinweis zum Spam-Ordner, bevor Reset-Links gesendet werden.',
+                ]);
+            }
+
+            $result = $this->accounts->sendPasswordResetLinksBulk($experts);
+            $msg = $result['sent'].' Passwort-Reset-Link(s) gesendet.';
+            if ($result['failed'] > 0) {
+                $msg .= ' '.$result['failed'].' fehlgeschlagen.';
+            }
+
+            return back()
+                ->with('success', $msg)
+                ->with('credentials_hint', true)
+                ->with('bulk_errors', $result['errors']);
+        }
+
         $count = 0;
 
         foreach ($experts as $expert) {
-            if ($validated['action'] === 'approve') {
+            if ($action === 'approve') {
                 $expert->update([
                     'status' => ExpertStatus::APPROVED,
                     'is_public' => true,
@@ -230,9 +335,9 @@ class ExpertController extends Controller
                 ]);
                 try {
                     $this->notifications->sendExpertRegistrationWelcome($expert->fresh());
-                } catch (\Throwable) {
+                } catch (Throwable) {
                 }
-            } elseif ($validated['action'] === 'reject') {
+            } elseif ($action === 'reject') {
                 $expert->update([
                     'status' => ExpertStatus::REJECTED,
                     'is_public' => false,
@@ -253,6 +358,6 @@ class ExpertController extends Controller
             'deactivate' => 'deaktiviert',
         ];
 
-        return back()->with('success', $count.' Experte(n) '.$labels[$validated['action']].'.');
+        return back()->with('success', $count.' Experte(n) '.$labels[$action].'.');
     }
 }

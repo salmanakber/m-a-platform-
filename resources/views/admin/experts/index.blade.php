@@ -39,6 +39,24 @@
 
     @include('partials.flash')
 
+    @if (session('credentials_hint'))
+        <div class="status-help" style="border-color:#f0c36d;background:#fff8e8;">
+            <strong>Wichtig — Spam-Ordner</strong>
+            <span>Bitte die Experten informieren: Wenn die Passwort-Reset-E-Mail nicht im Posteingang erscheint, den <em>Spam-/Junk-Ordner</em> prüfen. Der Link ist nur begrenzte Zeit gültig.</span>
+        </div>
+    @endif
+
+    @if (session('bulk_errors') && count(session('bulk_errors')))
+        <div class="alert alert--danger" style="margin-bottom:1rem;">
+            <strong>Einige Einträge fehlgeschlagen:</strong>
+            <ul style="margin:0.4rem 0 0;padding-left:1.1rem;">
+                @foreach (session('bulk_errors') as $err)
+                    <li>{{ $err }}</li>
+                @endforeach
+            </ul>
+        </div>
+    @endif
+
     <div class="status-help">
         <strong>Status «Ausstehend»</strong>
         <span>Neue Registrierungen und Imports starten immer als pending und sind nicht öffentlich. Freigeben setzt Status auf freigegeben + öffentlich. Ablehnen oder Deaktivieren hält sie unsichtbar.</span>
@@ -107,9 +125,45 @@
                         <option value="approve">Freigeben</option>
                         <option value="reject">Ablehnen</option>
                         <option value="deactivate">Deaktivieren</option>
+                        <option value="set_password">Passwort setzen</option>
+                        <option value="send_password_reset">Passwort-Reset-Link senden</option>
                     </select>
-                    <button type="submit" class="btn btn--small">Ausführen</button>
+                    <button type="submit" class="btn btn--small" id="bulkSubmit">Ausführen</button>
                 </div>
+            </div>
+
+            <div class="admin-bulk-panel" id="bulkPasswordPanel" hidden>
+                <strong>Neues Passwort für alle Ausgewählten</strong>
+                <p>Für jeden ausgewählten Experten wird ein persönliches Login angelegt/aktualisiert und dieses Passwort gesetzt (mind. 8 Zeichen). Teilen Sie das Passwort sicher mit den Experten — oder nutzen Sie besser «Passwort-Reset-Link senden».</p>
+                <div class="form-row" style="margin-top:0.65rem;">
+                    <div class="form-group">
+                        <label for="bulk_password">Passwort</label>
+                        <input class="form-control" type="password" name="bulk_password" id="bulk_password" minlength="8" autocomplete="new-password">
+                        @error('bulk_password')<div class="field-error">{{ $message }}</div>@enderror
+                    </div>
+                    <div class="form-group">
+                        <label for="bulk_password_confirmation">Passwort bestätigen</label>
+                        <input class="form-control" type="password" name="bulk_password_confirmation" id="bulk_password_confirmation" minlength="8" autocomplete="new-password">
+                    </div>
+                </div>
+            </div>
+
+            <div class="admin-bulk-panel admin-bulk-panel--warn" id="bulkResetPanel" hidden>
+                <strong>Passwort-Reset-Links senden</strong>
+                <p>
+                    Das System sendet jedem ausgewählten Experten einen frischen Reset-Link an die Profil-E-Mail
+                    und legt bei Bedarf ein persönliches Login an.
+                </p>
+                <ul class="admin-bulk-panel__list">
+                    <li>Bitten Sie die Experten, auch den <strong>Spam-/Junk-Ordner</strong> zu prüfen, falls die Mail nicht im Posteingang ist.</li>
+                    <li>Der Link ist nur begrenzte Zeit gültig.</li>
+                    <li>Große Mengen können einige Sekunden dauern — bitte nicht doppelt klicken.</li>
+                </ul>
+                <label class="admin-bulk-panel__confirm">
+                    <input type="checkbox" name="confirm_reset_spam_notice" id="confirm_reset_spam_notice" value="1">
+                    <span>Ich habe die Anweisung verstanden und werde die Experten auf den Spam-Ordner hinweisen.</span>
+                </label>
+                @error('confirm_reset_spam_notice')<div class="field-error">{{ $message }}</div>@enderror
             </div>
         </form>
 
@@ -180,22 +234,104 @@
     @endif
 </div>
 
+<style>
+.admin-bulk-panel {
+    margin: 0 0 0.85rem;
+    padding: 1rem 1.15rem;
+    border: 1px solid #d7e3ec;
+    border-radius: 10px;
+    background: #f7fafc;
+}
+.admin-bulk-panel--warn {
+    border-color: #f0c36d;
+    background: #fff8e8;
+}
+.admin-bulk-panel strong { display: block; margin-bottom: 0.35rem; }
+.admin-bulk-panel p { margin: 0; color: var(--ink-soft, #4a5560); font-size: 0.92rem; line-height: 1.5; }
+.admin-bulk-panel__list {
+    margin: 0.65rem 0 0.75rem;
+    padding-left: 1.15rem;
+    color: var(--ink-soft, #4a5560);
+    font-size: 0.9rem;
+    line-height: 1.55;
+}
+.admin-bulk-panel__confirm {
+    display: flex;
+    gap: 0.55rem;
+    align-items: flex-start;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+.admin-bulk-panel__confirm input { margin-top: 0.2rem; }
+</style>
 <script>
 (function () {
     var bulkForm = document.getElementById('expertsBulkForm');
     var all = document.getElementById('checkAll');
+    var actionEl = document.getElementById('bulkAction');
+    var passwordPanel = document.getElementById('bulkPasswordPanel');
+    var resetPanel = document.getElementById('bulkResetPanel');
+    var labels = {
+        approve: 'freigeben',
+        reject: 'ablehnen',
+        deactivate: 'deaktivieren',
+        set_password: 'Passwort setzen',
+        send_password_reset: 'Passwort-Reset-Links senden'
+    };
+
+    function syncPanels() {
+        var action = actionEl ? actionEl.value : '';
+        if (passwordPanel) passwordPanel.hidden = action !== 'set_password';
+        if (resetPanel) resetPanel.hidden = action !== 'send_password_reset';
+    }
+
     if (all) {
         all.addEventListener('change', function () {
             document.querySelectorAll('.row-check').forEach(function (el) { el.checked = all.checked; });
         });
     }
+    if (actionEl) {
+        actionEl.addEventListener('change', syncPanels);
+        syncPanels();
+    }
     if (bulkForm) {
         bulkForm.addEventListener('submit', function (e) {
-            var action = document.getElementById('bulkAction').value;
+            var action = actionEl ? actionEl.value : '';
             var checked = document.querySelectorAll('.row-check:checked').length;
             if (!action) { e.preventDefault(); alert('Bitte eine Bulk-Aktion wählen.'); return; }
             if (!checked) { e.preventDefault(); alert('Bitte mindestens einen Experten auswählen.'); return; }
-            if (!confirm(checked + ' Experte(n) wirklich «' + action + '»?')) e.preventDefault();
+
+            if (action === 'set_password') {
+                var pw = document.getElementById('bulk_password');
+                var pw2 = document.getElementById('bulk_password_confirmation');
+                if (!pw || !pw.value || pw.value.length < 8) {
+                    e.preventDefault();
+                    alert('Bitte ein Passwort mit mindestens 8 Zeichen eingeben.');
+                    return;
+                }
+                if (pw2 && pw.value !== pw2.value) {
+                    e.preventDefault();
+                    alert('Passwort und Bestätigung stimmen nicht überein.');
+                    return;
+                }
+            }
+
+            if (action === 'send_password_reset') {
+                var confirmBox = document.getElementById('confirm_reset_spam_notice');
+                if (!confirmBox || !confirmBox.checked) {
+                    e.preventDefault();
+                    alert('Bitte bestätigen Sie den Hinweis zum Spam-Ordner.');
+                    return;
+                }
+                var msg = checked + ' Passwort-Reset-Link(s) senden?\n\n'
+                    + 'Wichtig: Bitte die Experten darauf hinweisen, auch den Spam-/Junk-Ordner zu prüfen, '
+                    + 'falls die E-Mail nicht im Posteingang erscheint.';
+                if (!confirm(msg)) e.preventDefault();
+                return;
+            }
+
+            if (!confirm(checked + ' Experte(n) wirklich «' + (labels[action] || action) + '»?')) e.preventDefault();
         });
     }
 })();
