@@ -5,15 +5,22 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Canton;
 use App\Models\Expert;
+use App\Models\ExpertOffice;
+use App\Models\User;
 use App\Services\Email\NotificationService;
 use App\Services\Expert\ExpertAccountService;
+use App\Services\Maps\GeocodingService;
 use App\Services\Settings\SettingsService;
 use App\Support\ExpertStatus;
 use App\Support\ProfessionalGroup;
+use App\Support\Role;
 use App\Support\SettingKey;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 use RuntimeException;
@@ -24,7 +31,8 @@ class ExpertController extends Controller
     public function __construct(
         private NotificationService $notifications,
         private SettingsService $settings,
-        private ExpertAccountService $accounts
+        private ExpertAccountService $accounts,
+        private GeocodingService $geocoder
     ) {
     }
 
@@ -60,6 +68,131 @@ class ExpertController extends Controller
             'cantons' => Canton::query()->orderBy('name_de')->get(),
             'statuses' => ExpertStatus::all(),
         ]);
+    }
+
+    public function create(): View
+    {
+        $cantons = Canton::query()->orderBy('name_de')->get();
+
+        return view('admin.experts.create', [
+            'cantons' => $cantons,
+            'professionalGroups' => ProfessionalGroup::labels(),
+        ]);
+    }
+
+    public function store(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'company_name' => ['required', 'string', 'max:255'],
+            'email' => ['required', 'email', 'max:255', 'unique:experts,email', 'unique:users,email'],
+            'password' => ['nullable', 'string', 'min:8', 'confirmed'],
+            'phone' => ['nullable', 'string', 'max:50'],
+            'website' => ['nullable', 'url', 'max:500'],
+            'contact_person_name' => ['nullable', 'string', 'max:120'],
+            'contact_person_last_name' => ['nullable', 'string', 'max:120'],
+            'description' => ['nullable', 'string'],
+            'professional_group' => ['nullable', 'in:'.implode(',', ProfessionalGroup::all())],
+            'offers_buy' => ['nullable', 'boolean'],
+            'offers_sell' => ['nullable', 'boolean'],
+            'is_public' => ['nullable', 'boolean'],
+            'approve_now' => ['nullable', 'boolean'],
+            'address_line' => ['required', 'string', 'max:255'],
+            'postal_code' => ['required', 'string', 'max:20'],
+            'city' => ['required', 'string', 'max:120'],
+            'canton_id' => ['required', 'exists:cantons,id'],
+        ], [
+            'email.unique' => 'Diese E-Mail wird bereits verwendet.',
+        ]);
+
+        try {
+            $expert = DB::transaction(function () use ($validated, $request) {
+                $approve = $request->boolean('approve_now');
+                $slugBase = Str::slug($validated['company_name']);
+                $slug = $slugBase !== '' ? $slugBase : 'experte';
+                $original = $slug;
+                $i = 2;
+                while (Expert::withTrashed()->where('slug', $slug)->exists()) {
+                    $slug = $original.'-'.$i;
+                    $i++;
+                }
+
+                $displayName = trim(($validated['contact_person_name'] ?? '').' '.($validated['contact_person_last_name'] ?? ''));
+                if ($displayName === '') {
+                    $displayName = $validated['company_name'];
+                }
+
+                $password = ! empty($validated['password'])
+                    ? $validated['password']
+                    : Str::random(32);
+
+                $user = User::query()->create([
+                    'name' => $displayName,
+                    'email' => $validated['email'],
+                    'password' => Hash::make($password),
+                    'role' => Role::EXPERT,
+                    'is_active' => true,
+                ]);
+
+                $expert = Expert::query()->create([
+                    'user_id' => $user->id,
+                    'company_name' => $validated['company_name'],
+                    'slug' => $slug,
+                    'email' => $validated['email'],
+                    'phone' => $validated['phone'] ?? null,
+                    'website' => $validated['website'] ?? null,
+                    'contact_person_name' => $validated['contact_person_name'] ?? null,
+                    'contact_person_last_name' => $validated['contact_person_last_name'] ?? null,
+                    'description' => $validated['description'] ?? null,
+                    'professional_group' => $validated['professional_group'] ?? ProfessionalGroup::MA_SPECIALIST,
+                    'offers_buy' => $request->boolean('offers_buy'),
+                    'offers_sell' => $request->boolean('offers_sell'),
+                    'status' => $approve ? ExpertStatus::APPROVED : ExpertStatus::PENDING,
+                    'is_public' => $approve ? true : $request->boolean('is_public'),
+                    'imported_from' => 'admin_manual',
+                ]);
+
+                $canton = Canton::query()->findOrFail($validated['canton_id']);
+                $coords = $this->geocoder->geocodeSwissAddress(
+                    $validated['address_line'],
+                    $validated['postal_code'],
+                    $validated['city'],
+                    $canton->code
+                );
+
+                ExpertOffice::query()->create([
+                    'expert_id' => $expert->id,
+                    'label' => 'Hauptsitz',
+                    'address_line' => $validated['address_line'],
+                    'postal_code' => $validated['postal_code'],
+                    'city' => $validated['city'],
+                    'canton_id' => $canton->id,
+                    'latitude' => $coords['latitude'] ?? $canton->latitude,
+                    'longitude' => $coords['longitude'] ?? $canton->longitude,
+                    'is_primary' => true,
+                    'sort_order' => 0,
+                ]);
+
+                return $expert->fresh();
+            });
+        } catch (Throwable $e) {
+            report($e);
+
+            return back()->withInput()->withErrors(['company_name' => 'Anlegen fehlgeschlagen: '.$e->getMessage()]);
+        }
+
+        return redirect()
+            ->route('admin.experts.edit', $expert)
+            ->with('success', 'Experte manuell angelegt.');
+    }
+
+    public function destroy(Expert $expert): RedirectResponse
+    {
+        $name = $expert->company_name;
+        $expert->delete(); // soft delete
+
+        return redirect()
+            ->route('admin.experts.index')
+            ->with('success', 'Experte «'.$name.'» gelöscht (kann technisch wiederhergestellt werden).');
     }
 
     public function show(Expert $expert): View
@@ -277,9 +410,10 @@ class ExpertController extends Controller
         $expert->update([
             'status' => ExpertStatus::APPROVED,
             'is_public' => true,
+            'rejection_reason' => null,
         ]);
 
-        return back()->with('success', 'Experte wieder aktiviert.');
+        return back()->with('success', 'Experte wieder aktiviert / freigegeben.');
     }
 
     public function bulk(Request $request): RedirectResponse
@@ -287,7 +421,7 @@ class ExpertController extends Controller
         $validated = $request->validate([
             'ids' => ['required', 'array', 'min:1'],
             'ids.*' => ['integer', 'exists:experts,id'],
-            'action' => ['required', 'in:approve,reject,deactivate,set_password,send_password_reset'],
+            'action' => ['required', 'in:approve,reject,deactivate,delete,set_password,send_password_reset'],
             'rejection_reason' => ['nullable', 'string', 'max:2000'],
             'bulk_password' => ['nullable', 'string', 'min:8'],
             'bulk_password_confirmation' => ['nullable', 'same:bulk_password'],
@@ -354,6 +488,8 @@ class ExpertController extends Controller
                     'is_public' => false,
                     'rejection_reason' => $validated['rejection_reason'] ?? 'Bulk-Ablehnung',
                 ]);
+            } elseif ($action === 'delete') {
+                $expert->delete();
             } else {
                 $expert->update([
                     'status' => ExpertStatus::DISABLED,
@@ -367,6 +503,7 @@ class ExpertController extends Controller
             'approve' => 'freigegeben',
             'reject' => 'abgelehnt',
             'deactivate' => 'deaktiviert',
+            'delete' => 'gelöscht',
         ];
 
         return back()->with('success', $count.' Experte(n) '.$labels[$action].'.');

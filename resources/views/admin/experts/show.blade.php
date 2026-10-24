@@ -36,23 +36,36 @@
     </div>
     <div class="detail-hero__actions">
         <a href="{{ route('admin.experts.edit', $expert) }}" class="btn btn--small">Bearbeiten</a>
+        @if (in_array($expert->status, ['pending', 'rejected', 'disabled'], true))
+            <form action="{{ route('admin.experts.approve', $expert) }}" method="post">@csrf<button type="submit" class="btn btn--small">{{ $expert->status === 'pending' ? 'Freigeben' : 'Wieder freigeben' }}</button></form>
+        @endif
         @if ($expert->status === 'pending')
-            <form action="{{ route('admin.experts.approve', $expert) }}" method="post">@csrf<button type="submit" class="btn btn--small">Freigeben</button></form>
             <form action="{{ route('admin.experts.reject', $expert) }}" method="post" onsubmit="return confirm('Experte wirklich ablehnen?');">
                 @csrf
                 <input type="hidden" name="rejection_reason" value="Profil unvollständig oder nicht passend.">
                 <button type="submit" class="btn btn--ghost btn--small">Ablehnen</button>
             </form>
         @endif
-        @if ($expert->status !== 'disabled')
+        @if ($expert->status === 'approved')
             <form action="{{ route('admin.experts.deactivate', $expert) }}" method="post">@csrf<button type="submit" class="btn btn--ghost btn--small">Deaktivieren</button></form>
-        @else
-            <form action="{{ route('admin.experts.activate', $expert) }}" method="post">@csrf<button type="submit" class="btn btn--small">Aktivieren</button></form>
         @endif
         @if ($expert->is_public && $expert->status === 'approved')
             <a href="{{ route('experts.show', $expert->slug) }}" class="btn btn--ghost btn--small" target="_blank" rel="noopener">Öffentliches Profil</a>
         @endif
+        <form action="{{ route('admin.experts.destroy', $expert) }}" method="post" onsubmit="return confirm('Experte «{{ $expert->company_name }}» wirklich löschen?');">
+            @csrf
+            @method('DELETE')
+            <button type="submit" class="btn btn--ghost btn--small" style="color:#b42318;">Löschen</button>
+        </form>
     </div>
+</div>
+
+<div class="status-help" style="margin:1rem 0;">
+    <strong>Abgelehnt vs. Deaktiviert</strong>
+    <span>
+        <b>Abgelehnt</b> = Registrierung/Profil abgewiesen (nie oder nicht mehr öffentlich). Mit «Wieder freigeben» restaurierbar.
+        <b>Deaktiviert</b> = war freigegeben, vorübergehend ausgeschaltet. Ebenfalls wieder freigebbar.
+    </span>
 </div>
 
 <div class="detail-layout">

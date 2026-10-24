@@ -32,8 +32,9 @@
             <p>Registrierungen und Imports prüfen — Freigabe macht Profile öffentlich sichtbar.</p>
         </div>
         <div class="admin-page-hero__actions">
+            <a class="btn btn--small" href="{{ route('admin.experts.create') }}">Manuell anlegen</a>
             <a class="btn btn--ghost btn--small" href="{{ route('admin.import.index') }}">Import</a>
-            <a class="btn btn--small" href="{{ route('admin.experts.index', ['status' => 'pending']) }}">Nur ausstehend</a>
+            <a class="btn btn--ghost btn--small" href="{{ route('admin.experts.index', ['status' => 'pending']) }}">Nur ausstehend</a>
         </div>
     </header>
 
@@ -58,8 +59,14 @@
     @endif
 
     <div class="status-help">
-        <strong>Status «Ausstehend»</strong>
-        <span>Neue Registrierungen und Imports starten immer als pending und sind nicht öffentlich. Freigeben setzt Status auf freigegeben + öffentlich. Ablehnen oder Deaktivieren hält sie unsichtbar.</span>
+        <strong>Status erklärt</strong>
+        <span>
+            <b>Ausstehend</b> = neu, noch nicht geprüft ·
+            <b>Freigegeben</b> = öffentlich (wenn «öffentlich sichtbar») ·
+            <b>Abgelehnt</b> = abgewiesen, kann jederzeit wieder freigegeben werden ·
+            <b>Deaktiviert</b> = früher freigegeben, vorübergehend ausgeschaltet — ebenfalls wieder aktivierbar.
+            Profile können gelöscht werden (Soft-Delete).
+        </span>
     </div>
 
     <div class="admin-status-chips" role="group" aria-label="Status schnell filtern">
@@ -122,9 +129,10 @@
                 <div class="bulk-bar">
                     <select class="form-control" name="action" id="bulkAction">
                         <option value="">Bulk-Aktion…</option>
-                        <option value="approve">Freigeben</option>
+                        <option value="approve">Freigeben / wiederherstellen</option>
                         <option value="reject">Ablehnen</option>
                         <option value="deactivate">Deaktivieren</option>
+                        <option value="delete">Löschen</option>
                         <option value="set_password">Passwort setzen</option>
                         <option value="send_password_reset">Passwort-Reset-Link senden</option>
                     </select>
@@ -276,6 +284,7 @@
         approve: 'freigeben',
         reject: 'ablehnen',
         deactivate: 'deaktivieren',
+        delete: 'löschen',
         set_password: 'Passwort setzen',
         send_password_reset: 'Passwort-Reset-Links senden'
     };

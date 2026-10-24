@@ -8,6 +8,8 @@ final class ProfessionalGroup
 
     public const JURIST = 'jurist';
 
+    public const MARKTPLATZ = 'marktplatz';
+
     public const OTHER = 'other';
 
     /** @return array<string, string> */
@@ -16,6 +18,7 @@ final class ProfessionalGroup
         return [
             self::MA_SPECIALIST => 'M&A Specialists',
             self::JURIST => 'Juristen',
+            self::MARKTPLATZ => 'Marktplätze',
             self::OTHER => 'Others',
         ];
     }
@@ -41,6 +44,7 @@ final class ProfessionalGroup
         return [
             self::MA_SPECIALIST => '#009DE1', // blue
             self::JURIST => '#0B6E4F', // green
+            self::MARKTPLATZ => '#C2410C', // terracotta
             self::OTHER => '#64748B', // slate
         ];
     }

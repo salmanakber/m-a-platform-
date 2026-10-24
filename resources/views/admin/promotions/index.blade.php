@@ -35,6 +35,13 @@
 @endphp
 
 <div class="admin-page">
+    <div class="status-help" style="margin-bottom:1rem;">
+        <strong>Verkaufbare Top-Platzierung</strong>
+        <span>
+            Ablauf: Experte fragt Slot an → Status Ausstehend → Admin erstellt Rechnung → Zahlung markieren → Aktivieren.
+            «Freie Slots» = freie Plätze (nicht kostenlos). Aktive Promotionen erscheinen als «Empfohlen» und bevorzugen die Startseite.
+        </span>
+    </div>
     <header class="admin-page-hero">
         <div>
             <p class="page-kicker">Monetarisierung</p>

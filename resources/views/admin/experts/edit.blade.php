@@ -146,19 +146,24 @@
         </div>
         <div class="form-group">
             <label><input type="checkbox" name="offers_buy" value="1" @checked(old('offers_buy', $expert->offers_buy))> Bietet Kaufberatung</label>
+            <p class="field-hint">Erscheint im Verzeichnis-Filter «Kauf».</p>
         </div>
         <div class="form-group">
             <label><input type="checkbox" name="offers_sell" value="1" @checked(old('offers_sell', $expert->offers_sell))> Bietet Verkaufsberatung</label>
+            <p class="field-hint">Erscheint im Verzeichnis-Filter «Verkauf».</p>
         </div>
         <div class="form-group">
             <label><input type="checkbox" name="is_public" value="1" @checked(old('is_public', $expert->is_public))> Öffentlich sichtbar</label>
+            <p class="field-hint">Nur zusammen mit Status «Freigegeben» sichtbar auf Website/Karte. Aus = Profil bleibt intern.</p>
         </div>
         <div class="form-group">
             <label><input type="checkbox" name="crawl_enabled" value="1" @checked(old('crawl_enabled', $expert->crawl_enabled))> Website-Crawl aktiv</label>
+            <p class="field-hint">Erlaubt dem System, Blog-/News-Inhalte von der Crawl-URL zu holen (als Entwürfe). Braucht auch eine Crawl-URL unten.</p>
         </div>
         <div class="form-group">
             <label for="website_crawl_url">Crawl-URL</label>
-            <input class="form-control" type="url" name="website_crawl_url" id="website_crawl_url" value="{{ old('website_crawl_url', $expert->website_crawl_url) }}">
+            <input class="form-control" type="url" name="website_crawl_url" id="website_crawl_url" value="{{ old('website_crawl_url', $expert->website_crawl_url) }}" placeholder="https://beispiel.ch/blog">
+            <p class="field-hint">Seite mit Blog/News (z. B. wie kmu-beratungen.ch/blog). Crawl legt Artikel als Entwurf an — Experte/Admin veröffentlicht sie.</p>
         </div>
 
         <button type="submit" class="btn">Stammdaten speichern</button>

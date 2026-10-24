@@ -29,13 +29,24 @@ class CrawlController extends Controller
 
     public function runDaily(): RedirectResponse
     {
-        $count = 0;
+        $experts = $this->crawlService->expertsDueForCrawl();
 
-        foreach ($this->crawlService->expertsDueForCrawl() as $expert) {
-            CrawlExpertWebsiteJob::dispatch($expert);
+        if ($experts->isEmpty()) {
+            return back()->withErrors([
+                'crawl' => 'Keine Experten bereit für den Crawl. Voraussetzung: Status freigegeben, «Website-Crawl aktiv» und eine Crawl-URL am Profil.',
+            ]);
+        }
+
+        $count = 0;
+        // Admin «jetzt starten» must run immediately — queued jobs often sit forever without a worker.
+        foreach ($experts as $expert) {
+            CrawlExpertWebsiteJob::dispatchSync($expert);
             $count++;
         }
 
-        return back()->with('success', $count.' Crawl-Job(s) in die Warteschlange gestellt.');
+        return back()->with(
+            'success',
+            $count.' Crawl(s) ausgeführt. Neue Blog-Entwürfe erscheinen bei den Experten (Status «Entwurf») und müssen freigegeben/veröffentlicht werden.'
+        );
     }
 }

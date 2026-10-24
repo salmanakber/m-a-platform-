@@ -79,6 +79,8 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin'])->grou
     Route::get('/', [AdminDashboardController::class, 'index'])->name('dashboard');
 
     Route::get('/experten', [AdminExpertController::class, 'index'])->name('experts.index');
+    Route::get('/experten/neu', [AdminExpertController::class, 'create'])->name('experts.create');
+    Route::post('/experten', [AdminExpertController::class, 'store'])->name('experts.store');
     Route::post('/experten/bulk', [AdminExpertController::class, 'bulk'])->name('experts.bulk');
     Route::get('/experten/{expert}', [AdminExpertController::class, 'show'])->name('experts.show');
     Route::get('/experten/{expert}/bearbeiten', [AdminExpertController::class, 'edit'])->name('experts.edit');
@@ -89,6 +91,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin'])->grou
     Route::post('/experten/{expert}/ablehnen', [AdminExpertController::class, 'reject'])->name('experts.reject');
     Route::post('/experten/{expert}/deaktivieren', [AdminExpertController::class, 'deactivate'])->name('experts.deactivate');
     Route::post('/experten/{expert}/aktivieren', [AdminExpertController::class, 'activate'])->name('experts.activate');
+    Route::delete('/experten/{expert}', [AdminExpertController::class, 'destroy'])->name('experts.destroy');
 
     Route::get('/experten/{expert}/standorte/vorschlaege', [AdminExpertOfficeController::class, 'suggest'])->name('experts.offices.suggest');
     Route::post('/experten/{expert}/standorte', [AdminExpertOfficeController::class, 'store'])->name('experts.offices.store');

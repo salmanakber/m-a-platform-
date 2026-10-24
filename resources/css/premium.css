@@ -60,20 +60,25 @@
 .xp-mark {
     width: 132px;
     height: 132px;
-    border-radius: 2px;
-    background: rgba(255, 255, 255, 0.96);
-    border: 1px solid rgba(255, 255, 255, 0.18);
+    border-radius: 16px;
+    background:
+        radial-gradient(circle at 20% 15%, rgba(255, 255, 255, 0.95), transparent 45%),
+        linear-gradient(165deg, #f7fbfe 0%, #e8f3fa 55%, #d7e8f4 100%);
+    border: 1px solid rgba(208, 233, 255, 0.55);
     display: grid;
     place-items: center;
     overflow: hidden;
-    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
+    box-shadow:
+        0 18px 40px rgba(4, 25, 41, 0.28),
+        inset 0 1px 0 rgba(255, 255, 255, 0.75);
 }
 
 .xp-mark img {
     width: 100%;
     height: 100%;
     object-fit: contain;
-    padding: 0.75rem;
+    padding: 0.9rem;
+    background: transparent;
 }
 
 .xp-mark__letter {
@@ -1263,16 +1268,19 @@ body.admin-shell {
     height: 72px;
     display: grid;
     place-items: center;
-    background: linear-gradient(160deg, #f4f8fc, #D0E9FF);
-    border: 1px solid var(--line-soft);
+    border-radius: 12px;
+    background: linear-gradient(165deg, #f8fbfe, #e7f2fa);
+    border: 1px solid rgba(0, 157, 225, 0.18);
     overflow: hidden;
+    box-shadow: 0 6px 14px rgba(6, 35, 56, 0.06);
 }
 
 .dir-card__logo img {
     width: 100%;
     height: 100%;
     object-fit: contain;
-    background: #fff;
+    padding: 0.35rem;
+    background: transparent;
 }
 
 .dir-card__logo span {
@@ -2456,18 +2464,21 @@ body.is-directory-page .site-footer {
     height: 76px;
     display: grid;
     place-items: center;
+    border-radius: 14px;
     background:
-        linear-gradient(#fff, #fff) padding-box,
-        linear-gradient(145deg, #009DE1, #0E4971) border-box;
+        linear-gradient(165deg, #f8fbfe, #e7f2fa) padding-box,
+        linear-gradient(145deg, #7fd0f5, #009DE1 45%, #0E4971) border-box;
     border: 1.5px solid transparent;
     overflow: hidden;
+    box-shadow: 0 8px 18px rgba(6, 35, 56, 0.08);
 }
 
 .dx-item__media img {
     width: 100%;
     height: 100%;
     object-fit: contain;
-    background: #fff;
+    padding: 0.35rem;
+    background: transparent;
 }
 
 .dx-item__media.logo-pos--left img,

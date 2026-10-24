@@ -643,6 +643,7 @@ class TelsearchImportService
 
         return match (true) {
             str_contains($key, 'jurist') || str_contains($key, 'anwalt') || str_contains($key, 'recht') => ProfessionalGroup::JURIST,
+            str_contains($key, 'marktplatz') || str_contains($key, 'marketplace') || str_contains($key, 'plattform') => ProfessionalGroup::MARKTPLATZ,
             str_contains($key, 'other') || str_contains($key, 'andere') || str_contains($key, 'sonstig') => ProfessionalGroup::OTHER,
             default => ProfessionalGroup::MA_SPECIALIST,
         };
