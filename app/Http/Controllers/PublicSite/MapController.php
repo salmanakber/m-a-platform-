@@ -53,7 +53,9 @@ class MapController extends Controller
         $offices = ExpertOffice::query()
             ->whereHas('expert', function ($query) use ($direction, $group) {
                 $query->where('status', ExpertStatus::APPROVED)
-                    ->where('is_public', true);
+                    ->where('is_public', true)
+                    // Marktplätze are listed like Top cards — not on the map.
+                    ->where('professional_group', '!=', ProfessionalGroup::MARKTPLATZ);
 
                 if ($direction === 'kaufen') {
                     $query->where('offers_buy', true);
@@ -153,8 +155,11 @@ class MapController extends Controller
                     'city' => trim(($event->postal_code ?? '').' '.($event->city ?? '')),
                     'address' => trim((string) ($event->location_name ?? $event->address_line ?? '')),
                     'canton' => $eventCanton,
+                    'group' => 'event',
+                    'group_label' => 'Event',
+                    'color' => '#B45309', // amber — distinct from expert groups
                     'url' => route('events.show', $event->slug),
-                    'promoted' => false,
+                    'promoted' => (bool) $event->is_top_event,
                     'buy' => false,
                     'sell' => false,
                     'date' => $event->starts_on?->format('d.m.Y'),

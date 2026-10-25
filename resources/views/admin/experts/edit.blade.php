@@ -123,6 +123,7 @@
                         <option value="{{ $groupKey }}" @selected(old('professional_group', $expert->professional_group ?? 'ma_specialist') === $groupKey)>{{ $groupLabel }}</option>
                     @endforeach
                 </select>
+                <p class="field-hint">«Marktplätze» erscheinen als Kartenliste — nicht auf der Karte.</p>
             </div>
             <div class="form-group">
                 <label for="logo_position">Logo-Position</label>
@@ -132,6 +133,16 @@
                     <option value="center" @selected($logoPos === 'center')>Mitte</option>
                     <option value="right" @selected($logoPos === 'right')>Rechts</option>
                 </select>
+            </div>
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label for="public_rating">Öffentliche Bewertung (0–5)</label>
+                <input class="form-control" type="number" step="0.1" min="0" max="5" name="public_rating" id="public_rating" value="{{ old('public_rating', $expert->public_rating) }}" placeholder="z. B. 4.9">
+            </div>
+            <div class="form-group">
+                <label for="public_deals_count">Transaktionen / Deals</label>
+                <input class="form-control" type="number" min="0" name="public_deals_count" id="public_deals_count" value="{{ old('public_deals_count', $expert->public_deals_count) }}" placeholder="z. B. 63">
             </div>
         </div>
         <div class="form-group">

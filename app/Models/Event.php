@@ -31,6 +31,10 @@ class Event extends Model
         'needs_review',
         'status',
         'published_at',
+        'is_top_event',
+        'price_label',
+        'capacity_label',
+        'registration_email',
     ];
 
     protected $casts = [
@@ -41,7 +45,26 @@ class Event extends Model
         'published_at' => 'datetime',
         'latitude' => 'float',
         'longitude' => 'float',
+        'is_top_event' => 'boolean',
     ];
+
+    public function registrationTargetEmail(): ?string
+    {
+        if ($this->registration_email) {
+            return $this->registration_email;
+        }
+
+        return $this->expert?->email;
+    }
+
+    public function isUpcoming(): bool
+    {
+        if ($this->starts_on === null) {
+            return true;
+        }
+
+        return $this->starts_on->gte(now()->startOfDay());
+    }
 
     public function expert(): BelongsTo
     {

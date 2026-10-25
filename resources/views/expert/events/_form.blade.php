@@ -69,4 +69,23 @@
         <input class="form-control" type="text" name="longitude" id="longitude" value="{{ old('longitude', optional($event)->longitude) }}">
     </div>
 </div>
+<div class="form-row">
+    <div class="form-group">
+        <label for="price_label">Preis-Hinweis</label>
+        <input class="form-control" type="text" name="price_label" id="price_label" value="{{ old('price_label', optional($event)->price_label) }}" placeholder="z. B. Kostenlos / CHF 180">
+    </div>
+    <div class="form-group">
+        <label for="capacity_label">Plätze</label>
+        <input class="form-control" type="text" name="capacity_label" id="capacity_label" value="{{ old('capacity_label', optional($event)->capacity_label) }}" placeholder="z. B. 40 Plätze">
+    </div>
+</div>
+<div class="form-group">
+    <label for="registration_email">Anmelde-E-Mail <em class="label-optional">(optional)</em></label>
+    <input class="form-control" type="email" name="registration_email" id="registration_email" value="{{ old('registration_email', optional($event)->registration_email) }}" placeholder="Leer = Experten-E-Mail">
+    <p class="field-hint">Interessenten-Anmeldungen werden an diese Adresse geschickt.</p>
+</div>
+<div class="form-group">
+    <label><input type="checkbox" name="is_top_event" value="1" @checked(old('is_top_event', optional($event)->is_top_event))> Als «Top Event» hervorheben</label>
+    <p class="field-hint">Erscheint bevorzugt auf der Startseite, solange das Datum in der Zukunft liegt.</p>
+</div>
 <p class="field-hint">Keine erfundenen Daten: fehlendes Datum oder Ort leer lassen — wird als prüfungsbedürftig markiert.</p>

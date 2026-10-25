@@ -255,6 +255,8 @@ class ExpertController extends Controller
             'website_crawl_url' => ['nullable', 'url', 'max:500'],
             'contact_person_name' => ['nullable', 'string', 'max:120'],
             'contact_person_last_name' => ['nullable', 'string', 'max:120'],
+            'public_rating' => ['nullable', 'numeric', 'between:0,5'],
+            'public_deals_count' => ['nullable', 'integer', 'min:0', 'max:99999'],
             'logo' => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp,gif', 'max:4096'],
         ], [
             'email.unique' => 'Diese E-Mail-Adresse wird bereits verwendet.',
@@ -275,6 +277,8 @@ class ExpertController extends Controller
             'website_crawl_url' => $validated['website_crawl_url'] ?? null,
             'contact_person_name' => $validated['contact_person_name'] ?? null,
             'contact_person_last_name' => $validated['contact_person_last_name'] ?? null,
+            'public_rating' => $validated['public_rating'] ?? null,
+            'public_deals_count' => $validated['public_deals_count'] ?? null,
         ];
 
         if ($request->hasFile('logo') && $request->file('logo')->isValid()) {

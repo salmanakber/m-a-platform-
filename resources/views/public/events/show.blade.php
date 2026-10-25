@@ -104,6 +104,37 @@
                     <a class="btn btn--small" href="{{ route('experts.show', $event->expert->slug) }}">Profil ansehen</a>
                 </section>
             @endif
+
+            <section class="ev-fact" id="anmelden">
+                <h2>Anmelden</h2>
+                <p style="margin:0 0 0.85rem;color:var(--stone);font-size:0.9rem;">Ihre Anmeldung geht direkt an den Experten (E-Mail).</p>
+                @if (session('success'))
+                    <div class="alert alert--success" style="margin-bottom:0.75rem;">{{ session('success') }}</div>
+                @endif
+                @if ($errors->any())
+                    <div class="alert alert--danger" style="margin-bottom:0.75rem;">{{ $errors->first() }}</div>
+                @endif
+                <form method="post" action="{{ route('events.register', $event->slug) }}">
+                    @csrf
+                    <div class="form-group">
+                        <label for="reg_name">Name *</label>
+                        <input class="form-control" type="text" name="name" id="reg_name" value="{{ old('name') }}" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="reg_email">E-Mail *</label>
+                        <input class="form-control" type="email" name="email" id="reg_email" value="{{ old('email') }}" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="reg_phone">Telefon</label>
+                        <input class="form-control" type="text" name="phone" id="reg_phone" value="{{ old('phone') }}">
+                    </div>
+                    <div class="form-group">
+                        <label for="reg_message">Nachricht</label>
+                        <textarea class="form-control" name="message" id="reg_message" rows="3">{{ old('message') }}</textarea>
+                    </div>
+                    <button type="submit" class="btn btn--small">Anmeldung senden</button>
+                </form>
+            </section>
         </aside>
     </div>
 </article>

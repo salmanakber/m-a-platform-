@@ -38,6 +38,8 @@ class Expert extends Model
         'import_fingerprint',
         'logo_position',
         'logo_locked',
+        'public_rating',
+        'public_deals_count',
     ];
 
     protected $casts = [
@@ -49,6 +51,8 @@ class Expert extends Model
         'crawl_import_events' => 'boolean',
         'crawl_use_ai' => 'boolean',
         'logo_locked' => 'boolean',
+        'public_rating' => 'float',
+        'public_deals_count' => 'integer',
     ];
 
     public function user(): BelongsTo

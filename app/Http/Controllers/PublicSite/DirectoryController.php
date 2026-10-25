@@ -126,6 +126,11 @@ class DirectoryController extends Controller
         $markers = [];
 
         foreach ($experts as $expert) {
+            // Marktplätze: card/list only — never as map pins.
+            if (($expert->professional_group ?: '') === ProfessionalGroup::MARKTPLATZ) {
+                continue;
+            }
+
             foreach ($expert->offices as $office) {
                 $lat = $office->latitude !== null ? (float) $office->latitude : null;
                 $lng = $office->longitude !== null ? (float) $office->longitude : null;

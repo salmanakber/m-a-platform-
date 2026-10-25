@@ -145,7 +145,13 @@ class EventController extends Controller
             'latitude' => ['nullable', 'numeric'],
             'longitude' => ['nullable', 'numeric'],
             'source_url' => ['nullable', 'url', 'max:500'],
+            'price_label' => ['nullable', 'string', 'max:80'],
+            'capacity_label' => ['nullable', 'string', 'max:80'],
+            'registration_email' => ['nullable', 'email', 'max:255'],
+            'is_top_event' => ['nullable', 'boolean'],
         ]);
+
+        $data['is_top_event'] = $request->boolean('is_top_event');
 
         // Incomplete dates stay nullable — never invent them.
         return $data;

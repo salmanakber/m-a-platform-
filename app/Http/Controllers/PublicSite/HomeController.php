@@ -4,49 +4,99 @@ namespace App\Http\Controllers\PublicSite;
 
 use App\Http\Controllers\Controller;
 use App\Models\Article;
+use App\Models\Canton;
+use App\Models\Event;
 use App\Models\Expert;
-use App\Models\Promotion;
+use App\Services\Ranking\RankingService;
 use App\Support\ArticleStatus;
+use App\Support\EventStatus;
 use App\Support\ExpertStatus;
-use App\Support\PromotionStatus;
+use App\Support\ProfessionalGroup;
+use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 class HomeController extends Controller
 {
-    public function index(): View
+    public function __construct(private RankingService $rankings)
     {
-        $promotedIds = Promotion::query()
-            ->where('status', PromotionStatus::ACTIVE)
-            ->pluck('expert_id')
-            ->unique()
-            ->filter()
-            ->values()
-            ->all();
+    }
 
-        $expertsQuery = Expert::query()
-            ->where('status', ExpertStatus::APPROVED)
-            ->where('is_public', true)
-            ->with('offices.canton');
+    public function index(Request $request): View
+    {
+        $heroMatch = $this->rankings->heroMatch();
+        $nationalTop = $this->rankings->nationalTop5();
+        $articleTop = $this->rankings->articleTop3();
 
-        if (count($promotedIds) > 0) {
-            $placeholders = implode(',', array_fill(0, count($promotedIds), '?'));
-            $expertsQuery->orderByRaw('CASE WHEN id IN ('.$placeholders.') THEN 0 ELSE 1 END', $promotedIds);
+        $cantonCode = strtoupper(trim((string) $request->query('kanton', '')));
+        $cantons = Canton::query()->orderBy('name_de')->get();
+        $selectedCanton = $cantonCode !== ''
+            ? $cantons->first(fn (Canton $c) => $c->code === $cantonCode)
+            : ($cantons->firstWhere('code', 'ZH') ?? $cantons->first());
+
+        $cantonTop = $selectedCanton
+            ? $this->rankings->cantonTop3((int) $selectedCanton->id)
+            : collect();
+
+        $marktplatzTop = $this->rankings->nationalTop5(ProfessionalGroup::MARKTPLATZ);
+        if ($marktplatzTop->isEmpty()) {
+            // Fallback: show approved Marktplätze as card list (never on map).
+            $marktplatzTop = Expert::query()
+                ->where('status', ExpertStatus::APPROVED)
+                ->where('is_public', true)
+                ->where('professional_group', ProfessionalGroup::MARKTPLATZ)
+                ->with('offices.canton')
+                ->orderBy('company_name')
+                ->limit(5)
+                ->get()
+                ->values()
+                ->map(fn (Expert $e, int $i) => (object) [
+                    'position' => $i + 1,
+                    'expert' => $e,
+                    'label' => null,
+                ]);
         }
 
-        $experts = $expertsQuery
-            ->orderBy('company_name')
+        $articleCarousel = Article::query()
+            ->where('status', ArticleStatus::PUBLISHED)
+            ->when($articleTop->isNotEmpty(), function ($q) use ($articleTop) {
+                $ids = $articleTop->pluck('article_id')->filter()->all();
+                if ($ids !== []) {
+                    $q->whereNotIn('id', $ids);
+                }
+            })
+            ->orderByDesc('published_at')
+            ->limit(8)
+            ->get();
+
+        $upcomingEvents = Event::query()
+            ->where('status', EventStatus::PUBLISHED)
+            ->where(function ($q) {
+                $q->whereNull('starts_on')->orWhereDate('starts_on', '>=', now()->toDateString());
+            })
+            ->with(['expert', 'canton'])
+            ->orderByRaw('CASE WHEN is_top_event = 1 THEN 0 ELSE 1 END')
+            ->orderBy('starts_on')
             ->limit(6)
             ->get();
 
-        $articles = Article::query()
-            ->where('status', ArticleStatus::PUBLISHED)
-            ->orderByDesc('published_at')
-            ->limit(3)
-            ->get();
+        $stats = [
+            'experts' => Expert::query()->where('status', ExpertStatus::APPROVED)->where('is_public', true)->count(),
+            'deals' => (int) Expert::query()->where('status', ExpertStatus::APPROVED)->sum('public_deals_count'),
+            'rating' => round((float) Expert::query()->whereNotNull('public_rating')->avg('public_rating'), 1),
+        ];
 
         return view('public.home', [
-            'experts' => $experts,
-            'articles' => $articles,
+            'heroMatch' => $heroMatch,
+            'nationalTop' => $nationalTop,
+            'cantons' => $cantons,
+            'selectedCanton' => $selectedCanton,
+            'cantonTop' => $cantonTop,
+            'marktplatzTop' => $marktplatzTop,
+            'articleTop' => $articleTop,
+            'articleCarousel' => $articleCarousel,
+            'upcomingEvents' => $upcomingEvents,
+            'stats' => $stats,
+            'groups' => ProfessionalGroup::labels(),
         ]);
     }
 }

@@ -12,6 +12,7 @@ use App\Http\Controllers\Admin\InvoiceController as AdminInvoiceController;
 use App\Http\Controllers\Admin\LeadController as AdminLeadController;
 use App\Http\Controllers\Admin\PageController as AdminPageController;
 use App\Http\Controllers\Admin\PromotionController as AdminPromotionController;
+use App\Http\Controllers\Admin\RankingController as AdminRankingController;
 use App\Http\Controllers\Admin\SettingsController as AdminSettingsController;
 use App\Http\Controllers\Auth\ForgotPasswordController;
 use App\Http\Controllers\Auth\LoginController;
@@ -52,6 +53,7 @@ Route::get('/blog/{slug}', [PublicArticleController::class, 'show'])->name('blog
 
 Route::get('/events', [PublicEventController::class, 'index'])->name('events.index');
 Route::get('/events/{slug}', [PublicEventController::class, 'show'])->name('events.show');
+Route::post('/events/{slug}/anmelden', [PublicEventController::class, 'register'])->name('events.register');
 
 Route::get('/registrierung', [RegistrationController::class, 'create'])->name('registration.create');
 Route::post('/registrierung', [RegistrationController::class, 'store'])->name('registration.store');
@@ -117,6 +119,13 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin'])->grou
     Route::post('/promotionen/{promotion}/beenden', [AdminPromotionController::class, 'expire'])->name('promotions.expire');
     Route::post('/promotionen/{promotion}/stornieren', [AdminPromotionController::class, 'cancel'])->name('promotions.cancel');
     Route::post('/promotionen/{promotion}/rechnung', [AdminPromotionController::class, 'createInvoice'])->name('promotions.create-invoice');
+
+    Route::get('/rankings', [AdminRankingController::class, 'index'])->name('rankings.index');
+    Route::get('/rankings/neu', [AdminRankingController::class, 'create'])->name('rankings.create');
+    Route::post('/rankings', [AdminRankingController::class, 'store'])->name('rankings.store');
+    Route::get('/rankings/{ranking}/bearbeiten', [AdminRankingController::class, 'edit'])->name('rankings.edit');
+    Route::put('/rankings/{ranking}', [AdminRankingController::class, 'update'])->name('rankings.update');
+    Route::delete('/rankings/{ranking}', [AdminRankingController::class, 'destroy'])->name('rankings.destroy');
 
     Route::get('/rechnungen', [AdminInvoiceController::class, 'index'])->name('invoices.index');
     Route::patch('/rechnungen/bulk', [AdminInvoiceController::class, 'bulk'])->name('invoices.bulk');
