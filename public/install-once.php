@@ -41,7 +41,7 @@ echo '<!DOCTYPE html><html lang="de"><head><meta charset="utf-8"><title>Install<
 echo '<style>body{font-family:system-ui,sans-serif;max-width:900px;margin:2rem auto;padding:0 1rem;background:#0b1f2e;color:#e8f2f8}';
 echo 'pre{background:#07131d;color:#c8f0c0;padding:1rem;overflow:auto;border:1px solid #1e3a4f}';
 echo 'h1{font-size:1.4rem}.ok{color:#7dffa0}.warn{color:#ffd27d}.err{color:#ff8f8f}</style></head><body>';
-echo '<h1>nachfolge-experten.ch — Database install</h1>';
+echo '<h1>nachfolge-experten.ch — Database + cache install</h1>';
 echo '<pre>';
 
 try {
@@ -49,10 +49,13 @@ try {
     DB::connection()->getPdo();
     echo "OK — connected.\n\n";
 
-    echo "Tables before migrate:\n";
+    echo "Schema before migrate:\n";
     echo '  events: '.(Schema::hasTable('events') ? 'EXISTS' : 'MISSING')."\n";
+    echo '  rankings: '.(Schema::hasTable('rankings') ? 'EXISTS' : 'MISSING')."\n";
     echo '  experts.professional_group: '.(Schema::hasColumn('experts', 'professional_group') ? 'EXISTS' : 'MISSING')."\n";
-    echo '  experts.crawl_import_articles: '.(Schema::hasColumn('experts', 'crawl_import_articles') ? 'EXISTS' : 'MISSING')."\n\n";
+    echo '  experts.crawl_import_articles: '.(Schema::hasColumn('experts', 'crawl_import_articles') ? 'EXISTS' : 'MISSING')."\n";
+    echo '  events.is_top_event: '.(Schema::hasTable('events') && Schema::hasColumn('events', 'is_top_event') ? 'EXISTS' : 'MISSING')."\n";
+    echo '  events.canton_id: '.(Schema::hasTable('events') && Schema::hasColumn('events', 'canton_id') ? 'EXISTS' : 'MISSING')."\n\n";
 
     echo "Running: php artisan migrate --force\n";
     $migrate = Artisan::call('migrate', ['--force' => true]);
@@ -73,22 +76,51 @@ try {
         echo "Skipping full seeders (safe default). Add &seed=1 only if you need them.\n\n";
     }
 
-    echo "Clearing caches...\n";
+    echo "Clearing caches (config / cache / view / route)…\n";
     Artisan::call('config:clear');
+    echo Artisan::output();
     Artisan::call('cache:clear');
+    echo Artisan::output();
     Artisan::call('view:clear');
+    echo Artisan::output();
     Artisan::call('route:clear');
-    echo Artisan::output() ?: "caches cleared.\n";
+    echo Artisan::output();
+    echo "caches cleared.\n";
 
-    echo "\nTables after migrate:\n";
+    // Compiled Blade can survive on some hosts — remove compiled views explicitly.
+    $compiled = __DIR__.'/../storage/framework/views';
+    if (is_dir($compiled)) {
+        $removed = 0;
+        foreach (glob($compiled.'/*.php') ?: [] as $file) {
+            if (@unlink($file)) {
+                $removed++;
+            }
+        }
+        echo "Removed {$removed} compiled Blade file(s).\n";
+    }
+
+    echo "\nSchema after migrate:\n";
     echo '  events: '.(Schema::hasTable('events') ? 'EXISTS' : 'MISSING')."\n";
+    echo '  rankings: '.(Schema::hasTable('rankings') ? 'EXISTS' : 'MISSING')."\n";
     echo '  experts.professional_group: '.(Schema::hasColumn('experts', 'professional_group') ? 'EXISTS' : 'MISSING')."\n";
     echo '  experts.crawl_import_articles: '.(Schema::hasColumn('experts', 'crawl_import_articles') ? 'EXISTS' : 'MISSING')."\n";
+    echo '  events.is_top_event: '.(Schema::hasTable('events') && Schema::hasColumn('events', 'is_top_event') ? 'EXISTS' : 'MISSING')."\n";
+    echo '  events.canton_id: '.(Schema::hasTable('events') && Schema::hasColumn('events', 'canton_id') ? 'EXISTS' : 'MISSING')."\n";
 
-    if (Schema::hasTable('events')) {
-        echo "\n<span class=\"ok\">DONE — events table is ready.</span>\n";
+    $okEvents = Schema::hasTable('events');
+    $okRankings = Schema::hasTable('rankings');
+
+    if ($okEvents && $okRankings) {
+        echo "\n<span class=\"ok\">DONE — events + rankings ready. Homepage Blade cache cleared.</span>\n";
+        echo "<span class=\"ok\">Open https://nachfolge-experten.ch/ — then DELETE this install file.</span>\n";
     } else {
-        echo "\n<span class=\"err\">ERROR — events table still missing. Upload latest /database/migrations files, then run again.</span>\n";
+        echo "\n<span class=\"err\">ERROR — missing tables. Upload latest /database/migrations (incl. rankings), then run again.</span>\n";
+        if (! $okEvents) {
+            echo "<span class=\"err\">  → events table missing</span>\n";
+        }
+        if (! $okRankings) {
+            echo "<span class=\"err\">  → rankings table missing</span>\n";
+        }
     }
 
     echo "\nDELETE public/install-once.php NOW for security.\n";
