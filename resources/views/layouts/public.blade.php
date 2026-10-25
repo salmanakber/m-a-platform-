@@ -8,7 +8,7 @@
     @include('partials.theme-styles')
     @stack('head')
 </head>
-<body class="@yield('body_class')">
+<body class="is-public-redesign @yield('body_class')">
     <header class="site-header" id="siteHeader">
         <div class="container site-header__inner">
             <a class="site-logo" href="{{ route('home') }}">
@@ -24,9 +24,7 @@
                 <a href="{{ route('map.index') }}" class="{{ request()->routeIs('map.*') ? 'is-active' : '' }}">Karte</a>
                 <a href="{{ route('directory.index') }}" class="{{ request()->routeIs('directory.*', 'experts.*') ? 'is-active' : '' }}">Verzeichnis</a>
                 @auth
-                    @if (auth()->user()->isAdmin())
-                        <a href="{{ route('admin.dashboard') }}">Admin</a>
-                    @elseif (auth()->user()->isExpert())
+                    @if (auth()->user()->isExpert())
                         <a href="{{ route('expert.dashboard') }}">Mein Bereich</a>
                     @endif
                     <form action="{{ route('logout') }}" method="post" style="display:inline;margin:0;">
@@ -61,8 +59,12 @@
                     <img src="{{ asset('logo-nachfolge-experten/nachfolge-experten-weiss.svg') }}" alt="" width="36" height="32">
                     <span class="site-logo__text">nachfolge-experten<span>.ch</span></span>
                 </a>
-                <p>Unabhängiges Schweizer Verzeichnis für M&A- und Unternehmensnachfolge. Eine Initiative der KMU Beratungen GmbH, Sarnen.</p>
-                <p style="margin-top:0.75rem;"><a href="{{ route('registration.create') }}" style="font-weight:700;">Beraten und begleiten Sie Eigentümer bei der Weitergabe der Unternehmung? Listen Sie Ihr Profil.</a></p>
+                <p>Das unabhängige Verzeichnis für M&A- und Nachfolge-Experten in der Schweiz. Eine Initiative der KMU Beratungen GmbH, Sarnen.</p>
+            </div>
+            <div>
+                <h4>Kontakt</h4>
+                <span style="display:block;color:inherit;opacity:0.85;font-size:0.9rem;line-height:1.55;">nachfolge-experten.ch<br>Brünigstrasse 144<br>6060 Sarnen</span>
+                <a href="mailto:kontakt@nachfolge-experten.ch">kontakt@nachfolge-experten.ch</a>
             </div>
             <div>
                 <h4>Verzeichnis</h4>
@@ -72,15 +74,15 @@
                 <a href="{{ route('map.index') }}">Schweiz-Karte</a>
             </div>
             <div>
-                <h4>Kontakt / Rechtliches</h4>
+                <h4>Rechtliches</h4>
                 <a href="{{ route('legal.impressum') }}">Impressum</a>
                 <a href="{{ route('legal.datenschutz') }}">Datenschutz</a>
                 <a href="{{ route('legal.agb') }}">AGB</a>
-                <span style="display:block;margin-top:0.5rem;color:inherit;opacity:0.85;font-size:0.9rem;">Brünigstrasse 144, 6060 Sarnen</span>
             </div>
         </div>
         <div class="container site-footer__bottom">
-            © {{ date('Y') }} nachfolge-experten.ch · Brünigstrasse 144, 6060 Sarnen
+            <span>© {{ date('Y') }} nachfolge-experten.ch</span>
+            <span>Schweiz · M&A · Nachfolge</span>
         </div>
     </footer>
 

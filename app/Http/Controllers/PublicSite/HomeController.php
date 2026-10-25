@@ -40,6 +40,21 @@ class HomeController extends Controller
             ? $this->rankings->cantonTop3((int) $selectedCanton->id)
             : collect();
 
+        $countsByCanton = Expert::query()
+            ->selectRaw('expert_offices.canton_id, COUNT(DISTINCT experts.id) as experts_count')
+            ->join('expert_offices', 'expert_offices.expert_id', '=', 'experts.id')
+            ->where('experts.status', ExpertStatus::APPROVED)
+            ->where('experts.is_public', true)
+            ->where('experts.professional_group', '!=', ProfessionalGroup::MARKTPLATZ)
+            ->groupBy('expert_offices.canton_id')
+            ->pluck('experts_count', 'canton_id');
+
+        $cantonTiles = $cantons->map(fn (Canton $canton) => [
+            'code' => $canton->code,
+            'name' => $canton->name_de,
+            'count' => (int) ($countsByCanton[$canton->id] ?? 0),
+        ]);
+
         $marktplatzRankings = $this->rankings->nationalTop5(ProfessionalGroup::MARKTPLATZ);
         if ($marktplatzRankings->isEmpty()) {
             $marktplatzRankings = Expert::query()
@@ -111,6 +126,7 @@ class HomeController extends Controller
             }),
             'upcomingEvents' => $upcomingEvents,
             'cantons' => $cantons,
+            'cantonTiles' => $cantonTiles,
             'selectedCanton' => $selectedCanton,
             'stats' => $stats,
             'periodLabel' => $periodLabel,

@@ -5,73 +5,63 @@
 @section('flush', true)
 
 @section('content')
-<div class="discover discover--canton-show">
-    <section class="discover-hero discover-hero--compact">
-        <div class="discover-hero__glow" aria-hidden="true"></div>
-        <div class="container discover-hero__inner">
-            <div class="discover-hero__copy">
-                <p class="discover-kicker">
-                    <a href="{{ route('cantons.index') }}">← Alle Kantone</a>
-                    · {{ $canton->code }}
-                </p>
-                <h1 class="discover-title">{{ $canton->name_de }}</h1>
-                <p class="discover-lead">
+<div class="nh-canton-show">
+    <header class="nh-page-hero nh-page-hero--cream">
+        <div class="nh-page-hero__inner nh-page-hero__inner--split">
+            <div>
+                <p class="nh-kicker"><a href="{{ route('cantons.index') }}" style="color:inherit;text-decoration:none;">← Alle Kantone</a> · {{ $canton->code }}</p>
+                <h1>{{ $canton->name_de }}</h1>
+                <p>
                     {{ $experts->count() }} freigeschaltete
                     Experte{{ $experts->count() === 1 ? '' : 'n' }} mit Standort in diesem Kanton.
                 </p>
-                <div class="discover-actions">
-                    <a class="btn" href="{{ route('directory.index', ['kanton' => $canton->code]) }}">Im Verzeichnis</a>
-                    <a class="btn btn--ghost" href="{{ route('map.index', ['kanton' => $canton->code]) }}">Auf der Karte</a>
+                <div class="nh-page-hero__actions">
+                    <a class="nh-btn nh-btn--navy" href="{{ route('directory.index', ['kanton' => $canton->code]) }}">Im Verzeichnis</a>
+                    <a class="nh-btn nh-btn--ghost nh-btn--on-light" href="{{ route('map.index', ['kanton' => $canton->code]) }}">Auf der Karte ↗</a>
+                    <a class="nh-btn nh-btn--ghost nh-btn--on-light" href="{{ route('home', ['kanton' => $canton->code]) }}#kantone-top">Top 3 ansehen</a>
                 </div>
             </div>
-            <aside class="discover-stats discover-stats--single" aria-label="Kanton">
-                <div class="discover-stat">
-                    <strong>{{ $canton->code }}</strong>
-                    <span>{{ $experts->count() }} Profile</span>
-                </div>
+            <aside class="nh-canton-show__badge" aria-label="Kanton">
+                <b>{{ $canton->code }}</b>
+                <span>{{ $experts->count() }} Profile</span>
             </aside>
         </div>
-    </section>
+    </header>
 
-    <div class="container discover-body">
+    <div class="nh-canton-show__body">
         @if ($experts->isEmpty())
-            <div class="empty-state empty-state--panel">
-                <p><strong>Noch keine Experten in {{ $canton->name_de }}.</strong></p>
-                <p>Schauen Sie im Gesamtverzeichnis oder auf der Schweiz-Karte nach Alternativen.</p>
-                <a class="btn btn--small" href="{{ route('directory.index') }}">Verzeichnis öffnen</a>
+            <div class="nh-empty nh-empty--panel">
+                <strong>Noch keine Experten in {{ $canton->name_de }}.</strong>
+                <p>In diesem Kanton sind derzeit keine geprüften Profile gelistet — der Platz ist noch frei.</p>
+                <a class="nh-btn nh-btn--navy" href="{{ route('registration.create') }}">Als Experte anmelden ↗</a>
             </div>
         @else
-            <div class="dir-list dir-list--dossier reveal-on-scroll">
+            <div class="nh-profile-list">
                 @foreach ($experts as $expert)
-                    @php $office = $expert->primaryOffice(); @endphp
-                    <article class="dir-card dir-card--dossier">
-                        <div class="dir-card__rail" aria-hidden="true"></div>
-                        <div class="dir-card__logo">
-                            @if ($expert->logo_path)
-                                <img src="{{ asset('storage/'.$expert->logo_path) }}" alt="">
-                            @else
-                                <span>{{ mb_strtoupper(mb_substr($expert->company_name, 0, 1)) }}</span>
-                            @endif
-                        </div>
-                        <div class="dir-card__body">
-                            <h2 class="dir-card__name">
-                                <a href="{{ route('experts.show', $expert->slug) }}">{{ $expert->company_name }}</a>
-                            </h2>
-                            <p class="dir-card__loc">
+                    @php
+                        $office = $expert->primaryOffice();
+                        $group = $expert->professional_group ?: \App\Support\ProfessionalGroup::MA_SPECIALIST;
+                    @endphp
+                    <article class="nh-profile-row">
+                        @if ($expert->logo_path)
+                            <span class="nh-avatar nh-avatar--logo"><img src="{{ asset('storage/'.$expert->logo_path) }}" alt=""></span>
+                        @else
+                            <span class="nh-avatar" style="--g:{{ \App\Support\ProfessionalGroup::color($group) }}">{{ mb_strtoupper(mb_substr($expert->company_name, 0, 2)) }}</span>
+                        @endif
+                        <div class="nh-profile-row__copy">
+                            <strong><a href="{{ route('experts.show', $expert->slug) }}">{{ $expert->company_name }}</a></strong>
+                            <span>
                                 @if ($office)
-                                    <span class="dir-card__canton">{{ $canton->code }}</span>
-                                    {{ $office->city }}
-                                    <br><span class="dir-card__addr">{{ $office->address_line }}, {{ $office->postal_code }} {{ $office->city }}</span>
+                                    {{ $office->city }} · {{ $canton->code }}
                                 @endif
-                            </p>
-                            <div class="dir-card__tags">
-                                @if ($expert->offers_buy)<span class="badge badge--buy">Kauf</span>@endif
-                                @if ($expert->offers_sell)<span class="badge badge--sell">Verkauf</span>@endif
+                            </span>
+                            <div class="nh-tags">
+                                <span>{{ \App\Support\ProfessionalGroup::label($group) }}</span>
+                                @if ($expert->offers_buy)<span>Kauf</span>@endif
+                                @if ($expert->offers_sell)<span>Verkauf</span>@endif
                             </div>
                         </div>
-                        <div class="dir-card__cta">
-                            <a class="btn btn--small" href="{{ route('experts.show', $expert->slug) }}">Profil &amp; Anfrage</a>
-                        </div>
+                        <a class="nh-btn nh-btn--navy nh-btn--small" href="{{ route('experts.show', $expert->slug) }}">Profil ↗</a>
                     </article>
                 @endforeach
             </div>

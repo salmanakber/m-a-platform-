@@ -2,8 +2,6 @@
 
 @section('title', 'nachfolge-experten.ch — M&A und Unternehmensnachfolge')
 @section('meta_description', 'Das unabhängige Verzeichnis für M&A- und Nachfolge-Experten in der Schweiz — geprüft, kantonal, diskret.')
-@section('body_class', 'is-home-redesign')
-
 @section('hero')
 <section class="nh-hero" aria-label="Einstieg">
     <div class="nh-hero__grid" aria-hidden="true"></div>
@@ -48,7 +46,7 @@
                 <a class="nh-btn nh-btn--ghost nh-btn--block" href="#top5">Rangliste ansehen ↗</a>
             @else
                 <div class="nh-match__badge">Top Match</div>
-                <p class="nh-match__empty">Noch kein Top Match gesetzt. Unter <strong>Admin → Rankings</strong> können Sie Experte, Rang und Zeitraum festlegen.</p>
+                <p class="nh-match__empty">Noch kein Top Match für diesen Zeitraum. Entdecken Sie das Verzeichnis der geprüften Experten.</p>
                 <a class="nh-btn nh-btn--ghost nh-btn--block" href="{{ route('directory.index') }}">Expertenverzeichnis ↗</a>
             @endif
         </aside>
@@ -97,7 +95,7 @@
         @if ($nationalCards->isEmpty())
             <div class="nh-empty">
                 <strong>Noch keine Top-5-Liste.</strong>
-                <p>Legen Sie unter Admin → Rankings fünf Platzierungen «Top 5 Experten Schweiz» an (Position 1–5, optional von–bis).</p>
+                <p>Die nationale Top-5-Liste wird in Kürze veröffentlicht. Bis dahin finden Sie alle geprüften Profile im Verzeichnis.</p>
             </div>
         @else
             <div class="nh-topgrid">
@@ -137,9 +135,24 @@
             <div>
                 <p class="nh-kicker">Regional</p>
                 <h2>Top 3 Experten je Kanton</h2>
-                <p>Regional verankert, national geprüft — Sie setzen die drei Plätze manuell je Kanton.</p>
+                <p>Regional verankert, national geprüft: die drei führenden Experten Ihres Kantons.</p>
             </div>
+            <a class="nh-link" href="{{ route('cantons.index') }}">Alle Kantone →</a>
         </div>
+
+        @if (($cantonTiles ?? collect())->isNotEmpty())
+            <div class="nh-discover-cantons" aria-label="Kantons-Auswahl">
+                @foreach ($cantonTiles as $tile)
+                    <a class="nh-discover-cantons__tile {{ ($tile['count'] ?? 0) > 0 ? 'is-live' : '' }}"
+                       href="{{ route('home', ['kanton' => $tile['code']]) }}#kantone-top">
+                        <b>{{ $tile['code'] }}</b>
+                        <span>{{ $tile['name'] }}</span>
+                        <em>{{ ($tile['count'] ?? 0) > 0 ? $tile['count'] : '—' }}</em>
+                    </a>
+                @endforeach
+            </div>
+        @endif
+
         <div class="nh-canton">
             <aside class="nh-canton__rail">
                 <p class="nh-canton__label">Kanton wählen</p>

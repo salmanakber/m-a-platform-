@@ -11,8 +11,8 @@
         <div class="login-stage__copy">
             <img src="{{ asset('logo-nachfolge-experten/nachfolge-experten-weiss.svg') }}" alt="" width="56" height="50">
             <p class="login-stage__kicker">nachfolge-experten.ch</p>
-            <h1>Zugang für Experten &amp; Admin</h1>
-            <p>Profil, Anfragen und Inhalte — sicher und mandantenspezifisch.</p>
+            <h1>Zugang für Experten</h1>
+            <p>Profil, Anfragen und Inhalte — sicher und diskret.</p>
         </div>
     </div>
 

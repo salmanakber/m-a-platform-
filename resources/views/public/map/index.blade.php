@@ -18,7 +18,7 @@
     $eventCount = ($mapEvents ?? collect())->count();
     $officeCount = ($offices ?? collect())->count();
     $groupColors = \App\Support\ProfessionalGroup::colors();
-    $groupLabels = \App\Support\ProfessionalGroup::labels();
+    $groupLabels = \App\Support\ProfessionalGroup::mapLabels();
 @endphp
 
 <div class="map-theater">
@@ -35,7 +35,7 @@
         <header class="map-hud__top">
             <div class="map-hud__brand">
                 <p class="map-hud__kicker">Schweiz · Live-Karte</p>
-                <h1 class="map-hud__title">Experten &amp; Events</h1>
+                <h1 class="map-hud__title">Experten auf der Karte</h1>
                 <p class="map-hud__count">
                     <strong>{{ $markerCount }}</strong> Marker
                     @if ($officeCount) · {{ $officeCount }} Experten @endif
