@@ -27,27 +27,32 @@
             'person' => $person,
             'place' => $place,
             'group' => $groupLabel,
-            'group_key' => (string) ($expert->professional_group ?? ''),
             'status' => $statusLabel,
             'search' => mb_strtolower(trim(
                 $expert->company_name.' '.$person.' '.$place.' '.$groupLabel.' '.$statusLabel.' '.($expert->email ?? '')
             )),
         ];
     })->values();
+
+    $contextTitle = $scopes[$scope] ?? $scope;
+    if ($scope === 'canton_top3') {
+        $c = $cantons->firstWhere('id', $cantonId);
+        $contextTitle .= $c ? ' · '.$c->code.' '.$c->name_de : '';
+    }
+    if ($scope === 'group_top') {
+        $contextTitle .= ' · '.($professionalGroups[$professionalGroup] ?? $professionalGroup);
+    }
 @endphp
 
-<div class="admin-page">
+<div class="admin-page rk-simple">
     <header class="admin-page-hero">
         <div>
-            <p class="page-kicker">Gruppen-Editor</p>
-            <h1>{{ $scopes[$scope] ?? $scope }}</h1>
-            <p>
-                Alle Positionen (1–{{ $maxPosition }}) in einem Schritt setzen.
-                Leere Slots werden nicht gespeichert.
-            </p>
+            <p class="page-kicker">Schritt bearbeiten</p>
+            <h1>{{ $contextTitle }}</h1>
+            <p>{{ \App\Support\RankingScope::help($scope) }} Setzen Sie Position 1–{{ $maxPosition }} und speichern Sie einmal.</p>
         </div>
         <div class="admin-page-hero__actions">
-            <a class="btn btn--ghost btn--small" href="{{ route('admin.rankings.index') }}">← Übersicht</a>
+            <a class="btn btn--ghost btn--small" href="{{ route('admin.rankings.index') }}">← Alle Listen</a>
         </div>
     </header>
 
@@ -57,45 +62,35 @@
         </div>
     @endif
 
-    <form method="get" action="{{ route('admin.rankings.edit-group') }}" class="card" style="margin-bottom:1rem;">
-        <div class="form-row">
-            <div class="form-group">
-                <label for="switch_scope">Ranking-Art</label>
-                <select class="form-control" name="scope" id="switch_scope" onchange="this.form.submit()">
-                    @foreach ($scopes as $key => $label)
-                        <option value="{{ $key }}" @selected($scope === $key)>{{ $label }}</option>
-                    @endforeach
-                </select>
-            </div>
-
+    @if ($scope === 'canton_top3' || $scope === 'group_top')
+        <form method="get" action="{{ route('admin.rankings.edit-group') }}" class="rk-context card">
+            <input type="hidden" name="scope" value="{{ $scope }}">
             @if ($scope === 'canton_top3')
-                <div class="form-group">
-                    <label for="switch_canton">Kanton</label>
-                    <select class="form-control" name="canton_id" id="switch_canton" onchange="this.form.submit()">
+                <label>
+                    <span>Anderen Kanton wählen</span>
+                    <select class="form-control" name="canton_id" onchange="this.form.submit()">
                         @foreach ($cantons as $canton)
                             <option value="{{ $canton->id }}" @selected((int) $cantonId === (int) $canton->id)>
                                 {{ $canton->code }} — {{ $canton->name_de }}
                             </option>
                         @endforeach
                     </select>
-                </div>
+                </label>
             @endif
-
             @if ($scope === 'group_top')
-                <div class="form-group">
-                    <label for="switch_group">Fachgruppe</label>
-                    <select class="form-control" name="professional_group" id="switch_group" onchange="this.form.submit()">
+                <label>
+                    <span>Andere Fachgruppe wählen</span>
+                    <select class="form-control" name="professional_group" onchange="this.form.submit()">
                         @foreach ($professionalGroups as $key => $label)
                             <option value="{{ $key }}" @selected($professionalGroup === $key)>{{ $label }}</option>
                         @endforeach
                     </select>
-                </div>
+                </label>
             @endif
-        </div>
-        <p class="field-hint" style="margin:0;">Art / Kanton / Fachgruppe wechseln lädt die passende Liste.</p>
-    </form>
+        </form>
+    @endif
 
-    <form method="post" action="{{ route('admin.rankings.save-group') }}" class="card" id="rankingGroupForm">
+    <form method="post" action="{{ route('admin.rankings.save-group') }}" class="card rk-editor" id="rankingGroupForm">
         @csrf
         <input type="hidden" name="scope" value="{{ $scope }}">
         @if ($scope === 'canton_top3')
@@ -105,76 +100,63 @@
             <input type="hidden" name="professional_group" value="{{ $professionalGroup }}">
         @endif
 
-        <div class="form-row">
+        <div class="rk-editor__meta form-row">
             <div class="form-group">
-                <label for="label">Zeitraum-Bezeichnung <em class="label-optional">(optional)</em></label>
-                <input class="form-control" type="text" name="label" id="label" value="{{ old('label', $meta['label'] ?? '') }}" placeholder="z. B. Q1 2026">
+                <label for="label">Bezeichnung <em class="label-optional">(z. B. Q1 2026)</em></label>
+                <input class="form-control" type="text" name="label" id="label" value="{{ old('label', $meta['label'] ?? '') }}">
             </div>
             <div class="form-group">
-                <label for="starts_on">Gültig von</label>
+                <label for="starts_on">Von</label>
                 <input class="form-control" type="date" name="starts_on" id="starts_on" value="{{ old('starts_on', $meta['starts_on'] ?? '') }}">
             </div>
             <div class="form-group">
-                <label for="ends_on">Gültig bis</label>
+                <label for="ends_on">Bis</label>
                 <input class="form-control" type="date" name="ends_on" id="ends_on" value="{{ old('ends_on', $meta['ends_on'] ?? '') }}">
             </div>
+            <div class="form-group" style="align-self:end;">
+                <label class="rk-active"><input type="checkbox" name="is_active" value="1" @checked(old('is_active', $meta['is_active'] ?? true))> Aktiv</label>
+            </div>
         </div>
-
-        <div class="form-group">
-            <label><input type="checkbox" name="is_active" value="1" @checked(old('is_active', $meta['is_active'] ?? true))> Liste aktiv</label>
-        </div>
-
-        <h2 style="font-family:var(--font-display);font-size:1.25rem;margin:1.25rem 0 0.75rem;">
-            Positionen (bis {{ $maxPosition }})
-        </h2>
-        <p class="field-hint" style="margin-top:0;">Wählen Sie für jede Position einen bestehenden Eintrag. Speichern ersetzt die ganze Liste.</p>
 
         <div class="rk-slots">
             @for ($position = 1; $position <= $maxPosition; $position++)
                 @php
-                    /** @var \App\Models\Ranking|null $slot */
                     $slot = $slots->get($position);
                     $oldSlot = old('slots.'.$position);
                 @endphp
-                <div class="rk-slot" data-slot="{{ $position }}">
-                    <div class="rk-slot__rank">{{ str_pad((string) $position, 2, '0', STR_PAD_LEFT) }}</div>
+                <div class="rk-slot">
+                    <div class="rk-slot__rank">
+                        <span>Rang</span>
+                        <b>{{ $position }}</b>
+                    </div>
                     <div class="rk-slot__body">
                         <input type="hidden" name="slots[{{ $position }}][position]" value="{{ $position }}">
 
                         @if ($slotKind === 'expert')
-                            @php
-                                $selectedId = (string) ($oldSlot['expert_id'] ?? $slot?->expert_id ?? '');
-                            @endphp
-                            <label class="rk-slot__label">Experte</label>
-                            <div class="rk-expert-picker" data-expert-picker data-slot-picker="{{ $position }}">
+                            @php $selectedId = (string) ($oldSlot['expert_id'] ?? $slot?->expert_id ?? ''); @endphp
+                            <div class="rk-expert-picker" data-expert-picker>
                                 <input type="hidden" name="slots[{{ $position }}][expert_id]" value="{{ $selectedId }}" data-expert-id>
                                 <div class="rk-expert-picker__wrap">
-                                    <input
-                                        class="form-control"
-                                        type="search"
-                                        placeholder="Firma / Person suchen…"
-                                        autocomplete="off"
-                                        data-expert-search
-                                    >
+                                    <input class="form-control" type="search" placeholder="Experte suchen (Firma oder Name)…" autocomplete="off" data-expert-search>
                                     <div class="rk-expert-picker__list" data-expert-list hidden role="listbox"></div>
                                 </div>
-                                <p class="rk-expert-picker__selected" data-expert-selected @if($selectedId === '') hidden @endif></p>
-                                <button type="button" class="btn btn--ghost btn--small" data-expert-clear @if($selectedId === '') hidden @endif>Slot leeren</button>
+                                <div class="rk-slot__foot">
+                                    <p class="rk-expert-picker__selected" data-expert-selected @if($selectedId === '') hidden @endif></p>
+                                    <button type="button" class="btn btn--ghost btn--small" data-expert-clear @if($selectedId === '') hidden @endif>Leeren</button>
+                                </div>
                             </div>
                         @elseif ($slotKind === 'article')
                             @php $selectedId = (string) ($oldSlot['article_id'] ?? $slot?->article_id ?? ''); @endphp
-                            <label class="rk-slot__label" for="article_{{ $position }}">Fachbeitrag</label>
-                            <select class="form-control" name="slots[{{ $position }}][article_id]" id="article_{{ $position }}">
-                                <option value="">— leer —</option>
+                            <select class="form-control" name="slots[{{ $position }}][article_id]">
+                                <option value="">— nicht gesetzt —</option>
                                 @foreach ($articles as $article)
                                     <option value="{{ $article->id }}" @selected($selectedId === (string) $article->id)>{{ $article->title }}</option>
                                 @endforeach
                             </select>
                         @else
                             @php $selectedId = (string) ($oldSlot['event_id'] ?? $slot?->event_id ?? ''); @endphp
-                            <label class="rk-slot__label" for="event_{{ $position }}">Event</label>
-                            <select class="form-control" name="slots[{{ $position }}][event_id]" id="event_{{ $position }}">
-                                <option value="">— leer —</option>
+                            <select class="form-control" name="slots[{{ $position }}][event_id]">
+                                <option value="">— nicht gesetzt —</option>
                                 @foreach ($events as $event)
                                     <option value="{{ $event->id }}" @selected($selectedId === (string) $event->id)>
                                         {{ $event->title }}@if($event->starts_on) ({{ $event->starts_on->format('d.m.Y') }})@endif
@@ -187,8 +169,8 @@
             @endfor
         </div>
 
-        <div style="margin-top:1.25rem;display:flex;gap:0.75rem;flex-wrap:wrap;">
-            <button type="submit" class="btn">Gesamte Liste speichern</button>
+        <div class="rk-editor__actions">
+            <button type="submit" class="btn">Liste speichern</button>
             <a class="btn btn--ghost" href="{{ route('admin.rankings.index') }}">Abbrechen</a>
         </div>
     </form>
@@ -198,9 +180,8 @@
 <script type="application/json" id="rankingExpertsJson">@json($expertJson)</script>
 <script>
 (function () {
-    var jsonEl = document.getElementById('rankingExpertsJson');
     var experts = [];
-    try { experts = JSON.parse(jsonEl.textContent || '[]'); } catch (e) { experts = []; }
+    try { experts = JSON.parse(document.getElementById('rankingExpertsJson').textContent || '[]'); } catch (e) {}
 
     function findById(id) {
         id = String(id || '');
@@ -208,7 +189,7 @@
         return null;
     }
 
-    function initPicker(root) {
+    document.querySelectorAll('[data-expert-picker]').forEach(function (root) {
         var hidden = root.querySelector('[data-expert-id]');
         var search = root.querySelector('[data-expert-search]');
         var list = root.querySelector('[data-expert-list]');
@@ -226,10 +207,9 @@
             }
             hidden.value = item.id;
             selected.hidden = false;
-            selected.innerHTML = '<strong>Gewählt:</strong> ' + item.company
-                + (item.person ? ' — ' + item.person : '')
-                + (item.place ? ' · ' + item.place : '')
-                + ' · ' + item.group;
+            selected.innerHTML = '<strong>' + item.company + '</strong>'
+                + (item.person ? '<span> — ' + item.person + '</span>' : '')
+                + (item.place ? '<span> · ' + item.place + '</span>' : '');
             search.value = item.company + (item.person ? ' — ' + item.person : '');
             list.hidden = true;
             if (clearBtn) clearBtn.hidden = false;
@@ -243,16 +223,15 @@
             });
             return experts.filter(function (item) {
                 if (taken[item.id] && item.id !== hidden.value) return false;
-                if (!q) return true;
-                return item.search.indexOf(q) !== -1;
-            }).slice(0, 60);
+                return !q || item.search.indexOf(q) !== -1;
+            }).slice(0, 50);
         }
 
         function render() {
             var rows = filtered();
             list.innerHTML = '';
             if (!rows.length) {
-                list.innerHTML = '<div class="rk-expert-picker__empty">Kein Experte gefunden.</div>';
+                list.innerHTML = '<div class="rk-expert-picker__empty">Kein Treffer</div>';
                 list.hidden = false;
                 return;
             }
@@ -263,10 +242,7 @@
                 btn.innerHTML = '<strong></strong><span></span>';
                 btn.querySelector('strong').textContent = item.company + (item.person ? ' — ' + item.person : '');
                 btn.querySelector('span').textContent = [item.place, item.group, item.status].filter(Boolean).join(' · ');
-                btn.addEventListener('mousedown', function (e) {
-                    e.preventDefault();
-                    setSelected(item);
-                });
+                btn.addEventListener('mousedown', function (e) { e.preventDefault(); setSelected(item); });
                 list.appendChild(btn);
             });
             list.hidden = false;
@@ -282,17 +258,10 @@
                 if (first && !list.hidden) first.dispatchEvent(new Event('mousedown'));
             }
         });
-        document.addEventListener('click', function (e) {
-            if (!root.contains(e.target)) list.hidden = true;
-        });
-        if (clearBtn) {
-            clearBtn.addEventListener('click', function () { setSelected(null); });
-        }
-
+        document.addEventListener('click', function (e) { if (!root.contains(e.target)) list.hidden = true; });
+        if (clearBtn) clearBtn.addEventListener('click', function () { setSelected(null); });
         setSelected(findById(hidden.value));
-    }
-
-    document.querySelectorAll('[data-expert-picker]').forEach(initPicker);
+    });
 })();
 </script>
 @endif

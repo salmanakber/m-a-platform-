@@ -20,30 +20,47 @@
             </div>
         </div>
 
-        <aside class="nh-match" aria-label="Top Match">
-            @if ($heroCard)
-                <div class="nh-match__badge">
-                    <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path fill="currentColor" d="M12 2l2.4 4.9L20 8.2l-3.6 3.5.9 5.2L12 14.8 6.7 16.9l.9-5.2L4 8.2l5.6-1.3L12 2z"/></svg>
-                    Top Match #{{ $heroCard['n'] }} / {{ $periodLabel }}
+        <aside class="nh-match" aria-label="Top Match" data-banner-slider>
+            @if (($bannerCards ?? collect())->isNotEmpty())
+                <div class="nh-match__slides">
+                    @foreach ($bannerCards as $index => $card)
+                        <div class="nh-match__slide {{ $index === 0 ? 'is-active' : '' }}" data-banner-slide @if($index !== 0) hidden @endif>
+                            <div class="nh-match__badge">
+                                <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path fill="currentColor" d="M12 2l2.4 4.9L20 8.2l-3.6 3.5.9 5.2L12 14.8 6.7 16.9l.9-5.2L4 8.2l5.6-1.3L12 2z"/></svg>
+                                Top Match #{{ $card['n'] }} / {{ $periodLabel }}
+                            </div>
+                            <div class="nh-match__row">
+                                @if ($card['logo'])
+                                    <span class="nh-avatar nh-avatar--logo"><img src="{{ $card['logo'] }}" alt=""></span>
+                                @else
+                                    <span class="nh-avatar" style="--g:{{ $card['color'] }}">{{ $card['initials'] }}</span>
+                                @endif
+                                <div>
+                                    <strong>{{ $card['display_name'] }}</strong>
+                                    <span>{{ $card['company'] }}</span>
+                                </div>
+                            </div>
+                            <div class="nh-match__meta">
+                                @if ($card['rating'])
+                                    <em>★ {{ $card['rating'] }} / 5.0</em>
+                                @endif
+                                <span>{{ $card['place_line'] }}</span>
+                            </div>
+                            <a class="nh-btn nh-btn--ghost nh-btn--block" href="{{ $card['url'] }}">Profil ansehen ↗</a>
+                        </div>
+                    @endforeach
                 </div>
-                <div class="nh-match__row">
-                    @if ($heroCard['logo'])
-                        <span class="nh-avatar nh-avatar--logo"><img src="{{ $heroCard['logo'] }}" alt=""></span>
-                    @else
-                        <span class="nh-avatar" style="--g:{{ $heroCard['color'] }}">{{ $heroCard['initials'] }}</span>
-                    @endif
-                    <div>
-                        <strong>{{ $heroCard['display_name'] }}</strong>
-                        <span>{{ $heroCard['company'] }}</span>
+                @if ($bannerCards->count() > 1)
+                    <div class="nh-match__nav">
+                        <button type="button" class="nh-match__arrow" data-banner-prev aria-label="Vorheriger">‹</button>
+                        <div class="nh-match__dots" data-banner-dots>
+                            @foreach ($bannerCards as $index => $card)
+                                <button type="button" class="{{ $index === 0 ? 'is-on' : '' }}" data-banner-dot="{{ $index }}" aria-label="Platz {{ $card['n'] }}">{{ $card['n'] }}</button>
+                            @endforeach
+                        </div>
+                        <button type="button" class="nh-match__arrow" data-banner-next aria-label="Nächster">›</button>
                     </div>
-                </div>
-                <div class="nh-match__meta">
-                    @if ($heroCard['rating'])
-                        <em>★ {{ $heroCard['rating'] }} / 5.0</em>
-                    @endif
-                    <span>{{ $heroCard['place_line'] }}</span>
-                </div>
-                <a class="nh-btn nh-btn--ghost nh-btn--block" href="#top5">Rangliste ansehen ↗</a>
+                @endif
             @else
                 <div class="nh-match__badge">Top Match</div>
                 <p class="nh-match__empty">Noch kein Top Match für diesen Zeitraum. Entdecken Sie das Verzeichnis der geprüften Experten.</p>
@@ -89,7 +106,15 @@
                 <h2>Top 5 Experten der Schweiz</h2>
                 <p>Die führenden M&A- und Nachfolge-Spezialisten — manuell kuratiert, mit Rang und Gültigkeitsdauer.</p>
             </div>
-            <a class="nh-link" href="{{ route('directory.index') }}">Alle Experten →</a>
+            <div class="nh-section__tools">
+                @if ($nationalCards->isNotEmpty())
+                    <div class="nh-slider-nav" data-top5-nav>
+                        <button type="button" data-top5-prev aria-label="Zurück">‹</button>
+                        <button type="button" data-top5-next aria-label="Weiter">›</button>
+                    </div>
+                @endif
+                <a class="nh-link" href="{{ route('directory.index') }}">Alle Experten →</a>
+            </div>
         </div>
 
         @if ($nationalCards->isEmpty())
@@ -98,10 +123,14 @@
                 <p>Die nationale Top-5-Liste wird in Kürze veröffentlicht. Bis dahin finden Sie alle geprüften Profile im Verzeichnis.</p>
             </div>
         @else
-            <div class="nh-topgrid">
-                @foreach ($nationalCards as $card)
-                    @include('public.partials.nh-expert-card', ['card' => $card])
-                @endforeach
+            <div class="nh-top-slider" data-top5-slider>
+                <div class="nh-top-slider__track" data-top5-track>
+                    @foreach ($nationalCards as $card)
+                        <div class="nh-top-slider__item">
+                            @include('public.partials.nh-expert-card', ['card' => $card])
+                        </div>
+                    @endforeach
+                </div>
             </div>
         @endif
     </section>
@@ -318,17 +347,77 @@
 @push('scripts')
 <script>
 (function () {
-    var root = document.querySelector('[data-carousel]');
-    if (!root) return;
-    var track = root.querySelector('[data-carousel-track]');
-    var prev = root.querySelector('[data-carousel-prev]');
-    var next = root.querySelector('[data-carousel-next]');
-    function move(dir) {
-        if (!track) return;
-        track.scrollBy({ left: dir * Math.min(340, track.clientWidth * 0.85), behavior: 'smooth' });
+    // Banner Top Match slider (#01, #02, #03…)
+    var banner = document.querySelector('[data-banner-slider]');
+    if (banner) {
+        var slides = Array.prototype.slice.call(banner.querySelectorAll('[data-banner-slide]'));
+        var dots = Array.prototype.slice.call(banner.querySelectorAll('[data-banner-dot]'));
+        var index = 0;
+        var timer = null;
+
+        function show(i) {
+            if (!slides.length) return;
+            index = (i + slides.length) % slides.length;
+            slides.forEach(function (slide, n) {
+                var on = n === index;
+                slide.classList.toggle('is-active', on);
+                slide.hidden = !on;
+            });
+            dots.forEach(function (dot, n) {
+                dot.classList.toggle('is-on', n === index);
+            });
+        }
+
+        function next() { show(index + 1); }
+        function prev() { show(index - 1); }
+
+        var prevBtn = banner.querySelector('[data-banner-prev]');
+        var nextBtn = banner.querySelector('[data-banner-next]');
+        if (prevBtn) prevBtn.addEventListener('click', function () { prev(); restart(); });
+        if (nextBtn) nextBtn.addEventListener('click', function () { next(); restart(); });
+        dots.forEach(function (dot) {
+            dot.addEventListener('click', function () {
+                show(parseInt(dot.getAttribute('data-banner-dot'), 10) || 0);
+                restart();
+            });
+        });
+
+        function restart() {
+            if (timer) clearInterval(timer);
+            if (slides.length > 1) timer = setInterval(next, 6500);
+        }
+        restart();
     }
-    if (prev) prev.addEventListener('click', function () { move(-1); });
-    if (next) next.addEventListener('click', function () { move(1); });
+
+    // Top 5 horizontal slider
+    var top5 = document.querySelector('[data-top5-slider]');
+    if (top5) {
+        var track5 = top5.querySelector('[data-top5-track]');
+        var prev5 = document.querySelector('[data-top5-prev]');
+        var next5 = document.querySelector('[data-top5-next]');
+        function move5(dir) {
+            if (!track5) return;
+            var card = track5.querySelector('.nh-top-slider__item');
+            var step = card ? card.getBoundingClientRect().width + 14 : 280;
+            track5.scrollBy({ left: dir * step, behavior: 'smooth' });
+        }
+        if (prev5) prev5.addEventListener('click', function () { move5(-1); });
+        if (next5) next5.addEventListener('click', function () { move5(1); });
+    }
+
+    // Articles carousel
+    var root = document.querySelector('[data-carousel]');
+    if (root) {
+        var track = root.querySelector('[data-carousel-track]');
+        var prev = root.querySelector('[data-carousel-prev]');
+        var next = root.querySelector('[data-carousel-next]');
+        function move(dir) {
+            if (!track) return;
+            track.scrollBy({ left: dir * Math.min(340, track.clientWidth * 0.85), behavior: 'smooth' });
+        }
+        if (prev) prev.addEventListener('click', function () { move(-1); });
+        if (next) next.addEventListener('click', function () { move(1); });
+    }
 })();
 </script>
 @endpush

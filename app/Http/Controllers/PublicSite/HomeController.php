@@ -109,10 +109,33 @@ class HomeController extends Controller
                 ? $nationalTop->first()->label
                 : now()->format('m.Y'));
 
+        $nationalCards = $this->expertCardsFromRankings($nationalTop);
+        $heroCard = $this->expertCard(
+            $heroMatch ? $heroMatch->expert : null,
+            $heroMatch ? (int) $heroMatch->position : 1,
+            $periodLabel
+        );
+
+        // Banner slider: dedicated hero match first (if set), then Top 5 positions — no duplicates.
+        $bannerCards = collect();
+        if ($heroCard) {
+            $bannerCards->push($heroCard);
+        }
+        foreach ($nationalCards as $card) {
+            if ($heroCard && ($card['slug'] ?? null) === ($heroCard['slug'] ?? null)) {
+                continue;
+            }
+            $bannerCards->push($card);
+        }
+        if ($bannerCards->isEmpty() && $heroCard) {
+            $bannerCards->push($heroCard);
+        }
+
         return view('public.home', [
             'heroMatch' => $heroMatch,
-            'heroCard' => $this->expertCard($heroMatch ? $heroMatch->expert : null, $heroMatch ? (int) $heroMatch->position : 1, $periodLabel),
-            'nationalCards' => $this->expertCardsFromRankings($nationalTop),
+            'heroCard' => $heroCard,
+            'bannerCards' => $bannerCards->values(),
+            'nationalCards' => $nationalCards,
             'marktplatzCards' => $this->expertCardsFromRankings($marktplatzRankings),
             'cantonCards' => $this->expertCardsFromRankings($cantonTop),
             'articleTopCards' => $this->articleCardsFromRankings($articleTopRankings),

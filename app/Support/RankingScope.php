@@ -20,13 +20,27 @@ final class RankingScope
     public static function labels(): array
     {
         return [
-            self::HERO_MATCH => 'Hero Top Match (Startseite)',
-            self::NATIONAL_TOP5 => 'Top 5 Experten Schweiz',
-            self::CANTON_TOP3 => 'Top 3 je Kanton',
-            self::GROUP_TOP => 'Top je Fachgruppe (M&A / Juristen / Marktplätze)',
+            self::HERO_MATCH => 'Banner Top Match',
+            self::NATIONAL_TOP5 => 'Top 5 Schweiz',
+            self::CANTON_TOP3 => 'Top 3 Kanton',
+            self::GROUP_TOP => 'Top Fachgruppe',
             self::ARTICLE_TOP => 'Top 3 Fachbeiträge',
-            self::EVENT_TOP => 'Top Events (Startseite)',
+            self::EVENT_TOP => 'Top Events',
         ];
+    }
+
+    /** Short help text for admin UI. */
+    public static function help(string $key): string
+    {
+        return match ($key) {
+            self::HERO_MATCH => 'Ein Experte im Startseiten-Banner (rechts).',
+            self::NATIONAL_TOP5 => 'Bis zu 5 Experten für die nationale Rangliste.',
+            self::CANTON_TOP3 => 'Bis zu 3 Experten pro Kanton.',
+            self::GROUP_TOP => 'Bis zu 5 Experten für M&A, Juristen oder Marktplätze.',
+            self::ARTICLE_TOP => 'Bis zu 3 Fachbeiträge auf der Startseite.',
+            self::EVENT_TOP => 'Hervorgehobene Events auf der Startseite.',
+            default => '',
+        };
     }
 
     /** @return list<string> */

@@ -9,79 +9,75 @@
 @endsection
 
 @section('content')
-<div class="admin-page">
+<div class="admin-page rk-simple">
     <header class="admin-page-hero">
         <div>
-            <p class="page-kicker">Verkaufbare Platzierungen</p>
-            <h1>Rankings &amp; Top-Listen</h1>
-            <p>Pro Liste mehrere Experten auf einmal setzen (Top 5, Top 3 je Kanton, Fachgruppen, …).</p>
+            <p class="page-kicker">Startseite steuern</p>
+            <h1>Top-Listen setzen</h1>
+            <p>Experten aus der bestehenden Liste wählen und Rang 1, 2, 3… zuweisen — fertig.</p>
         </div>
     </header>
 
-    <div class="status-help">
-        <strong>So funktioniert’s:</strong>
-        <span>
-            Wählen Sie unten eine Ranking-Art → öffnen Sie den <b>Gruppen-Editor</b> →
-            belegen Sie Position 01, 02, 03… mit bestehenden Experten → einmal speichern.
-        </span>
-    </div>
+    <ol class="rk-steps">
+        <li><b>1</b><span>Liste wählen</span></li>
+        <li><b>2</b><span>Experten suchen &amp; auf Positionen setzen</span></li>
+        <li><b>3</b><span>Speichern</span></li>
+    </ol>
 
-    <div class="rk-launch">
-        <h2 class="rk-launch__title">Neue / bestehende Liste bearbeiten</h2>
-        <div class="rk-launch__grid">
+    <section class="rk-actions">
+        <h2>Welche Liste möchten Sie bearbeiten?</h2>
+        <div class="rk-actions__grid">
             @foreach ($scopes as $key => $label)
-                <form method="get" action="{{ route('admin.rankings.edit-group') }}" class="rk-launch__card">
-                    <input type="hidden" name="scope" value="{{ $key }}">
+                <a class="rk-action"
+                   href="{{ route('admin.rankings.edit-group', array_filter([
+                       'scope' => $key,
+                       'canton_id' => $key === 'canton_top3' ? optional($cantons->firstWhere('code', 'ZH') ?? $cantons->first())->id : null,
+                       'professional_group' => $key === 'group_top' ? 'ma_specialist' : null,
+                   ])) }}">
                     <strong>{{ $label }}</strong>
-                    <span>
-                        @if ($key === 'national_top5') Bis 5 Experten national
-                        @elseif ($key === 'canton_top3') Bis 3 Experten je Kanton
-                        @elseif ($key === 'group_top') Bis 5 Experten je Fachgruppe
-                        @elseif ($key === 'hero_match') 1 Top Match auf der Startseite
-                        @elseif ($key === 'article_top') Bis 3 Fachbeiträge
-                        @elseif ($key === 'event_top') Top Events
-                        @else Mehrere Positionen
-                        @endif
-                    </span>
-
-                    @if ($key === 'canton_top3')
-                        <label class="rk-launch__field">
-                            <em>Kanton</em>
-                            <select name="canton_id" class="form-control" required>
-                                @foreach ($cantons as $canton)
-                                    <option value="{{ $canton->id }}">{{ $canton->code }} — {{ $canton->name_de }}</option>
-                                @endforeach
-                            </select>
-                        </label>
-                    @endif
-
-                    @if ($key === 'group_top')
-                        <label class="rk-launch__field">
-                            <em>Fachgruppe</em>
-                            <select name="professional_group" class="form-control" required>
-                                @foreach ($professionalGroups as $gKey => $gLabel)
-                                    <option value="{{ $gKey }}">{{ $gLabel }}</option>
-                                @endforeach
-                            </select>
-                        </label>
-                    @endif
-
-                    <button type="submit" class="btn btn--small">Liste öffnen →</button>
-                </form>
+                    <span>{{ \App\Support\RankingScope::help($key) }}</span>
+                    <em>Bearbeiten →</em>
+                </a>
             @endforeach
         </div>
-    </div>
+    </section>
 
-    <div class="admin-status-chips" role="group" style="margin-top:1.5rem;">
-        <a class="admin-status-chip {{ $scope === '' ? 'is-on' : '' }}" href="{{ route('admin.rankings.index') }}">Alle Listen</a>
-        @foreach ($scopes as $key => $label)
-            <a class="admin-status-chip {{ $scope === $key ? 'is-on' : '' }}" href="{{ route('admin.rankings.index', ['scope' => $key]) }}">{{ $label }}</a>
-        @endforeach
-    </div>
+    @if ($scopes['canton_top3'] ?? false)
+        <section class="rk-quick card">
+            <h3>Top 3 für einen anderen Kanton</h3>
+            <form method="get" action="{{ route('admin.rankings.edit-group') }}" class="rk-quick__form">
+                <input type="hidden" name="scope" value="canton_top3">
+                <select class="form-control" name="canton_id" required>
+                    @foreach ($cantons as $canton)
+                        <option value="{{ $canton->id }}">{{ $canton->code }} — {{ $canton->name_de }}</option>
+                    @endforeach
+                </select>
+                <button type="submit" class="btn btn--small">Öffnen</button>
+            </form>
+        </section>
+    @endif
 
-    <div class="admin-card" style="margin-top:1rem;">
+    @if ($scopes['group_top'] ?? false)
+        <section class="rk-quick card">
+            <h3>Top-Liste für eine Fachgruppe</h3>
+            <form method="get" action="{{ route('admin.rankings.edit-group') }}" class="rk-quick__form">
+                <input type="hidden" name="scope" value="group_top">
+                <select class="form-control" name="professional_group" required>
+                    @foreach ($professionalGroups as $gKey => $gLabel)
+                        <option value="{{ $gKey }}">{{ $gLabel }}</option>
+                    @endforeach
+                </select>
+                <button type="submit" class="btn btn--small">Öffnen</button>
+            </form>
+        </section>
+    @endif
+
+    <section class="admin-card" style="margin-top:1.5rem;">
+        <div class="admin-card__head admin-card__head--row">
+            <h2>Aktuell gespeichert</h2>
+        </div>
         @if ($groups->isEmpty())
-            <div class="empty-state">Noch keine Rankings gespeichert. Öffnen Sie oben eine Liste und setzen Sie die Positionen.</div>
+            <div class="empty-state">Noch nichts gesetzt. Wählen Sie oben eine Liste.</div>
         @else
             <div class="rk-groups">
                 @foreach ($groups as $group)
@@ -95,33 +91,26 @@
                                     @elseif ($group['professional_group'])
                                         {{ $professionalGroups[$group['professional_group']] ?? $group['professional_group'] }}
                                     @else
-                                        Gesamtliste
+                                        Aktuelle Liste
                                     @endif
                                 </h3>
                                 <p class="rk-group__meta">
-                                    @if ($group['label']){{ $group['label'] }} · @endif
-                                    {{ $group['starts_on']?->format('d.m.Y') ?? '—' }}
-                                    →
-                                    {{ $group['ends_on']?->format('d.m.Y') ?? '—' }}
+                                    {{ $group['items']->count() }} Position{{ $group['items']->count() === 1 ? '' : 'en' }}
+                                    @if ($group['label']) · {{ $group['label'] }} @endif
                                     · {{ $group['is_active'] ? 'Aktiv' : 'Inaktiv' }}
                                 </p>
                             </div>
-                            <a class="btn btn--small" href="{{ $group['edit_url'] }}">Liste bearbeiten</a>
+                            <a class="btn btn--small" href="{{ $group['edit_url'] }}">Ändern</a>
                         </header>
                         <ol class="rk-group__list">
                             @foreach ($group['items'] as $row)
                                 <li>
                                     <b>{{ str_pad((string) $row->position, 2, '0', STR_PAD_LEFT) }}</b>
                                     <span>
-                                        @if ($row->expert)
-                                            {{ $row->expert->company_name }}
-                                        @elseif ($row->article)
-                                            {{ $row->article->title }}
-                                        @elseif ($row->event)
-                                            {{ $row->event->title }}
-                                        @else
-                                            —
-                                        @endif
+                                        @if ($row->expert) {{ $row->expert->company_name }}
+                                        @elseif ($row->article) {{ $row->article->title }}
+                                        @elseif ($row->event) {{ $row->event->title }}
+                                        @else — @endif
                                     </span>
                                 </li>
                             @endforeach
@@ -130,6 +119,6 @@
                 @endforeach
             </div>
         @endif
-    </div>
+    </section>
 </div>
 @endsection
