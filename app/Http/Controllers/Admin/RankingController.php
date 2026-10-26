@@ -94,9 +94,19 @@ class RankingController extends Controller
             'groups' => ProfessionalGroup::labels(),
             'cantons' => Canton::query()->orderBy('name_de')->get(),
             'experts' => Expert::query()
-                ->where('status', ExpertStatus::APPROVED)
+                ->with(['offices.canton'])
+                ->orderByRaw("CASE status WHEN 'approved' THEN 0 WHEN 'pending' THEN 1 WHEN 'disabled' THEN 2 ELSE 3 END")
                 ->orderBy('company_name')
-                ->get(['id', 'company_name', 'professional_group']),
+                ->get([
+                    'id',
+                    'company_name',
+                    'professional_group',
+                    'status',
+                    'is_public',
+                    'contact_person_name',
+                    'contact_person_last_name',
+                    'email',
+                ]),
             'articles' => Article::query()
                 ->where('status', ArticleStatus::PUBLISHED)
                 ->orderByDesc('published_at')
@@ -108,6 +118,12 @@ class RankingController extends Controller
                 ->limit(200)
                 ->get(['id', 'title', 'starts_on']),
             'maxPosition' => RankingScope::maxPosition($scope),
+            'statusLabels' => [
+                ExpertStatus::APPROVED => 'Freigegeben',
+                ExpertStatus::PENDING => 'Ausstehend',
+                ExpertStatus::DISABLED => 'Deaktiviert',
+                ExpertStatus::REJECTED => 'Abgelehnt',
+            ],
         ]);
     }
 

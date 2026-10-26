@@ -91,17 +91,172 @@
     @endif
 
     @if (in_array($currentScope, ['hero_match', 'national_top5', 'canton_top3', 'group_top'], true))
+        @php
+            $selectedExpertId = (string) old('expert_id', $ranking->expert_id ?? '');
+            $expertOptions = $experts->map(function ($expert) use ($groups, $statusLabels) {
+                $office = $expert->offices->firstWhere('is_primary', true) ?? $expert->offices->first();
+                $person = trim(($expert->contact_person_name ?? '').' '.($expert->contact_person_last_name ?? ''));
+                $place = $office
+                    ? trim(($office->city ?? '').(($office->canton?->code) ? ' · '.$office->canton->code : ''))
+                    : '';
+                $groupLabel = $groups[$expert->professional_group] ?? ($expert->professional_group ?: '—');
+                $statusLabel = $statusLabels[$expert->status] ?? $expert->status;
+                $label = $expert->company_name
+                    .($person !== '' ? ' — '.$person : '')
+                    .($place !== '' ? ' · '.$place : '')
+                    .' · '.$groupLabel
+                    .' · '.$statusLabel
+                    .($expert->is_public ? '' : ' · nicht öffentlich');
+
+                return [
+                    'id' => (string) $expert->id,
+                    'label' => $label,
+                    'company' => $expert->company_name,
+                    'person' => $person,
+                    'place' => $place,
+                    'group' => $groupLabel,
+                    'group_key' => (string) ($expert->professional_group ?? ''),
+                    'status' => $statusLabel,
+                    'search' => mb_strtolower(trim(
+                        $expert->company_name.' '.$person.' '.$place.' '.$groupLabel.' '.$statusLabel.' '.($expert->email ?? '')
+                    )),
+                ];
+            })->values();
+        @endphp
         <div class="form-group">
-            <label for="expert_id">Experte *</label>
-            <select class="form-control" name="expert_id" id="expert_id" required>
-                <option value="">— wählen —</option>
-                @foreach ($experts as $expert)
-                    <option value="{{ $expert->id }}" @selected((string) old('expert_id', $ranking->expert_id ?? '') === (string) $expert->id)>
-                        {{ $expert->company_name }} ({{ $groups[$expert->professional_group] ?? $expert->professional_group }})
-                    </option>
-                @endforeach
-            </select>
+            <label for="expert_search">Experte * <span class="label-optional">(aus bestehender Liste)</span></label>
+            <div class="rk-expert-picker" data-expert-picker>
+                <input type="hidden" name="expert_id" id="expert_id" value="{{ $selectedExpertId }}" required>
+                <div class="rk-expert-picker__wrap">
+                    <input
+                        class="form-control"
+                        type="search"
+                        id="expert_search"
+                        placeholder="Firma, Person, Ort oder E-Mail suchen…"
+                        autocomplete="off"
+                        data-expert-search
+                        aria-autocomplete="list"
+                        aria-controls="expertPickerList"
+                    >
+                    <div class="rk-expert-picker__list" id="expertPickerList" data-expert-list hidden role="listbox"></div>
+                </div>
+                <p class="field-hint">
+                    {{ $experts->count() }} Experten in der Datenbank — tippen zum Filtern, dann Eintrag anklicken.
+                </p>
+                <p class="rk-expert-picker__selected" data-expert-selected @if($selectedExpertId === '') hidden @endif></p>
+            </div>
+            @error('expert_id')
+                <p class="field-error">{{ $message }}</p>
+            @enderror
         </div>
+        <script type="application/json" id="rankingExpertsJson">@json($expertOptions)</script>
+        <script>
+        (function () {
+            var root = document.querySelector('[data-expert-picker]');
+            if (!root) return;
+            var jsonEl = document.getElementById('rankingExpertsJson');
+            var experts = [];
+            try { experts = JSON.parse(jsonEl.textContent || '[]'); } catch (e) { experts = []; }
+
+            var hidden = root.querySelector('#expert_id');
+            var search = root.querySelector('[data-expert-search]');
+            var list = root.querySelector('[data-expert-list]');
+            var selected = root.querySelector('[data-expert-selected]');
+            var groupSelect = document.getElementById('professional_group');
+
+            function findById(id) {
+                id = String(id || '');
+                for (var i = 0; i < experts.length; i++) {
+                    if (experts[i].id === id) return experts[i];
+                }
+                return null;
+            }
+
+            function setSelected(item) {
+                if (!item) {
+                    hidden.value = '';
+                    selected.hidden = true;
+                    selected.textContent = '';
+                    search.value = '';
+                    return;
+                }
+                hidden.value = item.id;
+                selected.hidden = false;
+                selected.innerHTML = '<strong>Gewählt:</strong> ' + item.label;
+                search.value = item.company + (item.person ? ' — ' + item.person : '');
+                list.hidden = true;
+            }
+
+            function filtered() {
+                var q = (search.value || '').trim().toLowerCase();
+                var group = groupSelect ? (groupSelect.value || '') : '';
+                return experts.filter(function (item) {
+                    if (group && item.group_key && item.group_key !== group) return false;
+                    if (!q) return true;
+                    return item.search.indexOf(q) !== -1;
+                }).slice(0, 80);
+            }
+
+            function render() {
+                var rows = filtered();
+                list.innerHTML = '';
+                if (!rows.length) {
+                    list.innerHTML = '<div class="rk-expert-picker__empty">Kein Experte gefunden.</div>';
+                    list.hidden = false;
+                    return;
+                }
+                rows.forEach(function (item) {
+                    var btn = document.createElement('button');
+                    btn.type = 'button';
+                    btn.className = 'rk-expert-picker__item' + (hidden.value === item.id ? ' is-on' : '');
+                    btn.setAttribute('role', 'option');
+                    btn.innerHTML = '<strong></strong><span></span>';
+                    btn.querySelector('strong').textContent = item.company + (item.person ? ' — ' + item.person : '');
+                    btn.querySelector('span').textContent = [item.place, item.group, item.status].filter(Boolean).join(' · ');
+                    btn.addEventListener('mousedown', function (e) {
+                        e.preventDefault();
+                        setSelected(item);
+                    });
+                    list.appendChild(btn);
+                });
+                list.hidden = false;
+            }
+
+            search.addEventListener('focus', render);
+            search.addEventListener('input', function () {
+                // Typing means user wants to change selection
+                if (hidden.value) {
+                    var current = findById(hidden.value);
+                    if (!current || search.value.trim().toLowerCase() !== (current.company + (current.person ? ' — ' + current.person : '')).toLowerCase()) {
+                        // keep id until a new pick; just filter
+                    }
+                }
+                render();
+            });
+            search.addEventListener('keydown', function (e) {
+                if (e.key === 'Escape') list.hidden = true;
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    var first = list.querySelector('.rk-expert-picker__item');
+                    if (first && !list.hidden) first.dispatchEvent(new Event('mousedown'));
+                }
+            });
+            document.addEventListener('click', function (e) {
+                if (!root.contains(e.target)) list.hidden = true;
+            });
+            if (groupSelect) {
+                groupSelect.addEventListener('change', function () {
+                    if (document.activeElement === search || !list.hidden) render();
+                });
+            }
+
+            // Prefill current selection
+            setSelected(findById(hidden.value));
+            if (!hidden.value) {
+                selected.hidden = true;
+            }
+        })();
+        </script>
     @endif
 
     @if ($currentScope === 'article_top')
