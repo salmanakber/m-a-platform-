@@ -121,11 +121,18 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin'])->grou
     Route::post('/promotionen/{promotion}/rechnung', [AdminPromotionController::class, 'createInvoice'])->name('promotions.create-invoice');
 
     Route::get('/rankings', [AdminRankingController::class, 'index'])->name('rankings.index');
-    Route::get('/rankings/neu', [AdminRankingController::class, 'create'])->name('rankings.create');
-    Route::post('/rankings', [AdminRankingController::class, 'store'])->name('rankings.store');
-    Route::get('/rankings/{ranking}/bearbeiten', [AdminRankingController::class, 'edit'])->name('rankings.edit');
-    Route::put('/rankings/{ranking}', [AdminRankingController::class, 'update'])->name('rankings.update');
+    Route::get('/rankings/liste', [AdminRankingController::class, 'editGroup'])->name('rankings.edit-group');
+    Route::post('/rankings/liste', [AdminRankingController::class, 'saveGroup'])->name('rankings.save-group');
     Route::delete('/rankings/{ranking}', [AdminRankingController::class, 'destroy'])->name('rankings.destroy');
+    // Legacy single-row URLs → group editor
+    Route::get('/rankings/neu', fn (\Illuminate\Http\Request $r) => redirect()->route('admin.rankings.edit-group', ['scope' => $r->query('scope', 'national_top5')]))->name('rankings.create');
+    Route::get('/rankings/{ranking}/bearbeiten', function (\App\Models\Ranking $ranking) {
+        return redirect()->route('admin.rankings.edit-group', array_filter([
+            'scope' => $ranking->scope,
+            'canton_id' => $ranking->canton_id,
+            'professional_group' => $ranking->professional_group,
+        ]));
+    })->name('rankings.edit');
 
     Route::get('/rechnungen', [AdminInvoiceController::class, 'index'])->name('invoices.index');
     Route::patch('/rechnungen/bulk', [AdminInvoiceController::class, 'bulk'])->name('invoices.bulk');
