@@ -22,44 +22,59 @@
 
         <aside class="nh-match" aria-label="Top Match" data-banner-slider>
             @if (($bannerCards ?? collect())->isNotEmpty())
-                <div class="nh-match__slides">
-                    @foreach ($bannerCards as $index => $card)
-                        <div class="nh-match__slide {{ $index === 0 ? 'is-active' : '' }}" data-banner-slide @if($index !== 0) hidden @endif>
-                            <div class="nh-match__badge">
-                                <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path fill="currentColor" d="M12 2l2.4 4.9L20 8.2l-3.6 3.5.9 5.2L12 14.8 6.7 16.9l.9-5.2L4 8.2l5.6-1.3L12 2z"/></svg>
-                                Top Match #{{ $card['n'] }} / {{ $periodLabel }}
-                            </div>
-                            <div class="nh-match__row">
-                                @if ($card['logo'])
-                                    <span class="nh-avatar nh-avatar--logo"><img src="{{ $card['logo'] }}" alt=""></span>
-                                @else
-                                    <span class="nh-avatar" style="--g:{{ $card['color'] }}">{{ $card['initials'] }}</span>
-                                @endif
-                                <div>
-                                    <strong>{{ $card['display_name'] }}</strong>
-                                    <span>{{ $card['company'] }}</span>
-                                </div>
-                            </div>
-                            <div class="nh-match__meta">
-                                @if ($card['rating'])
-                                    <em>★ {{ $card['rating'] }} / 5.0</em>
-                                @endif
-                                <span>{{ $card['place_line'] }}</span>
-                            </div>
-                            <a class="nh-btn nh-btn--ghost nh-btn--block" href="{{ $card['url'] }}">Profil ansehen ↗</a>
-                        </div>
-                    @endforeach
-                </div>
-                @if ($bannerCards->count() > 1)
-                    <div class="nh-match__nav">
-                        <button type="button" class="nh-match__arrow" data-banner-prev aria-label="Vorheriger">‹</button>
+                <div class="nh-match__chrome">
+                    <div class="nh-match__badge">
+                        <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path fill="currentColor" d="M12 2l2.4 4.9L20 8.2l-3.6 3.5.9 5.2L12 14.8 6.7 16.9l.9-5.2L4 8.2l5.6-1.3L12 2z"/></svg>
+                        Top Match · {{ $periodLabel }}
+                    </div>
+                    @if ($bannerCards->count() > 1)
                         <div class="nh-match__dots" data-banner-dots>
                             @foreach ($bannerCards as $index => $card)
-                                <button type="button" class="{{ $index === 0 ? 'is-on' : '' }}" data-banner-dot="{{ $index }}" aria-label="Platz {{ $card['n'] }}">{{ $card['n'] }}</button>
+                                <button type="button" class="nh-match__dot {{ $index === 0 ? 'is-on' : '' }}" data-banner-dot="{{ $index }}" aria-label="Slide {{ $index + 1 }}">
+                                    <i></i>
+                                </button>
                             @endforeach
                         </div>
-                        <button type="button" class="nh-match__arrow" data-banner-next aria-label="Nächster">›</button>
+                    @endif
+                </div>
+
+                <div class="nh-match__viewport">
+                    <div class="nh-match__slides" data-banner-track>
+                        @foreach ($bannerCards as $index => $card)
+                            <div class="nh-match__slide {{ $index === 0 ? 'is-active' : '' }}" data-banner-slide @if($index !== 0) hidden @endif>
+                                <div class="nh-match__row">
+                                    @if ($card['logo'])
+                                        <span class="nh-avatar nh-avatar--logo"><img src="{{ $card['logo'] }}" alt=""></span>
+                                    @else
+                                        <span class="nh-avatar" style="--g:{{ $card['color'] }}">{{ $card['initials'] }}</span>
+                                    @endif
+                                    <div>
+                                        <strong>{{ $card['display_name'] }}</strong>
+                                        <span>{{ $card['company'] }}</span>
+                                    </div>
+                                </div>
+                                <div class="nh-match__meta">
+                                    @if ($card['rating'])
+                                        <em>★ {{ $card['rating'] }} / 5.0</em>
+                                    @endif
+                                    <span>{{ $card['place_line'] }}</span>
+                                </div>
+                                <a class="nh-btn nh-btn--ghost nh-btn--block" href="{{ $card['url'] }}">Profil ansehen ↗</a>
+                            </div>
+                        @endforeach
                     </div>
+                </div>
+
+                @if ($bannerCards->count() > 1)
+                    <div class="nh-match__nav">
+                        <button type="button" class="nh-match__arrow" data-banner-prev aria-label="Vorheriger">
+                            <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M15.4 7.4 14 6l-6 6 6 6 1.4-1.4L10.8 12z"/></svg>
+                        </button>
+                        <button type="button" class="nh-match__arrow" data-banner-next aria-label="Nächster">
+                            <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="m10 6-1.4 1.4L12.2 12l-3.6 4.6L10 18l6-6z"/></svg>
+                        </button>
+                    </div>
+                    <div class="nh-match__progress" aria-hidden="true"><i data-banner-progress></i></div>
                 @endif
             @else
                 <div class="nh-match__badge">Top Match</div>
@@ -347,13 +362,15 @@
 @push('scripts')
 <script>
 (function () {
-    // Banner Top Match slider (#01, #02, #03…)
+    // Banner Top Match slider — animated dots (no numbers)
     var banner = document.querySelector('[data-banner-slider]');
     if (banner) {
         var slides = Array.prototype.slice.call(banner.querySelectorAll('[data-banner-slide]'));
         var dots = Array.prototype.slice.call(banner.querySelectorAll('[data-banner-dot]'));
+        var progress = banner.querySelector('[data-banner-progress]');
         var index = 0;
         var timer = null;
+        var duration = 6500;
 
         function show(i) {
             if (!slides.length) return;
@@ -366,6 +383,12 @@
             dots.forEach(function (dot, n) {
                 dot.classList.toggle('is-on', n === index);
             });
+            if (progress) {
+                progress.style.animation = 'none';
+                // force reflow to restart progress animation
+                void progress.offsetWidth;
+                progress.style.animation = '';
+            }
         }
 
         function next() { show(index + 1); }
@@ -384,7 +407,11 @@
 
         function restart() {
             if (timer) clearInterval(timer);
-            if (slides.length > 1) timer = setInterval(next, 6500);
+            if (slides.length > 1) {
+                if (progress) progress.style.animationDuration = duration + 'ms';
+                timer = setInterval(next, duration);
+                show(index);
+            }
         }
         restart();
     }

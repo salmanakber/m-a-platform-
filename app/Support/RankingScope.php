@@ -33,7 +33,7 @@ final class RankingScope
     public static function help(string $key): string
     {
         return match ($key) {
-            self::HERO_MATCH => 'Ein Experte im Startseiten-Banner (rechts).',
+            self::HERO_MATCH => 'Bis zu 3 Experten im Startseiten-Banner (rechts, Slider).',
             self::NATIONAL_TOP5 => 'Bis zu 5 Experten für die nationale Rangliste.',
             self::CANTON_TOP3 => 'Bis zu 3 Experten pro Kanton.',
             self::GROUP_TOP => 'Bis zu 5 Experten für M&A, Juristen oder Marktplätze.',
@@ -57,9 +57,11 @@ final class RankingScope
     public static function maxPosition(string $scope): int
     {
         return match ($scope) {
+            self::HERO_MATCH => 3,
             self::NATIONAL_TOP5 => 5,
             self::CANTON_TOP3, self::ARTICLE_TOP => 3,
             self::GROUP_TOP => 5,
+            self::EVENT_TOP => 3,
             default => 1,
         };
     }

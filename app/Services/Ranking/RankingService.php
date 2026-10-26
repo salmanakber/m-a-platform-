@@ -25,7 +25,17 @@ class RankingService
 
     public function heroMatch(): ?Ranking
     {
-        return $this->active(RankingScope::HERO_MATCH)->first();
+        return $this->heroMatches()->first();
+    }
+
+    /**
+     * Up to 3 experts for the homepage banner carousel.
+     *
+     * @return Collection<int, Ranking>
+     */
+    public function heroMatches(): Collection
+    {
+        return $this->active(RankingScope::HERO_MATCH)->take(3);
     }
 
     /**

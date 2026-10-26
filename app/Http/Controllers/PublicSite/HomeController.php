@@ -26,7 +26,8 @@ class HomeController extends Controller
 
     public function index(Request $request): View
     {
-        $heroMatch = $this->rankings->heroMatch();
+        $heroMatches = $this->rankings->heroMatches();
+        $heroMatch = $heroMatches->first();
         $nationalTop = $this->rankings->nationalTop5();
         $articleTopRankings = $this->rankings->articleTop3();
 
@@ -110,31 +111,13 @@ class HomeController extends Controller
                 : now()->format('m.Y'));
 
         $nationalCards = $this->expertCardsFromRankings($nationalTop);
-        $heroCard = $this->expertCard(
-            $heroMatch ? $heroMatch->expert : null,
-            $heroMatch ? (int) $heroMatch->position : 1,
-            $periodLabel
-        );
-
-        // Banner slider: dedicated hero match first (if set), then Top 5 positions — no duplicates.
-        $bannerCards = collect();
-        if ($heroCard) {
-            $bannerCards->push($heroCard);
-        }
-        foreach ($nationalCards as $card) {
-            if ($heroCard && ($card['slug'] ?? null) === ($heroCard['slug'] ?? null)) {
-                continue;
-            }
-            $bannerCards->push($card);
-        }
-        if ($bannerCards->isEmpty() && $heroCard) {
-            $bannerCards->push($heroCard);
-        }
+        $bannerCards = $this->expertCardsFromRankings($heroMatches)->take(3)->values();
+        $heroCard = $bannerCards->first();
 
         return view('public.home', [
             'heroMatch' => $heroMatch,
             'heroCard' => $heroCard,
-            'bannerCards' => $bannerCards->values(),
+            'bannerCards' => $bannerCards,
             'nationalCards' => $nationalCards,
             'marktplatzCards' => $this->expertCardsFromRankings($marktplatzRankings),
             'cantonCards' => $this->expertCardsFromRankings($cantonTop),
