@@ -149,11 +149,13 @@
                 <button type="submit" class="btn btn--small">Einstellungen speichern</button>
             </div>
         </form>
-        <form method="post" action="{{ route('admin.experts.crawl.run', $expert) }}" class="ax-crawl-run" onsubmit="return confirm('Crawl jetzt starten? Kann einige Minuten dauern.');">
-            @csrf
-            <button type="submit" class="btn">Crawl jetzt starten</button>
-            <span class="field-hint">Läuft synchron (ohne SSH-Worker). Danach erscheinen neue Entwürfe unter Fachbeiträge / Events.</span>
-        </form>
+        <div class="ax-crawl-run" id="adminCrawlRun"
+             data-run-url="{{ route('admin.experts.crawl.run', $expert) }}"
+             data-articles-url="{{ route('admin.experts.articles.create', $expert) }}"
+             data-events-url="{{ route('admin.experts.events.create', $expert) }}">
+            <button type="button" class="btn" id="adminCrawlStartBtn">Crawl jetzt starten</button>
+            <span class="field-hint">Live-Fortschritt im Popup — neue Entwürfe erscheinen unter Fachbeiträge / Events.</span>
+        </div>
         @if ($crawlJobs->isNotEmpty())
             <div class="ax-jobs">
                 <h3>Letzte Läufe</h3>
@@ -329,4 +331,149 @@
         </div>
     </section>
 </div>
+
+<script>
+(function () {
+    var wrap = document.getElementById('adminCrawlRun');
+    var btn = document.getElementById('adminCrawlStartBtn');
+    if (!wrap || !btn) return;
+
+    var pollTimer = null;
+    var lastStep = '';
+    var lastLabel = '';
+    var finishedShown = false;
+    var CRAWL_STEPS = [
+        { id: 'queued', label: 'Warteschlange' },
+        { id: 'discover', label: 'Website lesen' },
+        { id: 'sitemap', label: 'Sitemap & Feeds' },
+        { id: 'fetch', label: 'Seiten laden' },
+        { id: 'finalize', label: 'Ergebnisse speichern' }
+    ];
+    var STEP_MAP = {
+        queued: 'queued', discover: 'discover', sitemap: 'sitemap', found: 'sitemap',
+        fetch: 'fetch', import: 'fetch', skip: 'fetch', finalize: 'finalize'
+    };
+
+    function csrf() {
+        var m = document.querySelector('meta[name="csrf-token"]');
+        return m ? m.getAttribute('content') : '';
+    }
+
+    function openLive() {
+        finishedShown = false;
+        lastStep = '';
+        lastLabel = '';
+        LiveProgress.open({
+            title: 'Website-Crawl',
+            subtitle: 'Live: finden → laden → Entwürfe speichern',
+            steps: CRAWL_STEPS,
+            startLog: 'Crawl wird gestartet…'
+        });
+        LiveProgress.setStats({ found: 0, loaded: 0, drafts: 0 });
+        LiveProgress.activate('queued');
+        LiveProgress.setPercent(3);
+    }
+
+    function applyStatus(data) {
+        LiveProgress.setPercent(data.progress_percent || 0);
+        LiveProgress.setStats({
+            found: data.urls_discovered || 0,
+            loaded: data.urls_processed || 0,
+            drafts: data.results_count || 0
+        });
+        var raw = data.progress_step || 'queued';
+        var mapped = STEP_MAP[raw] || 'fetch';
+        if (mapped !== lastStep) {
+            if (lastStep) LiveProgress.done(lastStep);
+            LiveProgress.activate(mapped, data.progress_label || '');
+            lastStep = mapped;
+        }
+        var lbl = data.progress_label || '';
+        if (lbl && lbl !== lastLabel) {
+            LiveProgress.log(lbl, raw === 'import' ? 'ok' : (raw === 'skip' ? 'info' : 'working'));
+            lastLabel = lbl;
+        }
+        if (data.finished && !finishedShown) {
+            finishedShown = true;
+            if (pollTimer) clearInterval(pollTimer);
+            pollTimer = null;
+            CRAWL_STEPS.forEach(function (s) { LiveProgress.done(s.id); });
+            var ok = data.status === 'completed';
+            if (data.notes) LiveProgress.log(data.notes, ok ? 'ok' : 'error');
+            LiveProgress.finish({
+                ok: ok,
+                title: ok ? 'Crawl fertig' : 'Fehler',
+                message: data.notes || (ok ? 'Abgeschlossen.' : 'Fehlgeschlagen.'),
+                actionsHtml:
+                    '<a class="btn btn--small" href="' + wrap.getAttribute('data-articles-url') + '">Artikel</a>' +
+                    '<a class="btn btn--small" href="' + wrap.getAttribute('data-events-url') + '">Events</a>' +
+                    '<button type="button" class="btn btn--ghost btn--small" data-lp-reload>Aktualisieren</button>' +
+                    '<button type="button" class="btn btn--ghost btn--small" data-lp-close>Schliessen</button>'
+            });
+        }
+    }
+
+    function poll(url) {
+        if (pollTimer) clearInterval(pollTimer);
+        function tick() {
+            fetch(url, { headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }, credentials: 'same-origin' })
+                .then(function (r) { return r.json(); }).then(applyStatus).catch(function () {});
+        }
+        tick();
+        pollTimer = setInterval(tick, 600);
+    }
+
+    function fireProcess(url) {
+        fetch(url, {
+            method: 'POST',
+            headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': csrf(), 'X-Requested-With': 'XMLHttpRequest' },
+            credentials: 'same-origin'
+        }).catch(function () {});
+    }
+
+    btn.addEventListener('click', function () {
+        if (!window.LiveProgress) {
+            alert('Fortschrittsanzeige nicht geladen — bitte Seite neu laden.');
+            return;
+        }
+        var urlInput = document.getElementById('website_crawl_url');
+        var url = (urlInput && urlInput.value || '').trim();
+        if (!url) {
+            alert('Bitte eine Crawl-URL hinterlegen.');
+            return;
+        }
+        openLive();
+        btn.disabled = true;
+
+        fetch(wrap.getAttribute('data-run-url'), {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': csrf(),
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            credentials: 'same-origin',
+            body: JSON.stringify({ website_crawl_url: url })
+        }).then(function (res) {
+            return res.json().then(function (data) { return { ok: res.ok, status: res.status, data: data }; });
+        }).then(function (result) {
+            if (result.status === 409 && result.data.status_url) {
+                LiveProgress.log('Läuft bereits — Fortschritt wird geladen…', 'working');
+                if (result.data.process_url) fireProcess(result.data.process_url);
+                poll(result.data.status_url);
+                return;
+            }
+            if (!result.ok) throw new Error((result.data && result.data.message) || 'Start fehlgeschlagen.');
+            LiveProgress.log('Job gestartet', 'ok');
+            if (result.data.process_url) fireProcess(result.data.process_url);
+            if (result.data.status_url) poll(result.data.status_url);
+        }).catch(function (err) {
+            LiveProgress.finish({ ok: false, title: 'Fehler', message: err.message || 'Fehler' });
+        }).finally(function () {
+            btn.disabled = false;
+        });
+    });
+})();
+</script>
 @endsection

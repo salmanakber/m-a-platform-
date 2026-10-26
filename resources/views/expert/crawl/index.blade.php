@@ -247,45 +247,6 @@
     @endif
 </div>
 
-<div class="xp-crawl-modal" id="crawlModal" hidden>
-    <div class="xp-crawl-modal__backdrop" id="crawlModalBackdrop"></div>
-    <div class="xp-crawl-modal__card xp-crawl-modal__card--compact" role="dialog" aria-modal="true" aria-labelledby="crawlModalTitle">
-        <div class="xp-crawl-modal__row">
-            <div class="xp-crawl-ring xp-crawl-ring--sm" aria-hidden="true">
-                <svg viewBox="0 0 120 120">
-                    <circle class="xp-crawl-ring__track" cx="60" cy="60" r="52"></circle>
-                    <circle class="xp-crawl-ring__value" id="crawlRingValue" cx="60" cy="60" r="52"></circle>
-                </svg>
-                <div class="xp-crawl-ring__center">
-                    <strong id="crawlRingPct">0%</strong>
-                </div>
-            </div>
-            <div class="xp-crawl-modal__copy">
-                <h2 id="crawlModalTitle">Website-Scan</h2>
-                <p class="xp-crawl-modal__live" id="crawlLiveLabel">Startet…</p>
-                <div class="xp-crawl-modal__stats xp-crawl-modal__stats--inline" id="crawlModalStats">
-                    <span><em id="mDisc">0</em> gefunden</span>
-                    <span><em id="mProc">0</em> geladen</span>
-                    <span><em id="mRes">0</em> Entwürfe</span>
-                </div>
-            </div>
-        </div>
-
-        <div class="xp-crawl-mini-track" aria-hidden="true">
-            <span id="crawlMiniFill"></span>
-        </div>
-
-        <p class="xp-crawl-modal__notes" id="crawlModalNotes" hidden></p>
-
-        <div class="xp-crawl-modal__actions" id="crawlModalActions" hidden>
-            <a class="btn btn--small" href="{{ route('expert.articles.index') }}">Artikel prüfen</a>
-            <a class="btn btn--small" href="{{ route('expert.events.index') }}">Events prüfen</a>
-            <button type="button" class="btn btn--ghost btn--small" id="crawlModalReload">Seite aktualisieren</button>
-            <button type="button" class="btn btn--ghost btn--small" id="crawlModalClose">Schliessen</button>
-        </div>
-    </div>
-</div>
-
 <script>
 (function () {
     var page = document.getElementById('crawlPage');
@@ -295,57 +256,39 @@
     var label = document.getElementById('crawlStartLabel');
     var hint = document.getElementById('crawlRunHint');
     var urlInput = document.getElementById('website_crawl_url');
-    var modal = document.getElementById('crawlModal');
-    var ring = document.getElementById('crawlRingValue');
-    var ringPct = document.getElementById('crawlRingPct');
-    var liveLabel = document.getElementById('crawlLiveLabel');
-    var miniFill = document.getElementById('crawlMiniFill');
-    var notes = document.getElementById('crawlModalNotes');
-    var actions = document.getElementById('crawlModalActions');
     var cooldownBar = document.getElementById('crawlCooldownBar');
     var cooldownFill = document.getElementById('crawlCooldownFill');
     var cooldownStrong = document.getElementById('crawlCooldownStrong');
-    var CIRC = 2 * Math.PI * 52;
     var pollTimer = null;
     var cooldownTimer = null;
     var cooldownUntil = page.getAttribute('data-cooldown-until') || '';
     var totalCooldown = {{ (int) ($cooldownSeconds ?? 120) }};
+    var lastStep = '';
+    var lastLabel = '';
+    var finishedShown = false;
 
-    if (ring) {
-        ring.style.strokeDasharray = String(CIRC);
-        ring.style.strokeDashoffset = String(CIRC);
-    }
+    var CRAWL_STEPS = [
+        { id: 'queued', label: 'Warteschlange' },
+        { id: 'discover', label: 'Website lesen' },
+        { id: 'sitemap', label: 'Sitemap & Feeds' },
+        { id: 'fetch', label: 'Seiten laden' },
+        { id: 'finalize', label: 'Ergebnisse speichern' }
+    ];
+
+    var STEP_MAP = {
+        queued: 'queued',
+        discover: 'discover',
+        sitemap: 'sitemap',
+        found: 'sitemap',
+        fetch: 'fetch',
+        import: 'fetch',
+        skip: 'fetch',
+        finalize: 'finalize'
+    };
 
     function csrf() {
         var meta = document.querySelector('meta[name="csrf-token"]');
         return meta ? meta.getAttribute('content') : '';
-    }
-
-    function setRing(pct) {
-        pct = Math.max(0, Math.min(100, pct || 0));
-        if (ring) ring.style.strokeDashoffset = String(CIRC - (CIRC * pct / 100));
-        if (ringPct) ringPct.textContent = Math.round(pct) + '%';
-        if (miniFill) miniFill.style.width = pct + '%';
-    }
-
-    function openModal() {
-        modal.hidden = false;
-        document.body.classList.add('xp-crawl-busy');
-        actions.hidden = true;
-        notes.hidden = true;
-        setRing(3);
-        liveLabel.textContent = 'Scan wird gestartet…';
-        document.getElementById('crawlModalTitle').textContent = 'Website-Scan';
-        document.getElementById('mDisc').textContent = '0';
-        document.getElementById('mProc').textContent = '0';
-        document.getElementById('mRes').textContent = '0';
-    }
-
-    function closeModal() {
-        modal.hidden = true;
-        document.body.classList.remove('xp-crawl-busy');
-        if (pollTimer) clearInterval(pollTimer);
-        pollTimer = null;
     }
 
     function formatRemain(sec) {
@@ -397,23 +340,65 @@
         cooldownTimer = setInterval(tick, 250);
     }
 
-    function applyStatus(data) {
-        setRing(data.progress_percent || 0);
-        liveLabel.textContent = data.progress_label || 'Arbeitet…';
-        document.getElementById('mDisc').textContent = data.urls_discovered || 0;
-        document.getElementById('mProc').textContent = data.urls_processed || 0;
-        document.getElementById('mRes').textContent = data.results_count || 0;
+    function openLive() {
+        if (!window.LiveProgress) return;
+        finishedShown = false;
+        lastStep = '';
+        lastLabel = '';
+        LiveProgress.open({
+            title: 'Website-Scan',
+            subtitle: 'Live-Fortschritt: Seiten finden, laden, Entwürfe speichern',
+            steps: CRAWL_STEPS,
+            startLog: 'Scan wird gestartet…'
+        });
+        LiveProgress.setStats({ found: 0, loaded: 0, drafts: 0 });
+        LiveProgress.activate('queued', 'Job in Warteschlange');
+        LiveProgress.setPercent(3);
+    }
 
-        if (data.finished) {
+    function applyStatus(data) {
+        if (!window.LiveProgress) return;
+        LiveProgress.setPercent(data.progress_percent || 0);
+        LiveProgress.setStats({
+            found: data.urls_discovered || 0,
+            loaded: data.urls_processed || 0,
+            drafts: data.results_count || 0
+        });
+
+        var raw = data.progress_step || 'queued';
+        var mapped = STEP_MAP[raw] || 'fetch';
+        if (mapped !== lastStep) {
+            if (lastStep) LiveProgress.done(lastStep);
+            LiveProgress.activate(mapped, data.progress_label || '');
+            lastStep = mapped;
+        }
+
+        var lbl = data.progress_label || '';
+        if (lbl && lbl !== lastLabel) {
+            var kind = 'working';
+            if (raw === 'import') kind = 'ok';
+            if (raw === 'skip') kind = 'info';
+            LiveProgress.log(lbl, kind);
+            lastLabel = lbl;
+        }
+
+        if (data.finished && !finishedShown) {
+            finishedShown = true;
             if (pollTimer) clearInterval(pollTimer);
             pollTimer = null;
-            actions.hidden = false;
-            if (data.notes) {
-                notes.hidden = false;
-                notes.textContent = data.notes;
-            }
-            document.getElementById('crawlModalTitle').textContent =
-                data.status === 'completed' ? 'Fertig — bitte Entwürfe prüfen' : 'Fehler';
+            CRAWL_STEPS.forEach(function (s) { LiveProgress.done(s.id); });
+            var ok = data.status === 'completed';
+            if (data.notes) LiveProgress.log(data.notes, ok ? 'ok' : 'error');
+            LiveProgress.finish({
+                ok: ok,
+                title: ok ? 'Fertig — bitte Entwürfe prüfen' : 'Fehler',
+                message: data.notes || (ok ? 'Scan abgeschlossen.' : 'Scan fehlgeschlagen.'),
+                actionsHtml:
+                    '<a class="btn btn--small" href="{{ route('expert.articles.index') }}">Artikel prüfen</a>' +
+                    '<a class="btn btn--small" href="{{ route('expert.events.index') }}">Events prüfen</a>' +
+                    '<button type="button" class="btn btn--ghost btn--small" data-lp-reload>Seite aktualisieren</button>' +
+                    '<button type="button" class="btn btn--ghost btn--small" data-lp-close>Schliessen</button>'
+            });
             if (data.cooldown_until) startCooldown(data.cooldown_until);
             else startCooldown(new Date(Date.now() + totalCooldown * 1000).toISOString());
         }
@@ -450,7 +435,11 @@
                 alert('Bitte eine Website-Adresse eingeben.');
                 return;
             }
-            openModal();
+            if (!window.LiveProgress) {
+                alert('Fortschrittsanzeige nicht geladen — bitte Seite neu laden.');
+                return;
+            }
+            openLive();
             setCanRun(false);
             if (label) label.textContent = 'Läuft…';
 
@@ -470,13 +459,16 @@
                 });
             }).then(function (result) {
                 if (result.status === 429) {
-                    liveLabel.textContent = result.data.message || 'Bitte warten…';
+                    LiveProgress.finish({
+                        ok: false,
+                        title: 'Bitte warten',
+                        message: result.data.message || 'Cooldown aktiv.'
+                    });
                     if (result.data.cooldown_until) startCooldown(result.data.cooldown_until);
-                    actions.hidden = false;
                     return;
                 }
                 if (result.status === 409 && result.data.status_url) {
-                    liveLabel.textContent = 'Läuft bereits — Fortschritt wird geladen…';
+                    LiveProgress.log('Läuft bereits — Fortschritt wird geladen…', 'working');
                     if (result.data.process_url) fireProcess(result.data.process_url);
                     poll(result.data.status_url);
                     return;
@@ -484,26 +476,20 @@
                 if (!result.ok) {
                     throw new Error((result.data && result.data.message) || 'Scan konnte nicht gestartet werden.');
                 }
+                LiveProgress.log('Job gestartet — Seiten werden gescannt…', 'ok');
                 if (result.data.process_url) fireProcess(result.data.process_url);
                 if (result.data.status_url) poll(result.data.status_url);
             }).catch(function (err) {
-                liveLabel.textContent = err.message || 'Fehler beim Start.';
-                document.getElementById('crawlModalTitle').textContent = 'Fehler';
-                actions.hidden = false;
+                LiveProgress.finish({
+                    ok: false,
+                    title: 'Fehler',
+                    message: err.message || 'Fehler beim Start.'
+                });
                 setCanRun(page.getAttribute('data-approved') === '1');
                 if (label) label.textContent = 'Scan starten';
             });
         });
     }
-
-    var closeBtn = document.getElementById('crawlModalClose');
-    var reloadBtn = document.getElementById('crawlModalReload');
-    var backdrop = document.getElementById('crawlModalBackdrop');
-    if (closeBtn) closeBtn.addEventListener('click', closeModal);
-    if (backdrop) backdrop.addEventListener('click', function () {
-        if (!actions.hidden) closeModal();
-    });
-    if (reloadBtn) reloadBtn.addEventListener('click', function () { window.location.reload(); });
 
     if (cooldownUntil) startCooldown(cooldownUntil);
 })();

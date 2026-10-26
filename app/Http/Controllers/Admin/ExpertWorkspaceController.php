@@ -58,23 +58,36 @@ class ExpertWorkspaceController extends Controller
         return back()->with('success', 'Crawl-Einstellungen gespeichert.')->withFragment('crawl');
     }
 
-    public function runCrawl(Request $request, Expert $expert): RedirectResponse
+    public function runCrawl(Request $request, Expert $expert): JsonResponse|RedirectResponse
     {
+        $wantsJson = $request->expectsJson() || $request->ajax();
         $url = $request->input('website_crawl_url')
             ?: $expert->website_crawl_url
             ?: $expert->website;
 
         if (blank($url)) {
-            return back()->with('error', 'Keine Website-URL hinterlegt.')->withFragment('crawl');
+            $message = 'Keine Website-URL hinterlegt.';
+
+            return $wantsJson
+                ? response()->json(['message' => $message], 422)
+                : back()->with('error', $message)->withFragment('crawl');
         }
 
         $active = CrawlJob::query()
             ->where('expert_id', $expert->id)
             ->whereIn('status', ['pending', 'running'])
-            ->exists();
+            ->orderByDesc('id')
+            ->first();
 
         if ($active) {
-            return back()->with('error', 'Ein Crawl läuft bereits.')->withFragment('crawl');
+            return $wantsJson
+                ? response()->json([
+                    'message' => 'Ein Crawl läuft bereits.',
+                    'job_id' => $active->id,
+                    'status_url' => route('admin.experts.crawl.status', [$expert, $active]),
+                    'process_url' => route('admin.experts.crawl.process', [$expert, $active]),
+                ], 409)
+                : back()->with('error', 'Ein Crawl läuft bereits.')->withFragment('crawl');
         }
 
         $expert->update([
@@ -84,6 +97,23 @@ class ExpertWorkspaceController extends Controller
 
         $expert = $expert->fresh();
         $job = $this->crawlService->startCrawlForExpert($expert);
+        $job->update([
+            'progress_step' => 'queued',
+            'progress_label' => 'Import wird gestartet…',
+            'progress_percent' => 2,
+        ]);
+
+        $payload = [
+            'job_id' => $job->id,
+            'status_url' => route('admin.experts.crawl.status', [$expert, $job]),
+            'process_url' => route('admin.experts.crawl.process', [$expert, $job]),
+            'message' => 'Crawl gestartet',
+        ];
+
+        if ($wantsJson) {
+            return response()->json($payload);
+        }
+
         $this->crawlService->runForExpert($expert, $job);
         $job = $job->fresh();
 
@@ -96,6 +126,66 @@ class ExpertWorkspaceController extends Controller
         return back()
             ->with('success', $job->notes ?: 'Crawl abgeschlossen.')
             ->withFragment('crawl');
+    }
+
+    public function processCrawl(Expert $expert, CrawlJob $job): JsonResponse
+    {
+        if ((int) $job->expert_id !== (int) $expert->id) {
+            abort(403);
+        }
+
+        if (in_array($job->status, ['completed', 'failed'], true)) {
+            return response()->json([
+                'ok' => true,
+                'status' => $job->status,
+                'message' => 'Bereits beendet.',
+            ]);
+        }
+
+        if ($job->status === 'running') {
+            return response()->json([
+                'ok' => true,
+                'status' => 'running',
+                'message' => 'Läuft bereits.',
+            ]);
+        }
+
+        ignore_user_abort(true);
+        @set_time_limit(300);
+
+        if (session()->isStarted()) {
+            session()->save();
+        }
+
+        $this->crawlService->runForExpert($expert->fresh(), $job->fresh());
+
+        return response()->json([
+            'ok' => true,
+            'status' => $job->fresh()->status,
+        ]);
+    }
+
+    public function crawlStatus(Expert $expert, CrawlJob $job): JsonResponse
+    {
+        if ((int) $job->expert_id !== (int) $expert->id) {
+            abort(403);
+        }
+
+        $job->loadCount(['results', 'errors']);
+
+        return response()->json([
+            'id' => $job->id,
+            'status' => $job->status,
+            'progress_step' => $job->progress_step,
+            'progress_label' => $job->progress_label,
+            'progress_percent' => (int) $job->progress_percent,
+            'urls_discovered' => (int) $job->urls_discovered,
+            'urls_processed' => (int) $job->urls_processed,
+            'results_count' => (int) $job->results_count,
+            'errors_count' => (int) $job->errors_count,
+            'notes' => $job->notes,
+            'finished' => in_array($job->status, ['completed', 'failed'], true),
+        ]);
     }
 
     public function createArticle(Expert $expert): View

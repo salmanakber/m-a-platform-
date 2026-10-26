@@ -99,6 +99,8 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin'])->grou
     // Admin acts for an expert: crawl, AI content, articles, events
     Route::put('/experten/{expert}/crawl', [AdminExpertWorkspaceController::class, 'updateCrawl'])->name('experts.crawl.update');
     Route::post('/experten/{expert}/crawl/starten', [AdminExpertWorkspaceController::class, 'runCrawl'])->name('experts.crawl.run');
+    Route::post('/experten/{expert}/crawl/process/{job}', [AdminExpertWorkspaceController::class, 'processCrawl'])->name('experts.crawl.process');
+    Route::get('/experten/{expert}/crawl/status/{job}', [AdminExpertWorkspaceController::class, 'crawlStatus'])->name('experts.crawl.status');
     Route::get('/experten/{expert}/artikel/neu', [AdminExpertWorkspaceController::class, 'createArticle'])->name('experts.articles.create');
     Route::post('/experten/{expert}/artikel/ki', [AdminExpertWorkspaceController::class, 'generateArticleAi'])->name('experts.articles.generate-ai');
     Route::post('/experten/{expert}/artikel', [AdminExpertWorkspaceController::class, 'storeArticle'])->name('experts.articles.store');

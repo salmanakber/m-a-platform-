@@ -30,34 +30,13 @@
     </div>
 
     <div class="xp-ai-studio__status" id="aiStatus" aria-live="polite" hidden></div>
-
-    <div class="xp-ai-overlay" id="aiOverlay" hidden>
-        <div class="xp-ai-overlay__card">
-            <div class="xp-ai-loader" aria-hidden="true">
-                <span></span><span></span><span></span>
-            </div>
-            <strong id="aiOverlayTitle">Entwurf wird erstellt…</strong>
-            <p id="aiOverlayHint">Thema analysieren, Struktur aufbauen, Text ausformulieren.</p>
-            <ul class="xp-ai-steps" id="aiSteps">
-                <li data-step="1" class="is-active">Briefing verstehen</li>
-                <li data-step="2">Struktur &amp; Titel</li>
-                <li data-step="3">Inhalt schreiben</li>
-            </ul>
-        </div>
-    </div>
 </section>
 
 <script>
 (function () {
     var btn = document.getElementById('aiGenerateBtn');
     var statusEl = document.getElementById('aiStatus');
-    var overlay = document.getElementById('aiOverlay');
-    var overlayTitle = document.getElementById('aiOverlayTitle');
-    var overlayHint = document.getElementById('aiOverlayHint');
-    var steps = document.querySelectorAll('#aiSteps li');
     if (!btn) return;
-
-    var stepTimer = null;
 
     function csrfToken() {
         var meta = document.querySelector('meta[name="csrf-token"]');
@@ -79,37 +58,12 @@
         statusEl.textContent = message;
     }
 
-    function setStep(n) {
-        steps.forEach(function (li) {
-            var s = parseInt(li.getAttribute('data-step'), 10);
-            li.classList.toggle('is-active', s === n);
-            li.classList.toggle('is-done', s < n);
-        });
-    }
-
-    function startOverlay() {
-        overlay.hidden = false;
-        document.body.classList.add('xp-ai-busy');
-        btn.disabled = true;
-        setStep(1);
-        overlayTitle.textContent = 'Entwurf wird erstellt…';
-        overlayHint.textContent = 'Thema analysieren, Struktur aufbauen, Text ausformulieren.';
-        var n = 1;
-        stepTimer = setInterval(function () {
-            n = Math.min(3, n + 1);
-            setStep(n);
-            if (n === 2) overlayHint.textContent = 'Titel und Gliederung entstehen…';
-            if (n === 3) overlayHint.textContent = 'Absätze werden ausgearbeitet…';
-        }, 2200);
-    }
-
-    function stopOverlay() {
-        overlay.hidden = true;
-        document.body.classList.remove('xp-ai-busy');
-        btn.disabled = false;
-        if (stepTimer) clearInterval(stepTimer);
-        stepTimer = null;
-    }
+    var stages = [
+        { id: 'brief', label: 'Briefing verstehen', log: 'Thema wird analysiert…', doneLog: 'Briefing erfasst', detail: 'Schlüsselpunkte extrahieren', ms: 1400 },
+        { id: 'structure', label: 'Struktur & Titel', log: 'Gliederung und Titel entstehen…', doneLog: 'Struktur bereit', detail: 'Überschriften planen' },
+        { id: 'write', label: 'Inhalt schreiben', log: 'Absätze werden ausgearbeitet…', doneLog: 'Text fertig', detail: 'KI formuliert den Beitrag' },
+        { id: 'polish', label: 'Feinschliff', log: 'Auszug und Tonalität abstimmen…', doneLog: 'Feinschliff erledigt', detail: 'Excerpt & Ton' }
+    ];
 
     btn.addEventListener('click', function () {
         var topic = ((document.getElementById('ai_topic') || {}).value || '').trim();
@@ -118,11 +72,15 @@
             return;
         }
 
-        startOverlay();
-        showStatus('', '');
+        if (!window.LiveProgress) {
+            showStatus('Fortschrittsanzeige nicht geladen — bitte Seite neu laden.', 'error');
+            return;
+        }
+
+        btn.disabled = true;
         statusEl.hidden = true;
 
-        fetch(@json($aiGenerateUrl ?? route('expert.articles.generate-ai')), {
+        var request = fetch(@json($aiGenerateUrl ?? route('expert.articles.generate-ai')), {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -139,7 +97,9 @@
             return res.json().then(function (data) {
                 return { ok: res.ok, data: data };
             });
-        }).then(function (result) {
+        });
+
+        LiveProgress.runAiStages(stages, request).then(function (result) {
             if (!result.ok) {
                 throw new Error((result.data && result.data.message) || 'Die Generierung ist fehlgeschlagen. Bitte später erneut versuchen.');
             }
@@ -150,13 +110,26 @@
             if (data.category_id && document.getElementById('category_id')) {
                 document.getElementById('category_id').value = String(data.category_id);
             }
-            var form = document.getElementById('articleForm');
-            if (form) form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            LiveProgress.log('Titel: ' + (data.title || '—'), 'ok');
+            LiveProgress.log('Text in den Editor eingefügt', 'ok');
+            LiveProgress.finish({
+                ok: true,
+                title: 'Entwurf bereit',
+                message: 'Artikel eingefügt — bitte im Editor prüfen und speichern.',
+                actionsHtml: '<button type="button" class="btn btn--small" data-lp-close>Zum Editor</button>',
+                onClose: function () {
+                    var form = document.getElementById('articleForm');
+                    if (form) form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            });
             showStatus('Entwurf eingefügt — prüfen Sie den Text im Editor und veröffentlichen Sie ihn.', 'ok');
         }).catch(function (err) {
+            if (window.LiveProgress) {
+                LiveProgress.finish({ ok: false, message: err.message || 'Fehler bei der Generierung.' });
+            }
             showStatus(err.message || 'Fehler bei der Generierung.', 'error');
         }).finally(function () {
-            stopOverlay();
+            btn.disabled = false;
         });
     });
 })();
