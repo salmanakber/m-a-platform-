@@ -47,7 +47,7 @@
         statusEl.hidden = false;
         statusEl.className = 'xp-ai-studio__status';
         statusEl.textContent = 'Entwurf wird erzeugt…';
-        fetch(@json(route('expert.events.generate-ai')), {
+        fetch(@json($aiGenerateUrl ?? route('expert.events.generate-ai')), {
             method: 'POST',
             headers: {'Content-Type':'application/json','Accept':'application/json','X-CSRF-TOKEN':csrf(),'X-Requested-With':'XMLHttpRequest'},
             body: JSON.stringify({ briefing: briefing, event_type: document.getElementById('ai_event_type').value })

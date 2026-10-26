@@ -197,10 +197,23 @@ class ExpertController extends Controller
 
     public function show(Expert $expert): View
     {
-        $expert->load(['user', 'offices.canton', 'articles', 'promotions.canton']);
+        $expert->load([
+            'user',
+            'offices.canton',
+            'articles.category',
+            'events.canton',
+            'promotions.canton',
+            'aiSuggestions' => fn ($q) => $q->where('status', 'pending')->orderByDesc('created_at')->limit(20),
+            'crawlJobs' => fn ($q) => $q->orderByDesc('created_at')->limit(8),
+        ]);
 
         return view('admin.experts.show', [
             'expert' => $expert,
+            'professionalGroups' => ProfessionalGroup::labels(),
+            'articles' => $expert->articles->sortByDesc('created_at')->values(),
+            'events' => $expert->events->sortByDesc('starts_on')->values(),
+            'aiSuggestions' => $expert->aiSuggestions,
+            'crawlJobs' => $expert->crawlJobs,
         ]);
     }
 

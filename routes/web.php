@@ -6,6 +6,7 @@ use App\Http\Controllers\Admin\CrawlController as AdminCrawlController;
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Admin\EmailTemplateController as AdminEmailTemplateController;
 use App\Http\Controllers\Admin\ExpertController as AdminExpertController;
+use App\Http\Controllers\Admin\ExpertWorkspaceController as AdminExpertWorkspaceController;
 use App\Http\Controllers\Admin\ExpertOfficeController as AdminExpertOfficeController;
 use App\Http\Controllers\Admin\ImportController as AdminImportController;
 use App\Http\Controllers\Admin\InvoiceController as AdminInvoiceController;
@@ -94,6 +95,22 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin'])->grou
     Route::post('/experten/{expert}/deaktivieren', [AdminExpertController::class, 'deactivate'])->name('experts.deactivate');
     Route::post('/experten/{expert}/aktivieren', [AdminExpertController::class, 'activate'])->name('experts.activate');
     Route::delete('/experten/{expert}', [AdminExpertController::class, 'destroy'])->name('experts.destroy');
+
+    // Admin acts for an expert: crawl, AI content, articles, events
+    Route::put('/experten/{expert}/crawl', [AdminExpertWorkspaceController::class, 'updateCrawl'])->name('experts.crawl.update');
+    Route::post('/experten/{expert}/crawl/starten', [AdminExpertWorkspaceController::class, 'runCrawl'])->name('experts.crawl.run');
+    Route::get('/experten/{expert}/artikel/neu', [AdminExpertWorkspaceController::class, 'createArticle'])->name('experts.articles.create');
+    Route::post('/experten/{expert}/artikel/ki', [AdminExpertWorkspaceController::class, 'generateArticleAi'])->name('experts.articles.generate-ai');
+    Route::post('/experten/{expert}/artikel', [AdminExpertWorkspaceController::class, 'storeArticle'])->name('experts.articles.store');
+    Route::get('/experten/{expert}/artikel/{article}/bearbeiten', [AdminExpertWorkspaceController::class, 'editArticle'])->name('experts.articles.edit');
+    Route::put('/experten/{expert}/artikel/{article}', [AdminExpertWorkspaceController::class, 'updateArticle'])->name('experts.articles.update');
+    Route::delete('/experten/{expert}/artikel/{article}', [AdminExpertWorkspaceController::class, 'destroyArticle'])->name('experts.articles.destroy');
+    Route::get('/experten/{expert}/events/neu', [AdminExpertWorkspaceController::class, 'createEvent'])->name('experts.events.create');
+    Route::post('/experten/{expert}/events/ki', [AdminExpertWorkspaceController::class, 'generateEventAi'])->name('experts.events.generate-ai');
+    Route::post('/experten/{expert}/events', [AdminExpertWorkspaceController::class, 'storeEvent'])->name('experts.events.store');
+    Route::get('/experten/{expert}/events/{event}/bearbeiten', [AdminExpertWorkspaceController::class, 'editEvent'])->name('experts.events.edit');
+    Route::put('/experten/{expert}/events/{event}', [AdminExpertWorkspaceController::class, 'updateEvent'])->name('experts.events.update');
+    Route::delete('/experten/{expert}/events/{event}', [AdminExpertWorkspaceController::class, 'destroyEvent'])->name('experts.events.destroy');
 
     Route::get('/experten/{expert}/standorte/vorschlaege', [AdminExpertOfficeController::class, 'suggest'])->name('experts.offices.suggest');
     Route::post('/experten/{expert}/standorte', [AdminExpertOfficeController::class, 'store'])->name('experts.offices.store');

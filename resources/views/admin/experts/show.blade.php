@@ -2,8 +2,11 @@
 
 @section('title', $expert->company_name)
 @section('breadcrumbs')
-    <a href="{{ route('admin.dashboard') }}">Admin</a> ·
-    <a href="{{ route('admin.experts.index') }}">Experten</a> · Detail
+    <a href="{{ route('admin.dashboard') }}">Admin</a>
+    <span>/</span>
+    <a href="{{ route('admin.experts.index') }}">Experten</a>
+    <span>/</span>
+    <span>{{ $expert->company_name }}</span>
 @endsection
 
 @section('content')
@@ -20,146 +23,310 @@
         'rejected' => 'danger',
         'disabled' => 'muted',
     ];
+    $groupLabel = ($professionalGroups ?? [])[$expert->professional_group] ?? ($expert->professional_group ?: '—');
+    $contact = trim(($expert->contact_person_name ?? '').' '.($expert->contact_person_last_name ?? ''));
 @endphp
 
-<a href="{{ route('admin.experts.index') }}" class="back-link">← Zurück zur Liste</a>
+<div class="ax-hub">
+    <header class="ax-hero">
+        <div class="ax-hero__main">
+            <div class="ax-hero__logo">
+                @if ($expert->logo_path)
+                    <img src="{{ asset('storage/'.$expert->logo_path) }}" alt="">
+                @else
+                    <span>{{ mb_strtoupper(mb_substr($expert->company_name, 0, 2)) }}</span>
+                @endif
+            </div>
+            <div>
+                <div class="ax-hero__meta">
+                    <span class="pill pill--{{ $pill[$expert->status] ?? 'muted' }}">{{ $statusLabel[$expert->status] ?? $expert->status }}</span>
+                    <span class="ax-chip">{{ $groupLabel }}</span>
+                    @if ($expert->is_public)<span class="ax-chip ax-chip--ok">Öffentlich</span>@endif
+                </div>
+                <h1>{{ $expert->company_name }}</h1>
+                <p>
+                    @if ($contact){{ $contact }} · @endif
+                    <a href="mailto:{{ $expert->email }}">{{ $expert->email }}</a>
+                    @if ($expert->phone) · {{ $expert->phone }}@endif
+                </p>
+            </div>
+        </div>
+        <div class="ax-hero__actions">
+            <a href="{{ route('admin.experts.edit', $expert) }}" class="btn btn--small">Profil bearbeiten</a>
+            @if (in_array($expert->status, ['pending', 'rejected', 'disabled'], true))
+                <form action="{{ route('admin.experts.approve', $expert) }}" method="post">@csrf<button type="submit" class="btn btn--small">{{ $expert->status === 'pending' ? 'Freigeben' : 'Wieder freigeben' }}</button></form>
+            @endif
+            @if ($expert->status === 'pending')
+                <form action="{{ route('admin.experts.reject', $expert) }}" method="post" onsubmit="return confirm('Experte wirklich ablehnen?');">
+                    @csrf
+                    <input type="hidden" name="rejection_reason" value="Profil unvollständig oder nicht passend.">
+                    <button type="submit" class="btn btn--ghost btn--small">Ablehnen</button>
+                </form>
+            @endif
+            @if ($expert->status === 'approved')
+                <form action="{{ route('admin.experts.deactivate', $expert) }}" method="post">@csrf<button type="submit" class="btn btn--ghost btn--small">Deaktivieren</button></form>
+            @endif
+            @if ($expert->is_public && $expert->status === 'approved')
+                <a href="{{ route('experts.show', $expert->slug) }}" class="btn btn--ghost btn--small" target="_blank" rel="noopener">Öffentliches Profil ↗</a>
+            @endif
+        </div>
+    </header>
 
-<div class="detail-hero">
-    <div>
-        <span class="pill pill--{{ $pill[$expert->status] ?? 'muted' }}">{{ $statusLabel[$expert->status] ?? $expert->status }}</span>
-        <h1>{{ $expert->company_name }}</h1>
-        <p>
-            {{ $expert->email }}
-            @if ($expert->phone) · {{ $expert->phone }}@endif
-            · slug <code style="color:rgba(255,255,255,0.75);">{{ $expert->slug }}</code>
-        </p>
-    </div>
-    <div class="detail-hero__actions">
-        <a href="{{ route('admin.experts.edit', $expert) }}" class="btn btn--small">Bearbeiten</a>
-        @if (in_array($expert->status, ['pending', 'rejected', 'disabled'], true))
-            <form action="{{ route('admin.experts.approve', $expert) }}" method="post">@csrf<button type="submit" class="btn btn--small">{{ $expert->status === 'pending' ? 'Freigeben' : 'Wieder freigeben' }}</button></form>
-        @endif
-        @if ($expert->status === 'pending')
-            <form action="{{ route('admin.experts.reject', $expert) }}" method="post" onsubmit="return confirm('Experte wirklich ablehnen?');">
-                @csrf
-                <input type="hidden" name="rejection_reason" value="Profil unvollständig oder nicht passend.">
-                <button type="submit" class="btn btn--ghost btn--small">Ablehnen</button>
-            </form>
-        @endif
-        @if ($expert->status === 'approved')
-            <form action="{{ route('admin.experts.deactivate', $expert) }}" method="post">@csrf<button type="submit" class="btn btn--ghost btn--small">Deaktivieren</button></form>
-        @endif
-        @if ($expert->is_public && $expert->status === 'approved')
-            <a href="{{ route('experts.show', $expert->slug) }}" class="btn btn--ghost btn--small" target="_blank" rel="noopener">Öffentliches Profil</a>
-        @endif
-        <form action="{{ route('admin.experts.destroy', $expert) }}" method="post" onsubmit="return confirm('Experte «{{ $expert->company_name }}» wirklich löschen?');">
-            @csrf
-            @method('DELETE')
-            <button type="submit" class="btn btn--ghost btn--small" style="color:#b42318;">Löschen</button>
-        </form>
-    </div>
-</div>
+    <nav class="ax-tabs" aria-label="Bereiche">
+        <a href="#uebersicht">Übersicht</a>
+        <a href="#crawl">Crawl</a>
+        <a href="#ki">KI-Vorschläge <em>{{ $aiSuggestions->count() }}</em></a>
+        <a href="#artikel">Fachbeiträge <em>{{ $articles->count() }}</em></a>
+        <a href="#events">Events <em>{{ $events->count() }}</em></a>
+        <a href="#zugang">Zugang</a>
+    </nav>
 
-<div class="status-help" style="margin:1rem 0;">
-    <strong>Abgelehnt vs. Deaktiviert</strong>
-    <span>
-        <b>Abgelehnt</b> = Registrierung/Profil abgewiesen (nie oder nicht mehr öffentlich). Mit «Wieder freigeben» restaurierbar.
-        <b>Deaktiviert</b> = war freigegeben, vorübergehend ausgeschaltet. Ebenfalls wieder freigebbar.
-    </span>
-</div>
-
-<div class="detail-layout">
-    <div class="side-stack">
-        <section class="sheet">
-            <div class="sheet__head"><h2>Stammdaten</h2></div>
-            <dl class="meta-list">
-                <div class="meta-list__row"><dt>E-Mail</dt><dd><a href="mailto:{{ $expert->email }}">{{ $expert->email }}</a></dd></div>
-                <div class="meta-list__row"><dt>Telefon</dt><dd>{{ $expert->phone ?: '—' }}</dd></div>
-                <div class="meta-list__row"><dt>Website</dt><dd>@if($expert->website)<a href="{{ $expert->website }}" target="_blank" rel="noopener">{{ $expert->website }}</a>@else — @endif</dd></div>
-                <div class="meta-list__row"><dt>Ansprechpartner</dt><dd>{{ trim(($expert->contact_person_name ?? '').' '.($expert->contact_person_last_name ?? '')) ?: '—' }}</dd></div>
-                <div class="meta-list__row"><dt>Fokus</dt><dd>{{ collect([($expert->offers_buy ? 'Kauf' : null), ($expert->offers_sell ? 'Verkauf' : null)])->filter()->implode(' · ') ?: '—' }}</dd></div>
-                <div class="meta-list__row"><dt>Öffentlich</dt><dd>{{ $expert->is_public ? 'Ja' : 'Nein' }}</dd></div>
-                <div class="meta-list__row"><dt>Crawl</dt><dd>{{ $expert->crawl_enabled ? 'Aktiv' : 'Aus' }}@if($expert->website_crawl_url) · {{ $expert->website_crawl_url }}@endif</dd></div>
-                <div class="meta-list__row"><dt>Registriert</dt><dd>{{ optional($expert->created_at)->format('d.m.Y H:i') }}</dd></div>
+    <div class="ax-grid" id="uebersicht">
+        <section class="ax-card">
+            <header class="ax-card__head"><h2>Stammdaten</h2></header>
+            <dl class="ax-meta">
+                <div><dt>Website</dt><dd>@if($expert->website)<a href="{{ $expert->website }}" target="_blank" rel="noopener">{{ $expert->website }}</a>@else — @endif</dd></div>
+                <div><dt>Fokus</dt><dd>{{ collect([($expert->offers_buy ? 'Kauf' : null), ($expert->offers_sell ? 'Verkauf' : null)])->filter()->implode(' · ') ?: '—' }}</dd></div>
+                <div><dt>Slug</dt><dd><code>{{ $expert->slug }}</code></dd></div>
+                <div><dt>Registriert</dt><dd>{{ optional($expert->created_at)->format('d.m.Y H:i') }}</dd></div>
             </dl>
-        </section>
-
-        @if ($expert->description || $expert->services_text)
-            <section class="sheet">
-                <div class="sheet__head"><h2>Profiltext</h2></div>
-                <div style="padding:1.25rem 1.35rem;">
-                    @if ($expert->description)
-                        <p style="margin:0 0 1rem;color:var(--ink-soft);line-height:1.65;">{{ $expert->description }}</p>
-                    @endif
-                    @if ($expert->services_text)
-                        <p style="margin:0;color:var(--stone);font-size:0.92rem;"><strong>Leistungen:</strong> {{ $expert->services_text }}</p>
-                    @endif
+            @if ($expert->description)
+                <div class="ax-prose">
+                    <h3>Beschreibung</h3>
+                    <p>{{ $expert->description }}</p>
                 </div>
-            </section>
-        @endif
-
-        @if ($expert->rejection_reason)
-            <section class="sheet">
-                <div class="sheet__head"><h2>Ablehnungsgrund</h2></div>
-                <p class="message-block">{{ $expert->rejection_reason }}</p>
-            </section>
-        @endif
-    </div>
-
-    <aside class="side-stack">
-        <section class="sheet">
-            <div class="sheet__head"><h2>Standorte</h2></div>
-            @if ($expert->offices->isEmpty())
-                <div class="empty-state" style="border:none;margin:0;">Keine Standorte.</div>
-            @else
-                <div style="padding:0.5rem 0;">
-                    @foreach ($expert->offices as $office)
-                        <div style="padding:0.95rem 1.25rem;border-bottom:1px solid #eef1ee;">
-                            <strong style="display:block;margin-bottom:0.2rem;">{{ $office->is_primary ? 'Hauptsitz' : ($office->label ?: 'Standort') }}</strong>
-                            <span style="color:var(--stone);font-size:0.9rem;">
-                                {{ $office->address_line }}<br>
-                                {{ $office->postal_code }} {{ $office->city }}
-                                @if ($office->canton) · {{ $office->canton->name_de }}@endif
-                            </span>
-                        </div>
-                    @endforeach
+            @endif
+            @if ($expert->services_text)
+                <div class="ax-prose">
+                    <h3>Leistungen</h3>
+                    <p>{{ $expert->services_text }}</p>
                 </div>
+            @endif
+            @if ($expert->rejection_reason)
+                <div class="ax-alert">Ablehnungsgrund: {{ $expert->rejection_reason }}</div>
             @endif
         </section>
 
-        <section class="sheet">
-            <div class="sheet__head"><h2>Login-Zugang</h2></div>
-            <div style="padding:1rem 1.25rem;">
-                @php
-                    $loginUser = $expert->user;
-                    $isImportLogin = $loginUser && mb_strtolower((string) $loginUser->email) === 'import@nachfolge-experten.local';
-                @endphp
-                @if ($isImportLogin || ! $loginUser)
-                    <p style="margin:0 0 0.75rem;color:var(--stone);font-size:0.92rem;">Noch kein persönliches Login — unter Bearbeiten E-Mail/Passwort setzen oder Reset-Link senden.</p>
-                @else
-                    <dl class="meta-list" style="margin-bottom:0.75rem;">
-                        <div class="meta-list__row"><dt>Login</dt><dd>{{ $loginUser->email }}</dd></div>
-                        <div class="meta-list__row"><dt>Status</dt><dd>{{ $loginUser->is_active ? 'Aktiv' : 'Deaktiviert' }}</dd></div>
-                    </dl>
-                @endif
-                <div style="display:grid;gap:0.5rem;">
-                    <a class="btn btn--block btn--small" href="{{ route('admin.experts.edit', $expert) }}#zugang">E-Mail / Passwort setzen</a>
-                    <form method="post" action="{{ route('admin.experts.password-reset', $expert) }}" onsubmit="return confirm('Reset-Link an {{ $expert->email }} senden?\n\nBitte den Experten auf den Spam-Ordner hinweisen.');">
-                        @csrf
-                        <button type="submit" class="btn btn--block btn--ghost btn--small">Passwort-Reset-Link senden</button>
-                    </form>
-                </div>
-            </div>
+        <section class="ax-card">
+            <header class="ax-card__head"><h2>Standorte</h2><a href="{{ route('admin.experts.edit', $expert) }}#standorte">Bearbeiten</a></header>
+            @if ($expert->offices->isEmpty())
+                <p class="ax-empty">Keine Standorte hinterlegt.</p>
+            @else
+                <ul class="ax-list">
+                    @foreach ($expert->offices as $office)
+                        <li>
+                            <strong>{{ $office->is_primary ? 'Hauptsitz' : ($office->label ?: 'Standort') }}</strong>
+                            <span>{{ $office->address_line }}, {{ $office->postal_code }} {{ $office->city }}@if($office->canton) · {{ $office->canton->code }}@endif</span>
+                        </li>
+                    @endforeach
+                </ul>
+            @endif
         </section>
+    </div>
 
-        <section class="sheet">
-            <div class="sheet__head"><h2>Schnellaktionen</h2></div>
-            <div style="padding:1rem 1.25rem;display:grid;gap:0.5rem;">
-                <a class="btn btn--block btn--ghost btn--small" href="{{ route('admin.experts.edit', $expert) }}">Alle Felder bearbeiten</a>
-                <a class="btn btn--block btn--ghost btn--small" href="{{ route('admin.experts.edit', $expert) }}#standorte">Standorte bearbeiten</a>
-                <a class="btn btn--block btn--ghost btn--small" href="{{ route('admin.leads.index', ['expert_id' => $expert->id]) }}">Anfragen dieses Experten</a>
+    {{-- Crawl --}}
+    <section class="ax-card ax-card--wide" id="crawl">
+        <header class="ax-card__head">
+            <div>
+                <h2>Website-Crawl</h2>
+                <p>Importiert Blog-Artikel und Events von der Experten-Website — inkl. optionaler KI-Nachbearbeitung.</p>
             </div>
-        </section>
-    </aside>
+        </header>
+        <form method="post" action="{{ route('admin.experts.crawl.update', $expert) }}" class="ax-crawl">
+            @csrf
+            @method('PUT')
+            <div class="form-group">
+                <label for="website_crawl_url">Crawl-URL</label>
+                <input class="form-control" type="url" name="website_crawl_url" id="website_crawl_url" value="{{ old('website_crawl_url', $expert->website_crawl_url ?: $expert->website) }}" placeholder="https://…">
+            </div>
+            <div class="ax-checks">
+                <label><input type="checkbox" name="crawl_enabled" value="1" @checked(old('crawl_enabled', $expert->crawl_enabled))> Crawl aktiv</label>
+                <label><input type="checkbox" name="crawl_import_articles" value="1" @checked(old('crawl_import_articles', $expert->crawl_import_articles ?? true))> Artikel importieren</label>
+                <label><input type="checkbox" name="crawl_import_events" value="1" @checked(old('crawl_import_events', $expert->crawl_import_events ?? true))> Events importieren</label>
+                <label><input type="checkbox" name="crawl_use_ai" value="1" @checked(old('crawl_use_ai', $expert->crawl_use_ai))> KI für Verbesserungen nutzen</label>
+            </div>
+            <div class="ax-crawl__actions">
+                <button type="submit" class="btn btn--small">Einstellungen speichern</button>
+            </div>
+        </form>
+        <form method="post" action="{{ route('admin.experts.crawl.run', $expert) }}" class="ax-crawl-run" onsubmit="return confirm('Crawl jetzt starten? Kann einige Minuten dauern.');">
+            @csrf
+            <button type="submit" class="btn">Crawl jetzt starten</button>
+            <span class="field-hint">Läuft synchron (ohne SSH-Worker). Danach erscheinen neue Entwürfe unter Fachbeiträge / Events.</span>
+        </form>
+        @if ($crawlJobs->isNotEmpty())
+            <div class="ax-jobs">
+                <h3>Letzte Läufe</h3>
+                <ul>
+                    @foreach ($crawlJobs as $job)
+                        <li>
+                            <b>{{ optional($job->created_at)->format('d.m.Y H:i') }}</b>
+                            <span class="pill pill--{{ $job->status === 'completed' ? 'success' : ($job->status === 'failed' ? 'danger' : 'warning') }}">{{ $job->status }}</span>
+                            <em>{{ $job->notes ?: ($job->progress_label ?: '—') }}</em>
+                        </li>
+                    @endforeach
+                </ul>
+            </div>
+        @endif
+    </section>
+
+    {{-- AI --}}
+    <section class="ax-card ax-card--wide" id="ki">
+        <header class="ax-card__head">
+            <div>
+                <h2>KI-Vorschläge</h2>
+                <p>Offene Vorschläge für dieses Profil anwenden oder ablehnen.</p>
+            </div>
+            <a href="{{ route('admin.ai-suggestions.index') }}">Alle Vorschläge</a>
+        </header>
+        @if ($aiSuggestions->isEmpty())
+            <p class="ax-empty">Keine offenen KI-Vorschläge. Starten Sie einen Crawl mit aktivierter KI oder prüfen Sie die globale Liste.</p>
+        @else
+            <div class="ax-ai-list">
+                @foreach ($aiSuggestions as $suggestion)
+                    <article class="ax-ai-item">
+                        <div>
+                            <strong>{{ $suggestion->field_name }}</strong>
+                            <p class="ax-ai-item__current"><span>Aktuell</span>{{ \Illuminate\Support\Str::limit((string) $suggestion->current_value, 160) ?: '—' }}</p>
+                            <p class="ax-ai-item__suggested"><span>Vorschlag</span>{{ \Illuminate\Support\Str::limit((string) $suggestion->suggested_value, 220) }}</p>
+                        </div>
+                        <div class="ax-ai-item__actions">
+                            <form method="post" action="{{ route('admin.ai-suggestions.apply', $suggestion) }}">@csrf<button class="btn btn--small" type="submit">Anwenden</button></form>
+                            <form method="post" action="{{ route('admin.ai-suggestions.reject', $suggestion) }}">@csrf<button class="btn btn--ghost btn--small" type="submit">Ablehnen</button></form>
+                        </div>
+                    </article>
+                @endforeach
+            </div>
+        @endif
+    </section>
+
+    {{-- Articles --}}
+    <section class="ax-card ax-card--wide" id="artikel">
+        <header class="ax-card__head">
+            <div>
+                <h2>Fachbeiträge</h2>
+                <p>Im Namen dieses Experten erstellen, mit KI entwerfen oder bearbeiten.</p>
+            </div>
+            <a class="btn btn--small" href="{{ route('admin.experts.articles.create', $expert) }}">+ Beitrag</a>
+        </header>
+        @if ($articles->isEmpty())
+            <p class="ax-empty">Noch keine Fachbeiträge. Legen Sie einen an oder starten Sie einen Crawl.</p>
+        @else
+            <div class="table-scroll">
+                <table class="entity-table">
+                    <thead>
+                        <tr>
+                            <th>Titel</th>
+                            <th>Status</th>
+                            <th>Datum</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach ($articles as $article)
+                            <tr>
+                                <td>
+                                    <strong>{{ $article->title }}</strong>
+                                    @if ($article->category)<div class="entity-sub">{{ $article->category->name_de }}</div>@endif
+                                </td>
+                                <td>{{ $article->status }}</td>
+                                <td>{{ optional($article->published_at ?: $article->created_at)->format('d.m.Y') }}</td>
+                                <td>
+                                    <div class="row-actions">
+                                        <a class="btn btn--ghost btn--small" href="{{ route('admin.experts.articles.edit', [$expert, $article]) }}">Bearbeiten</a>
+                                        <form method="post" action="{{ route('admin.experts.articles.destroy', [$expert, $article]) }}" onsubmit="return confirm('Beitrag löschen?');">
+                                            @csrf @method('DELETE')
+                                            <button type="submit" class="btn btn--ghost btn--small">Löschen</button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        @endif
+    </section>
+
+    {{-- Events --}}
+    <section class="ax-card ax-card--wide" id="events">
+        <header class="ax-card__head">
+            <div>
+                <h2>Events</h2>
+                <p>Events für diesen Experten anlegen (inkl. KI-Entwurf) — wie im Expertenbereich.</p>
+            </div>
+            <a class="btn btn--small" href="{{ route('admin.experts.events.create', $expert) }}">+ Event</a>
+        </header>
+        @if ($events->isEmpty())
+            <p class="ax-empty">Noch keine Events.</p>
+        @else
+            <div class="table-scroll">
+                <table class="entity-table">
+                    <thead>
+                        <tr>
+                            <th>Titel</th>
+                            <th>Typ</th>
+                            <th>Datum</th>
+                            <th>Status</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach ($events as $event)
+                            <tr>
+                                <td>
+                                    <strong>{{ $event->title }}</strong>
+                                    @if ($event->is_top_event)<div class="entity-sub">Top Event</div>@endif
+                                </td>
+                                <td>{{ $event->event_type }}</td>
+                                <td>{{ optional($event->starts_on)->format('d.m.Y') ?: '—' }}</td>
+                                <td>{{ $event->status }}</td>
+                                <td>
+                                    <div class="row-actions">
+                                        <a class="btn btn--ghost btn--small" href="{{ route('admin.experts.events.edit', [$expert, $event]) }}">Bearbeiten</a>
+                                        <form method="post" action="{{ route('admin.experts.events.destroy', [$expert, $event]) }}" onsubmit="return confirm('Event löschen?');">
+                                            @csrf @method('DELETE')
+                                            <button type="submit" class="btn btn--ghost btn--small">Löschen</button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        @endif
+    </section>
+
+    {{-- Access --}}
+    <section class="ax-card ax-card--wide" id="zugang">
+        <header class="ax-card__head"><h2>Login-Zugang</h2></header>
+        @php
+            $loginUser = $expert->user;
+            $isImportLogin = $loginUser && mb_strtolower((string) $loginUser->email) === 'import@nachfolge-experten.local';
+        @endphp
+        <div class="ax-access">
+            @if ($isImportLogin || ! $loginUser)
+                <p>Noch kein persönliches Login — unter Bearbeiten E-Mail/Passwort setzen oder Reset-Link senden.</p>
+            @else
+                <dl class="ax-meta">
+                    <div><dt>Login</dt><dd>{{ $loginUser->email }}</dd></div>
+                    <div><dt>Status</dt><dd>{{ $loginUser->is_active ? 'Aktiv' : 'Deaktiviert' }}</dd></div>
+                </dl>
+            @endif
+            <div class="ax-access__actions">
+                <a class="btn btn--small" href="{{ route('admin.experts.edit', $expert) }}#zugang">E-Mail / Passwort setzen</a>
+                <form method="post" action="{{ route('admin.experts.password-reset', $expert) }}" onsubmit="return confirm('Reset-Link an {{ $expert->email }} senden?');">
+                    @csrf
+                    <button type="submit" class="btn btn--ghost btn--small">Passwort-Reset senden</button>
+                </form>
+                <a class="btn btn--ghost btn--small" href="{{ route('admin.leads.index', ['expert_id' => $expert->id]) }}">Anfragen ansehen</a>
+                <form action="{{ route('admin.experts.destroy', $expert) }}" method="post" onsubmit="return confirm('Experte «{{ $expert->company_name }}» wirklich löschen?');">
+                    @csrf @method('DELETE')
+                    <button type="submit" class="btn btn--ghost btn--small" style="color:#b42318;">Experte löschen</button>
+                </form>
+            </div>
+        </div>
+    </section>
 </div>
 @endsection

@@ -122,7 +122,7 @@
         showStatus('', '');
         statusEl.hidden = true;
 
-        fetch(@json(route('expert.articles.generate-ai')), {
+        fetch(@json($aiGenerateUrl ?? route('expert.articles.generate-ai')), {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
