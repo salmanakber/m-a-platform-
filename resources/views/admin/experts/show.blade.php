@@ -342,6 +342,7 @@
     var lastStep = '';
     var lastLabel = '';
     var finishedShown = false;
+    var seenEventIds = {};
     var CRAWL_STEPS = [
         { id: 'queued', label: 'Warteschlange' },
         { id: 'discover', label: 'Website lesen' },
@@ -363,9 +364,10 @@
         finishedShown = false;
         lastStep = '';
         lastLabel = '';
+        seenEventIds = {};
         LiveProgress.open({
             title: 'Website-Crawl',
-            subtitle: 'Live: finden → laden → Entwürfe speichern',
+            subtitle: 'Live: echte URLs, Importe und Überspringungen',
             steps: CRAWL_STEPS,
             startLog: 'Crawl wird gestartet…'
         });
@@ -393,6 +395,11 @@
             LiveProgress.log(lbl, raw === 'import' ? 'ok' : (raw === 'skip' ? 'info' : 'working'));
             lastLabel = lbl;
         }
+        (data.events || []).forEach(function (ev) {
+            if (!ev || seenEventIds[ev.id]) return;
+            seenEventIds[ev.id] = true;
+            LiveProgress.log(ev.text, ev.kind || 'info');
+        });
         if (data.finished && !finishedShown) {
             finishedShown = true;
             if (pollTimer) clearInterval(pollTimer);
@@ -420,7 +427,7 @@
                 .then(function (r) { return r.json(); }).then(applyStatus).catch(function () {});
         }
         tick();
-        pollTimer = setInterval(tick, 600);
+        pollTimer = setInterval(tick, 320);
     }
 
     function fireProcess(url) {

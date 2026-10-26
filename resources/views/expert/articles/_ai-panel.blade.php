@@ -4,7 +4,7 @@
         <div class="xp-ai-studio__badge">KI-Assistent</div>
         <div>
             <h2>Artikel entwerfen lassen</h2>
-            <p>Beschreiben Sie das Thema — die KI erstellt Titel, Auszug und fertigen Beitrag. Danach können Sie alles im Editor verfeinern.</p>
+            <p>Beschreiben Sie das Thema — die KI erstellt zuerst Struktur, dann formatierten Text für den Editor.</p>
         </div>
     </div>
 
@@ -37,19 +37,11 @@
     var btn = document.getElementById('aiGenerateBtn');
     var statusEl = document.getElementById('aiStatus');
     if (!btn) return;
+    var endpoint = @json($aiGenerateUrl ?? route('expert.articles.generate-ai'));
 
     function csrfToken() {
         var meta = document.querySelector('meta[name="csrf-token"]');
         return meta ? meta.getAttribute('content') : '';
-    }
-
-    function setBody(html) {
-        if (window.tinymce && tinymce.get('body')) {
-            tinymce.get('body').setContent(html || '');
-            return;
-        }
-        var el = document.getElementById('body');
-        if (el) el.value = html || '';
     }
 
     function showStatus(message, type) {
@@ -58,29 +50,19 @@
         statusEl.textContent = message;
     }
 
-    var stages = [
-        { id: 'brief', label: 'Briefing verstehen', log: 'Thema wird analysiert…', doneLog: 'Briefing erfasst', detail: 'Schlüsselpunkte extrahieren', ms: 1400 },
-        { id: 'structure', label: 'Struktur & Titel', log: 'Gliederung und Titel entstehen…', doneLog: 'Struktur bereit', detail: 'Überschriften planen' },
-        { id: 'write', label: 'Inhalt schreiben', log: 'Absätze werden ausgearbeitet…', doneLog: 'Text fertig', detail: 'KI formuliert den Beitrag' },
-        { id: 'polish', label: 'Feinschliff', log: 'Auszug und Tonalität abstimmen…', doneLog: 'Feinschliff erledigt', detail: 'Excerpt & Ton' }
-    ];
-
-    btn.addEventListener('click', function () {
-        var topic = ((document.getElementById('ai_topic') || {}).value || '').trim();
-        if (topic.length < 8) {
-            showStatus('Bitte beschreiben Sie das Thema mit mindestens 8 Zeichen.', 'error');
+    function setBody(html) {
+        if (typeof window.setRichContent === 'function' && window.setRichContent('body', html)) return;
+        if (window.tinymce && tinymce.get('body')) {
+            tinymce.get('body').setContent(html || '');
+            tinymce.get('body').save();
             return;
         }
+        var el = document.getElementById('body');
+        if (el) el.value = html || '';
+    }
 
-        if (!window.LiveProgress) {
-            showStatus('Fortschrittsanzeige nicht geladen — bitte Seite neu laden.', 'error');
-            return;
-        }
-
-        btn.disabled = true;
-        statusEl.hidden = true;
-
-        var request = fetch(@json($aiGenerateUrl ?? route('expert.articles.generate-ai')), {
+    function post(payload) {
+        return fetch(endpoint, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -88,45 +70,119 @@
                 'X-CSRF-TOKEN': csrfToken(),
                 'X-Requested-With': 'XMLHttpRequest'
             },
-            body: JSON.stringify({
-                topic: topic,
-                tone: (document.getElementById('ai_tone') || {}).value || null,
-                category_id: (document.getElementById('category_id') || {}).value || null
-            })
+            body: JSON.stringify(payload)
         }).then(function (res) {
             return res.json().then(function (data) {
-                return { ok: res.ok, data: data };
+                if (!res.ok) throw new Error((data && data.message) || 'Generierung fehlgeschlagen.');
+                return data;
             });
         });
+    }
 
-        LiveProgress.runAiStages(stages, request).then(function (result) {
-            if (!result.ok) {
-                throw new Error((result.data && result.data.message) || 'Die Generierung ist fehlgeschlagen. Bitte später erneut versuchen.');
+    btn.addEventListener('click', function () {
+        var topic = ((document.getElementById('ai_topic') || {}).value || '').trim();
+        if (topic.length < 8) {
+            showStatus('Bitte beschreiben Sie das Thema mit mindestens 8 Zeichen.', 'error');
+            return;
+        }
+        if (!window.LiveProgress) {
+            showStatus('Fortschrittsanzeige nicht geladen — Seite neu laden.', 'error');
+            return;
+        }
+
+        var tone = (document.getElementById('ai_tone') || {}).value || null;
+        var categoryId = (document.getElementById('category_id') || {}).value || null;
+
+        btn.disabled = true;
+        statusEl.hidden = true;
+
+        LiveProgress.open({
+            title: 'KI schreibt Artikel…',
+            subtitle: 'Echte Zwischenergebnisse in Echtzeit',
+            steps: [
+                { id: 'brief', label: 'Briefing' },
+                { id: 'outline', label: 'Titel & Gliederung' },
+                { id: 'write', label: 'Abschnitte schreiben' },
+                { id: 'insert', label: 'In Editor einfügen' }
+            ],
+            startLog: 'Briefing: «' + topic.slice(0, 80) + (topic.length > 80 ? '…' : '') + '»'
+        });
+        LiveProgress.activate('brief', 'Thema erfassen');
+        LiveProgress.setPercent(8);
+        LiveProgress.done('brief', 'bereit');
+        LiveProgress.activate('outline', 'Struktur wird erzeugt…');
+        LiveProgress.log('KI erstellt Titel und Gliederung…', 'working');
+        LiveProgress.setPercent(18);
+
+        post({
+            phase: 'outline',
+            topic: topic,
+            tone: tone,
+            category_id: categoryId
+        }).then(function (outline) {
+            LiveProgress.done('outline', outline.title || 'fertig');
+            LiveProgress.log('Titel: ' + (outline.title || '—'), 'ok');
+            if (outline.excerpt) LiveProgress.log('Auszug: ' + outline.excerpt.slice(0, 100) + (outline.excerpt.length > 100 ? '…' : ''), 'ok');
+            (outline.headings || []).forEach(function (h, i) {
+                LiveProgress.log('Abschnitt ' + (i + 1) + ': ' + h, 'info');
+            });
+
+            if (outline.title) document.getElementById('title').value = outline.title;
+            if (outline.excerpt) document.getElementById('excerpt').value = outline.excerpt;
+            if (outline.category_id && document.getElementById('category_id')) {
+                document.getElementById('category_id').value = String(outline.category_id);
             }
-            var data = result.data;
-            if (data.title) document.getElementById('title').value = data.title;
-            if (data.excerpt) document.getElementById('excerpt').value = data.excerpt;
-            if (data.body) setBody(data.body);
-            if (data.category_id && document.getElementById('category_id')) {
-                document.getElementById('category_id').value = String(data.category_id);
-            }
-            LiveProgress.log('Titel: ' + (data.title || '—'), 'ok');
-            LiveProgress.log('Text in den Editor eingefügt', 'ok');
+
+            LiveProgress.activate('write', 'Fliesstext entsteht…');
+            LiveProgress.setPercent(42);
+            LiveProgress.log('Schreibe formatierte Absätze…', 'working');
+
+            var headingIdx = 0;
+            var headingTimer = setInterval(function () {
+                var list = outline.headings || [];
+                if (headingIdx >= list.length) return;
+                LiveProgress.log('Ausarbeiten: ' + list[headingIdx], 'working');
+                LiveProgress.setPercent(42 + Math.min(40, Math.round(((headingIdx + 1) / Math.max(list.length, 1)) * 40)));
+                headingIdx += 1;
+            }, 900);
+
+            return post({
+                phase: 'body',
+                topic: topic,
+                tone: tone,
+                title: outline.title,
+                excerpt: outline.excerpt,
+                headings: outline.headings || []
+            }).then(function (bodyRes) {
+                clearInterval(headingTimer);
+                return { outline: outline, body: bodyRes.body };
+            }, function (err) {
+                clearInterval(headingTimer);
+                throw err;
+            });
+        }).then(function (result) {
+            LiveProgress.done('write', 'Text fertig');
+            LiveProgress.activate('insert');
+            LiveProgress.setPercent(92);
+            LiveProgress.log('Formatierten HTML-Text in den Editor einfügen…', 'working');
+
+            setBody(result.body);
+            LiveProgress.done('insert', 'eingefügt');
+            LiveProgress.setPercent(100);
+            LiveProgress.log('Editor aktualisiert — bitte prüfen und speichern', 'ok');
             LiveProgress.finish({
                 ok: true,
                 title: 'Entwurf bereit',
-                message: 'Artikel eingefügt — bitte im Editor prüfen und speichern.',
+                message: 'Formatierter Artikel im Editor — Überschriften & Listen prüfen.',
                 actionsHtml: '<button type="button" class="btn btn--small" data-lp-close>Zum Editor</button>',
                 onClose: function () {
                     var form = document.getElementById('articleForm');
                     if (form) form.scrollIntoView({ behavior: 'smooth', block: 'start' });
                 }
             });
-            showStatus('Entwurf eingefügt — prüfen Sie den Text im Editor und veröffentlichen Sie ihn.', 'ok');
+            showStatus('Formatierter Entwurf eingefügt — im Editor prüfen und veröffentlichen.', 'ok');
         }).catch(function (err) {
-            if (window.LiveProgress) {
-                LiveProgress.finish({ ok: false, message: err.message || 'Fehler bei der Generierung.' });
-            }
+            LiveProgress.finish({ ok: false, message: err.message || 'Fehler bei der Generierung.' });
             showStatus(err.message || 'Fehler bei der Generierung.', 'error');
         }).finally(function () {
             btn.disabled = false;

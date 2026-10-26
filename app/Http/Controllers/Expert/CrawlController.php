@@ -240,8 +240,37 @@ class CrawlController extends Controller
             abort(403);
         }
 
+        $job->refresh();
         $job->loadCount(['results', 'errors']);
         $cooldownUntil = $this->cooldownUntil($expert->id);
+
+        $recent = $job->results()
+            ->orderByDesc('id')
+            ->limit(8)
+            ->get(['id', 'url', 'status', 'message']);
+
+        $events = $recent->reverse()->values()->map(function ($row) {
+            $path = parse_url((string) $row->url, PHP_URL_PATH) ?: $row->url;
+            $short = \Illuminate\Support\Str::limit(ltrim((string) $path, '/') ?: (string) $row->url, 52);
+            $kind = match ($row->status) {
+                'imported', 'created', 'ok' => 'ok',
+                'duplicate', 'skipped' => 'info',
+                'failed' => 'error',
+                default => 'info',
+            };
+            $label = match ($row->status) {
+                'imported', 'created', 'ok' => 'Übernommen: '.$short,
+                'duplicate', 'skipped' => 'Übersprungen: '.$short,
+                'failed' => 'Fehler: '.$short,
+                default => ($row->message ?: $row->status).': '.$short,
+            };
+
+            return [
+                'id' => (int) $row->id,
+                'kind' => $kind,
+                'text' => $label,
+            ];
+        })->all();
 
         return response()->json([
             'id' => $job->id,
@@ -254,6 +283,7 @@ class CrawlController extends Controller
             'results_count' => (int) $job->results_count,
             'errors_count' => (int) $job->errors_count,
             'notes' => $job->notes,
+            'events' => $events,
             'finished' => in_array($job->status, ['completed', 'failed'], true),
             'cooldown_until' => $cooldownUntil?->toIso8601String(),
             'can_run' => ($cooldownUntil === null || $cooldownUntil->isPast())

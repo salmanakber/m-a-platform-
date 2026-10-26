@@ -73,11 +73,16 @@ class CrawlService
 
     private function setProgress(CrawlJob $job, string $step, string $label, int $percent): void
     {
-        $job->update([
+        // Direct write so AJAX status polls see updates immediately (no model cache lag).
+        \Illuminate\Support\Facades\DB::table('crawl_jobs')->where('id', $job->id)->update([
             'progress_step' => $step,
             'progress_label' => $label,
             'progress_percent' => max(0, min(100, $percent)),
+            'updated_at' => now(),
         ]);
+        $job->progress_step = $step;
+        $job->progress_label = $label;
+        $job->progress_percent = max(0, min(100, $percent));
     }
 
     /**

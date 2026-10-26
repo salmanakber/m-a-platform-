@@ -45,9 +45,39 @@ class EventController extends Controller
         $validated = $request->validate([
             'briefing' => ['required', 'string', 'min:8', 'max:2000'],
             'event_type' => ['nullable', 'string', 'max:40'],
+            'phase' => ['nullable', 'in:outline,description,full'],
+            'title' => ['nullable', 'string', 'max:255'],
+            'outline' => ['nullable', 'array', 'max:8'],
+            'outline.*' => ['string', 'max:160'],
         ]);
 
+        $phase = $validated['phase'] ?? 'full';
+
         try {
+            if ($phase === 'outline') {
+                return response()->json($this->eventAi->generateOutline(
+                    $expert,
+                    $validated['briefing'],
+                    $validated['event_type'] ?? null
+                ));
+            }
+
+            if ($phase === 'description') {
+                $title = trim((string) ($validated['title'] ?? ''));
+                $outline = array_values(array_filter($validated['outline'] ?? []));
+                if ($title === '' || $outline === []) {
+                    return response()->json(['message' => 'Titel und Schwerpunkte fehlen.'], 422);
+                }
+
+                return response()->json($this->eventAi->generateDescription(
+                    $expert,
+                    $validated['briefing'],
+                    $title,
+                    $outline,
+                    $validated['event_type'] ?? 'other'
+                ));
+            }
+
             $draft = $this->eventAi->generateDraft(
                 $expert,
                 $validated['briefing'],

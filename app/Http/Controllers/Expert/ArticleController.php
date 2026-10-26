@@ -48,14 +48,49 @@ class ArticleController extends Controller
             'topic' => ['required', 'string', 'min:8', 'max:1000'],
             'tone' => ['nullable', 'string', 'max:120'],
             'category_id' => ['nullable', 'exists:article_categories,id'],
+            'phase' => ['nullable', 'in:outline,body,full'],
+            'title' => ['nullable', 'string', 'max:240'],
+            'excerpt' => ['nullable', 'string', 'max:500'],
+            'headings' => ['nullable', 'array', 'max:8'],
+            'headings.*' => ['string', 'max:160'],
         ]);
 
+        $phase = $validated['phase'] ?? 'full';
+        $tone = $validated['tone'] ?? null;
+        $categoryId = isset($validated['category_id']) ? (int) $validated['category_id'] : null;
+
         try {
+            if ($phase === 'outline') {
+                return response()->json($this->articleAi->generateOutline(
+                    $expert,
+                    $validated['topic'],
+                    $tone,
+                    $categoryId
+                ));
+            }
+
+            if ($phase === 'body') {
+                $title = trim((string) ($validated['title'] ?? ''));
+                $headings = array_values(array_filter($validated['headings'] ?? []));
+                if ($title === '' || $headings === []) {
+                    return response()->json(['message' => 'Titel und Gliederung fehlen für den Text.'], 422);
+                }
+
+                return response()->json($this->articleAi->generateBody(
+                    $expert,
+                    $validated['topic'],
+                    $title,
+                    $headings,
+                    $tone,
+                    $validated['excerpt'] ?? null
+                ));
+            }
+
             $article = $this->articleAi->generate(
                 $expert,
                 $validated['topic'],
-                $validated['tone'] ?? null,
-                isset($validated['category_id']) ? (int) $validated['category_id'] : null
+                $tone,
+                $categoryId
             );
         } catch (\Throwable $e) {
             return response()->json([

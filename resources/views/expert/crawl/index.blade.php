@@ -266,6 +266,7 @@
     var lastStep = '';
     var lastLabel = '';
     var finishedShown = false;
+    var seenEventIds = {};
 
     var CRAWL_STEPS = [
         { id: 'queued', label: 'Warteschlange' },
@@ -345,9 +346,10 @@
         finishedShown = false;
         lastStep = '';
         lastLabel = '';
+        seenEventIds = {};
         LiveProgress.open({
             title: 'Website-Scan',
-            subtitle: 'Live-Fortschritt: Seiten finden, laden, Entwürfe speichern',
+            subtitle: 'Live: echte URLs, Importe und Überspringungen',
             steps: CRAWL_STEPS,
             startLog: 'Scan wird gestartet…'
         });
@@ -382,6 +384,12 @@
             lastLabel = lbl;
         }
 
+        (data.events || []).forEach(function (ev) {
+            if (!ev || seenEventIds[ev.id]) return;
+            seenEventIds[ev.id] = true;
+            LiveProgress.log(ev.text, ev.kind || 'info');
+        });
+
         if (data.finished && !finishedShown) {
             finishedShown = true;
             if (pollTimer) clearInterval(pollTimer);
@@ -413,7 +421,7 @@
             }).then(function (r) { return r.json(); }).then(applyStatus).catch(function () {});
         }
         tick();
-        pollTimer = setInterval(tick, 600);
+        pollTimer = setInterval(tick, 320);
     }
 
     function fireProcess(processUrl) {

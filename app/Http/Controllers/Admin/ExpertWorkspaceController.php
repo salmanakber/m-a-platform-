@@ -171,7 +171,36 @@ class ExpertWorkspaceController extends Controller
             abort(403);
         }
 
+        $job->refresh();
         $job->loadCount(['results', 'errors']);
+
+        $recent = $job->results()
+            ->orderByDesc('id')
+            ->limit(8)
+            ->get(['id', 'url', 'status', 'message']);
+
+        $events = $recent->reverse()->values()->map(function ($row) {
+            $path = parse_url((string) $row->url, PHP_URL_PATH) ?: $row->url;
+            $short = Str::limit(ltrim((string) $path, '/') ?: (string) $row->url, 52);
+            $kind = match ($row->status) {
+                'imported', 'created', 'ok' => 'ok',
+                'duplicate', 'skipped' => 'info',
+                'failed' => 'error',
+                default => 'info',
+            };
+            $label = match ($row->status) {
+                'imported', 'created', 'ok' => 'Übernommen: '.$short,
+                'duplicate', 'skipped' => 'Übersprungen: '.$short,
+                'failed' => 'Fehler: '.$short,
+                default => ($row->message ?: $row->status).': '.$short,
+            };
+
+            return [
+                'id' => (int) $row->id,
+                'kind' => $kind,
+                'text' => $label,
+            ];
+        })->all();
 
         return response()->json([
             'id' => $job->id,
@@ -184,6 +213,7 @@ class ExpertWorkspaceController extends Controller
             'results_count' => (int) $job->results_count,
             'errors_count' => (int) $job->errors_count,
             'notes' => $job->notes,
+            'events' => $events,
             'finished' => in_array($job->status, ['completed', 'failed'], true),
         ]);
     }
@@ -203,14 +233,36 @@ class ExpertWorkspaceController extends Controller
             'topic' => ['required', 'string', 'min:8', 'max:1000'],
             'tone' => ['nullable', 'string', 'max:120'],
             'category_id' => ['nullable', 'exists:article_categories,id'],
+            'phase' => ['nullable', 'in:outline,body,full'],
+            'title' => ['nullable', 'string', 'max:240'],
+            'excerpt' => ['nullable', 'string', 'max:500'],
+            'headings' => ['nullable', 'array', 'max:8'],
+            'headings.*' => ['string', 'max:160'],
         ]);
 
+        $phase = $validated['phase'] ?? 'full';
+        $tone = $validated['tone'] ?? null;
+        $categoryId = isset($validated['category_id']) ? (int) $validated['category_id'] : null;
+
         try {
+            if ($phase === 'outline') {
+                return response()->json($this->articleAi->generateOutline(
+                    $expert, $validated['topic'], $tone, $categoryId
+                ));
+            }
+            if ($phase === 'body') {
+                $title = trim((string) ($validated['title'] ?? ''));
+                $headings = array_values(array_filter($validated['headings'] ?? []));
+                if ($title === '' || $headings === []) {
+                    return response()->json(['message' => 'Titel und Gliederung fehlen.'], 422);
+                }
+
+                return response()->json($this->articleAi->generateBody(
+                    $expert, $validated['topic'], $title, $headings, $tone, $validated['excerpt'] ?? null
+                ));
+            }
             $article = $this->articleAi->generate(
-                $expert,
-                $validated['topic'],
-                $validated['tone'] ?? null,
-                isset($validated['category_id']) ? (int) $validated['category_id'] : null
+                $expert, $validated['topic'], $tone, $categoryId
             );
         } catch (\Throwable $e) {
             return response()->json([
@@ -333,13 +385,37 @@ class ExpertWorkspaceController extends Controller
         $validated = $request->validate([
             'briefing' => ['required', 'string', 'min:8', 'max:2000'],
             'event_type' => ['nullable', 'string', 'max:40'],
+            'phase' => ['nullable', 'in:outline,description,full'],
+            'title' => ['nullable', 'string', 'max:255'],
+            'outline' => ['nullable', 'array', 'max:8'],
+            'outline.*' => ['string', 'max:160'],
         ]);
 
+        $phase = $validated['phase'] ?? 'full';
+
         try {
+            if ($phase === 'outline') {
+                return response()->json($this->eventAi->generateOutline(
+                    $expert, $validated['briefing'], $validated['event_type'] ?? null
+                ));
+            }
+            if ($phase === 'description') {
+                $title = trim((string) ($validated['title'] ?? ''));
+                $outline = array_values(array_filter($validated['outline'] ?? []));
+                if ($title === '' || $outline === []) {
+                    return response()->json(['message' => 'Titel und Schwerpunkte fehlen.'], 422);
+                }
+
+                return response()->json($this->eventAi->generateDescription(
+                    $expert,
+                    $validated['briefing'],
+                    $title,
+                    $outline,
+                    $validated['event_type'] ?? 'other'
+                ));
+            }
             $draft = $this->eventAi->generateDraft(
-                $expert,
-                $validated['briefing'],
-                $validated['event_type'] ?? null
+                $expert, $validated['briefing'], $validated['event_type'] ?? null
             );
         } catch (\Throwable $e) {
             return response()->json([

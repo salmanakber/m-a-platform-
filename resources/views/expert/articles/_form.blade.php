@@ -23,7 +23,7 @@
     <div class="form-group xp-editor-field">
         <div class="xp-editor-field__label">
             <label for="body">Inhalt *</label>
-            <span>Formatieren Sie Überschriften, Listen und Absätze wie in einem Texteditor.</span>
+            <span>Formatierter Text — Überschriften, Listen, Fett. KI-Entwürfe erscheinen hier formatiert.</span>
         </div>
         <textarea class="form-control xp-editor-textarea" name="body" id="body" rows="18" required>{{ old('body', optional($article)->body) }}</textarea>
     </div>
@@ -59,36 +59,4 @@
     </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/tinymce@7.6.0/tinymce.min.js" referrerpolicy="origin"></script>
-<script>
-(function () {
-    if (!window.tinymce) return;
-
-    tinymce.init({
-        selector: '#body',
-        height: 460,
-        menubar: false,
-        branding: false,
-        promotion: false,
-        language: undefined,
-        plugins: 'lists link autolink code table',
-        toolbar: 'undo redo | blocks | bold italic underline | alignleft aligncenter alignright | bullist numlist | link table | removeformat | code',
-        block_formats: 'Absatz=p; Überschrift 2=h2; Überschrift 3=h3',
-        content_style: 'body{font-family:Manrope,system-ui,sans-serif;font-size:15px;line-height:1.65;color:#1a2b3a;} h2{font-family:Cormorant Garamond,Georgia,serif;font-size:1.55rem;margin:1.4em 0 .5em;} h3{font-size:1.1rem;margin:1.2em 0 .4em;} p{margin:0 0 .9em;} a{color:#0E4971;}',
-        skin: 'oxide',
-        content_css: 'default',
-        setup: function (editor) {
-            editor.on('change keyup', function () {
-                editor.save();
-            });
-        }
-    });
-
-    var form = document.getElementById('articleForm');
-    if (form) {
-        form.addEventListener('submit', function () {
-            if (tinymce.get('body')) tinymce.get('body').save();
-        });
-    }
-})();
-</script>
+@include('partials.rich-editor', ['selector' => '#body', 'formId' => 'articleForm', 'height' => 480])

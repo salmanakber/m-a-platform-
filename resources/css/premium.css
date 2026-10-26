@@ -5274,12 +5274,33 @@ body.xp-ai-busy {
 }
 
 .xp-editor-field .tox-tinymce {
-    border: 1px solid var(--line-soft) !important;
-    border-radius: 0 !important;
+    border: 1px solid rgba(14, 73, 113, 0.18) !important;
+    border-radius: 12px !important;
+    overflow: hidden;
+    box-shadow: 0 8px 24px rgba(14, 73, 113, 0.06);
+    transition: box-shadow 0.35s ease, border-color 0.35s ease;
+}
+
+.xp-editor-field .tox-tinymce.xp-editor-flash {
+    border-color: rgba(196, 162, 96, 0.75) !important;
+    box-shadow: 0 0 0 3px rgba(196, 162, 96, 0.28), 0 10px 28px rgba(14, 73, 113, 0.1);
 }
 
 .xp-editor-field .tox .tox-toolbar__primary {
-    background: #f6f9fb !important;
+    background: linear-gradient(180deg, #f7fafc 0%, #eef3f7 100%) !important;
+    border-bottom: 1px solid rgba(14, 73, 113, 0.08) !important;
+}
+
+.xp-editor-field .tox .tox-edit-area__iframe {
+    background: #fff !important;
+}
+
+.xp-editor-textarea {
+    min-height: 220px;
+    border-radius: 12px;
+    border: 1px solid rgba(14, 73, 113, 0.18);
+    padding: 0.9rem 1rem;
+    line-height: 1.65;
 }
 
 .xp-cover-field__box {

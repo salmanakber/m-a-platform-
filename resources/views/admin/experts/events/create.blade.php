@@ -27,7 +27,7 @@
         'aiGenerateUrl' => route('admin.experts.events.generate-ai', $expert),
     ])
 
-    <form method="post" action="{{ route('admin.experts.events.store', $expert) }}" class="card">
+    <form method="post" action="{{ route('admin.experts.events.store', $expert) }}" class="card" id="eventForm">
         @csrf
         @include('expert.events._form', ['event' => null, 'cantons' => $cantons])
         <div style="margin-top:1rem;display:flex;gap:0.65rem;flex-wrap:wrap;">

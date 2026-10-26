@@ -61,7 +61,7 @@
             @yield('content')
         </main>
     </div>
-    <script src="{{ asset('js/live-progress.js') }}" defer></script>
+    <script src="{{ asset('js/live-progress.js') }}"></script>
     @stack('scripts')
 </body>
 </html>

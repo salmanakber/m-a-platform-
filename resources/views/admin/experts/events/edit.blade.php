@@ -22,7 +22,7 @@
         </div>
     </header>
 
-    <form method="post" action="{{ route('admin.experts.events.update', [$expert, $event]) }}" class="card">
+    <form method="post" action="{{ route('admin.experts.events.update', [$expert, $event]) }}" class="card" id="eventForm">
         @csrf
         @method('PUT')
         @include('expert.events._form', ['event' => $event, 'cantons' => $cantons])

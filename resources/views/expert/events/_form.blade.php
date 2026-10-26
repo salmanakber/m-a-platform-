@@ -16,9 +16,12 @@
         <input class="form-control" type="url" name="source_url" id="source_url" value="{{ old('source_url', optional($event)->source_url) }}" placeholder="https://">
     </div>
 </div>
-<div class="form-group">
-    <label for="description">Beschreibung</label>
-    <textarea class="form-control" name="description" id="description" rows="8">{{ old('description', optional($event)->description) }}</textarea>
+<div class="form-group xp-editor-field">
+    <div class="xp-editor-field__label">
+        <label for="description">Beschreibung</label>
+        <span>Formatierter Text — Absätze, Listen, Hervorhebungen.</span>
+    </div>
+    <textarea class="form-control xp-editor-textarea" name="description" id="description" rows="10">{{ old('description', optional($event)->description) }}</textarea>
 </div>
 <div class="form-row">
     <div class="form-group">
@@ -89,3 +92,5 @@
     <p class="field-hint">Erscheint bevorzugt auf der Startseite, solange das Datum in der Zukunft liegt.</p>
 </div>
 <p class="field-hint">Keine erfundenen Daten: fehlendes Datum oder Ort leer lassen — wird als prüfungsbedürftig markiert.</p>
+
+@include('partials.rich-editor', ['selector' => '#description', 'formId' => 'eventForm', 'height' => 360])
