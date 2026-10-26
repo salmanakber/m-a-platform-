@@ -7825,11 +7825,10 @@ body.is-public-redesign .register-stage__benefit-n { color: var(--nh-gold); }
 .nh-match__nav {
     display: flex;
     align-items: center;
-    justify-content: flex-end;
-    gap: 0.4rem;
+    gap: 0.35rem;
 }
 .nh-match__arrow {
-    width: 36px; height: 36px; border-radius: 999px;
+    width: 34px; height: 34px; border-radius: 999px;
     border: 1px solid rgba(255,255,255,0.22);
     background: rgba(255,255,255,0.06); color: #fff;
     display: grid; place-items: center; cursor: pointer;
@@ -7843,54 +7842,46 @@ body.is-public-redesign .register-stage__benefit-n { color: var(--nh-gold); }
 .nh-match__dots {
     display: flex;
     align-items: center;
-    gap: 0.4rem;
+    justify-content: center;
+    gap: 0.55rem;
+    margin-top: 0.15rem;
 }
 .nh-match__dot {
-    width: 9px; height: 9px; padding: 0;
-    border: 0; border-radius: 999px;
-    background: transparent; cursor: pointer;
-    display: grid; place-items: center;
-}
-.nh-match__dot i {
-    display: block;
-    width: 7px; height: 7px;
+    width: 10px;
+    height: 10px;
+    padding: 0;
+    border: 0;
     border-radius: 999px;
-    background: rgba(255,255,255,0.35);
-    transition: width .28s ease, background .28s ease, box-shadow .28s ease;
-}
-.nh-match__dot.is-on i {
-    width: 22px;
-    background: var(--nh-gold);
-    box-shadow: 0 0 0 3px rgba(197,160,89,0.18);
-    animation: nh-dot-pulse 1.6s ease-in-out infinite;
-}
-@keyframes nh-dot-pulse {
-    0%, 100% { box-shadow: 0 0 0 3px rgba(197,160,89,0.14); }
-    50% { box-shadow: 0 0 0 5px rgba(197,160,89,0.22); }
-}
-.nh-match__progress {
-    height: 2px;
-    width: 100%;
-    border-radius: 999px;
-    background: rgba(255,255,255,0.12);
+    background: rgba(255,255,255,0.28);
+    cursor: pointer;
+    position: relative;
     overflow: hidden;
+    transition: width .3s ease, background .3s ease, box-shadow .3s ease;
 }
-.nh-match__progress i {
-    display: block;
-    height: 100%;
-    width: 100%;
+.nh-match__dot-fill {
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: var(--nh-gold);
+    transform: scaleX(0);
     transform-origin: left center;
-    background: linear-gradient(90deg, rgba(197,160,89,0.35), var(--nh-gold));
-    animation: nh-match-progress 6.5s linear infinite;
 }
-@keyframes nh-match-progress {
+.nh-match__dot.is-on {
+    width: 28px;
+    background: rgba(197,160,89,0.22);
+    box-shadow: 0 0 0 3px rgba(197,160,89,0.12);
+}
+.nh-match__dot.is-on .nh-match__dot-fill {
+    animation: nh-dot-fill 6.5s linear forwards;
+}
+@keyframes nh-dot-fill {
     from { transform: scaleX(0); }
     to { transform: scaleX(1); }
 }
 @media (prefers-reduced-motion: reduce) {
-    .nh-match__dot.is-on i,
-    .nh-match__progress i,
+    .nh-match__dot.is-on .nh-match__dot-fill,
     .nh-match__slide { animation: none !important; }
+    .nh-match__dot.is-on { background: var(--nh-gold); }
 }
 
 /* Top 5 slider */

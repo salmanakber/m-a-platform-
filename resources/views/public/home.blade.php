@@ -28,12 +28,13 @@
                         Top Match · {{ $periodLabel }}
                     </div>
                     @if ($bannerCards->count() > 1)
-                        <div class="nh-match__dots" data-banner-dots>
-                            @foreach ($bannerCards as $index => $card)
-                                <button type="button" class="nh-match__dot {{ $index === 0 ? 'is-on' : '' }}" data-banner-dot="{{ $index }}" aria-label="Slide {{ $index + 1 }}">
-                                    <i></i>
-                                </button>
-                            @endforeach
+                        <div class="nh-match__nav">
+                            <button type="button" class="nh-match__arrow" data-banner-prev aria-label="Vorheriger">
+                                <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M15.4 7.4 14 6l-6 6 6 6 1.4-1.4L10.8 12z"/></svg>
+                            </button>
+                            <button type="button" class="nh-match__arrow" data-banner-next aria-label="Nächster">
+                                <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="m10 6-1.4 1.4L12.2 12l-3.6 4.6L10 18l6-6z"/></svg>
+                            </button>
                         </div>
                     @endif
                 </div>
@@ -66,15 +67,13 @@
                 </div>
 
                 @if ($bannerCards->count() > 1)
-                    <div class="nh-match__nav">
-                        <button type="button" class="nh-match__arrow" data-banner-prev aria-label="Vorheriger">
-                            <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M15.4 7.4 14 6l-6 6 6 6 1.4-1.4L10.8 12z"/></svg>
-                        </button>
-                        <button type="button" class="nh-match__arrow" data-banner-next aria-label="Nächster">
-                            <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="m10 6-1.4 1.4L12.2 12l-3.6 4.6L10 18l6-6z"/></svg>
-                        </button>
+                    <div class="nh-match__dots" data-banner-dots role="tablist" aria-label="Banner-Slides">
+                        @foreach ($bannerCards as $index => $card)
+                            <button type="button" class="nh-match__dot {{ $index === 0 ? 'is-on' : '' }}" data-banner-dot="{{ $index }}" aria-label="Slide {{ $index + 1 }}">
+                                <span class="nh-match__dot-fill" data-banner-dot-fill></span>
+                            </button>
+                        @endforeach
                     </div>
-                    <div class="nh-match__progress" aria-hidden="true"><i data-banner-progress></i></div>
                 @endif
             @else
                 <div class="nh-match__badge">Top Match</div>
@@ -362,12 +361,11 @@
 @push('scripts')
 <script>
 (function () {
-    // Banner Top Match slider — animated dots (no numbers)
+    // Banner Top Match slider — animated dots only (no progress line)
     var banner = document.querySelector('[data-banner-slider]');
     if (banner) {
         var slides = Array.prototype.slice.call(banner.querySelectorAll('[data-banner-slide]'));
         var dots = Array.prototype.slice.call(banner.querySelectorAll('[data-banner-dot]'));
-        var progress = banner.querySelector('[data-banner-progress]');
         var index = 0;
         var timer = null;
         var duration = 6500;
@@ -381,14 +379,15 @@
                 slide.hidden = !on;
             });
             dots.forEach(function (dot, n) {
-                dot.classList.toggle('is-on', n === index);
+                var on = n === index;
+                dot.classList.toggle('is-on', on);
+                var fill = dot.querySelector('[data-banner-dot-fill]');
+                if (fill) {
+                    fill.style.animation = 'none';
+                    void fill.offsetWidth;
+                    if (on) fill.style.animation = '';
+                }
             });
-            if (progress) {
-                progress.style.animation = 'none';
-                // force reflow to restart progress animation
-                void progress.offsetWidth;
-                progress.style.animation = '';
-            }
         }
 
         function next() { show(index + 1); }
@@ -408,7 +407,6 @@
         function restart() {
             if (timer) clearInterval(timer);
             if (slides.length > 1) {
-                if (progress) progress.style.animationDuration = duration + 'ms';
                 timer = setInterval(next, duration);
                 show(index);
             }
