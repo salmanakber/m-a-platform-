@@ -191,8 +191,6 @@
             </div>
         @else
             <div class="nh-top-slider" data-top5-slider>
-                <div class="nh-top-slider__fade nh-top-slider__fade--left" aria-hidden="true"></div>
-                <div class="nh-top-slider__fade nh-top-slider__fade--right" aria-hidden="true"></div>
                 <div class="nh-top-slider__track" data-top5-track>
                     @foreach ($nationalCards as $card)
                         <div class="nh-top-slider__item">
@@ -482,25 +480,14 @@
         var track5 = top5.querySelector('[data-top5-track]');
         var prev5 = document.querySelector('[data-top5-prev]');
         var next5 = document.querySelector('[data-top5-next]');
-        function syncFades() {
-            if (!track5) return;
-            var max = track5.scrollWidth - track5.clientWidth;
-            top5.classList.toggle('is-at-start', track5.scrollLeft <= 4);
-            top5.classList.toggle('is-at-end', max <= 4 || track5.scrollLeft >= max - 4);
-        }
         function move5(dir) {
             if (!track5) return;
             var card = track5.querySelector('.nh-top-slider__item');
-            var step = card ? card.getBoundingClientRect().width + 14 : 280;
+            var step = card ? card.getBoundingClientRect().width + 16 : 280;
             track5.scrollBy({ left: dir * step, behavior: 'smooth' });
         }
         if (prev5) prev5.addEventListener('click', function () { move5(-1); });
         if (next5) next5.addEventListener('click', function () { move5(1); });
-        if (track5) {
-            track5.addEventListener('scroll', syncFades, { passive: true });
-            window.addEventListener('resize', syncFades);
-            syncFades();
-        }
     }
 
     var root = document.querySelector('[data-carousel]');

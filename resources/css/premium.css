@@ -7935,45 +7935,43 @@ body.is-public-redesign .register-stage__benefit-n { color: var(--nh-gold); }
 .nh-slider-nav button:hover { border-color: rgba(197,160,89,0.55); }
 .nh-top-slider {
     position: relative;
-    overflow: hidden;
-    margin: 0 -0.15rem;
-    padding: 0.35rem 0.15rem 0.85rem;
+    overflow: visible;
+    margin: 0;
+    padding: 0;
 }
 .nh-top-slider__track {
-    display: flex; gap: 0.95rem; overflow-x: auto;
-    scroll-snap-type: x mandatory; padding: 0.35rem 0.2rem 0.55rem;
+    display: flex;
+    gap: 1rem;
+    overflow-x: auto;
+    overflow-y: visible;
+    scroll-snap-type: x mandatory;
+    /* Extra padding so card shadows are not clipped while scrolling */
+    padding: 0.55rem 0.35rem 1.65rem;
+    margin: 0 -0.35rem;
     scrollbar-width: none;
     -ms-overflow-style: none;
 }
-.nh-top-slider__track::-webkit-scrollbar { display: none; height: 0; }
+.nh-top-slider__track::-webkit-scrollbar { display: none; height: 0; width: 0; }
 .nh-top-slider__item {
-    flex: 0 0 min(248px, 78vw);
+    flex: 0 0 min(252px, 78vw);
     scroll-snap-align: start;
+    padding: 0.15rem;
 }
 .nh-top-slider__item .nh-card {
-    min-height: 236px; height: 100%;
-    box-shadow: 0 16px 36px rgba(19, 32, 51, 0.1);
+    min-height: 236px;
+    height: 100%;
+    border: 1px solid rgba(19, 32, 51, 0.08);
+    /* Clean layered elevation — no muddy overflow clip */
+    box-shadow:
+        0 1px 2px rgba(19, 32, 51, 0.04),
+        0 8px 20px rgba(19, 32, 51, 0.07);
 }
 .nh-top-slider__item .nh-card:hover {
-    box-shadow: 0 22px 48px rgba(19, 32, 51, 0.16);
+    transform: translateY(-4px);
+    box-shadow:
+        0 2px 4px rgba(19, 32, 51, 0.05),
+        0 16px 32px rgba(19, 32, 51, 0.1);
 }
-.nh-top-slider__fade {
-    position: absolute; top: 0; bottom: 0.4rem; width: 56px; z-index: 2;
-    pointer-events: none; transition: opacity .25s ease;
-}
-.nh-top-slider__fade--left {
-    left: 0;
-    background: linear-gradient(90deg, var(--nh-cream, #f3eee5) 8%, rgba(243,238,229,0));
-    opacity: 0;
-}
-.nh-top-slider__fade--right {
-    right: 0;
-    background: linear-gradient(270deg, var(--nh-cream, #f3eee5) 8%, rgba(243,238,229,0));
-    opacity: 1;
-}
-.nh-top-slider.is-at-start .nh-top-slider__fade--left { opacity: 0; }
-.nh-top-slider:not(.is-at-start) .nh-top-slider__fade--left { opacity: 1; }
-.nh-top-slider.is-at-end .nh-top-slider__fade--right { opacity: 0; }
 
 /* Hero expert finder (custom selects) */
 .nh-finder {
