@@ -41,20 +41,39 @@ class HomeController extends Controller
             ? $this->rankings->cantonTop3((int) $selectedCanton->id)
             : collect();
 
-        $countsByCanton = Expert::query()
-            ->selectRaw('expert_offices.canton_id, COUNT(DISTINCT experts.id) as experts_count')
+        $groupCountsByCanton = Expert::query()
+            ->selectRaw('expert_offices.canton_id, experts.professional_group, COUNT(DISTINCT experts.id) as experts_count')
             ->join('expert_offices', 'expert_offices.expert_id', '=', 'experts.id')
             ->where('experts.status', ExpertStatus::APPROVED)
             ->where('experts.is_public', true)
             ->where('experts.professional_group', '!=', ProfessionalGroup::MARKTPLATZ)
-            ->groupBy('expert_offices.canton_id')
-            ->pluck('experts_count', 'canton_id');
+            ->groupBy('expert_offices.canton_id', 'experts.professional_group')
+            ->get();
+
+        $countsByCanton = [];
+        $breakdownByCanton = [];
+        foreach ($groupCountsByCanton as $row) {
+            $cid = (int) $row->canton_id;
+            $countsByCanton[$cid] = ($countsByCanton[$cid] ?? 0) + (int) $row->experts_count;
+            $breakdownByCanton[$cid][$row->professional_group] = (int) $row->experts_count;
+        }
 
         $cantonTiles = $cantons->map(fn (Canton $canton) => [
             'code' => $canton->code,
             'name' => $canton->name_de,
             'count' => (int) ($countsByCanton[$canton->id] ?? 0),
+            'selected' => $selectedCanton && (int) $selectedCanton->id === (int) $canton->id,
         ]);
+
+        $selectedBreakdown = $selectedCanton
+            ? ($breakdownByCanton[$selectedCanton->id] ?? [])
+            : [];
+        $selectedCantonStats = [
+            'total' => (int) ($selectedCanton ? ($countsByCanton[$selectedCanton->id] ?? 0) : 0),
+            'ma' => (int) ($selectedBreakdown[ProfessionalGroup::MA_SPECIALIST] ?? 0),
+            'jurist' => (int) ($selectedBreakdown[ProfessionalGroup::JURIST] ?? 0),
+            'other' => (int) ($selectedBreakdown[ProfessionalGroup::OTHER] ?? 0),
+        ];
 
         $marktplatzRankings = $this->rankings->nationalTop5(ProfessionalGroup::MARKTPLATZ);
         if ($marktplatzRankings->isEmpty()) {
@@ -98,10 +117,25 @@ class HomeController extends Controller
             ->where('status', ExpertStatus::APPROVED)
             ->where('is_public', true);
 
+        $cantonsCovered = Expert::query()
+            ->where('status', ExpertStatus::APPROVED)
+            ->where('is_public', true)
+            ->where('professional_group', '!=', ProfessionalGroup::MARKTPLATZ)
+            ->join('expert_offices', 'expert_offices.expert_id', '=', 'experts.id')
+            ->whereNotNull('expert_offices.canton_id')
+            ->distinct()
+            ->pluck('expert_offices.canton_id')
+            ->unique()
+            ->count();
+
+        $dealsSum = (int) (clone $approvedPublic)->sum('public_deals_count');
+        $ratingAvg = Expert::query()->whereNotNull('public_rating')->avg('public_rating');
+
         $stats = [
             'experts' => (clone $approvedPublic)->count(),
-            'deals' => (int) (clone $approvedPublic)->sum('public_deals_count'),
-            'rating' => round((float) Expert::query()->whereNotNull('public_rating')->avg('public_rating'), 1),
+            'deals' => $dealsSum > 0 ? $dealsSum : null,
+            'rating' => $ratingAvg !== null ? round((float) $ratingAvg, 1) : null,
+            'cantons_covered' => $cantonsCovered,
         ];
 
         $periodLabel = $heroMatch && $heroMatch->label
@@ -134,9 +168,17 @@ class HomeController extends Controller
             'cantons' => $cantons,
             'cantonTiles' => $cantonTiles,
             'selectedCanton' => $selectedCanton,
+            'selectedCantonStats' => $selectedCantonStats,
             'stats' => $stats,
             'periodLabel' => $periodLabel,
             'groups' => ProfessionalGroup::labels(),
+            'searchObjectives' => [
+                'verkauf' => 'Unternehmensverkauf',
+                'bewertung' => 'Unternehmensbewertung',
+                'mbo' => 'MBO / MBI',
+                'nachfolge' => 'Nachfolgeplanung',
+                'kauf' => 'Kaufberatung',
+            ],
         ]);
     }
 
@@ -149,7 +191,8 @@ class HomeController extends Controller
         return $rankings
             ->filter(fn (Ranking $row) => $row->expert !== null)
             ->values()
-            ->map(fn (Ranking $row) => $this->expertCard($row->expert, (int) $row->position, $row->label))
+            // Display rank = order in the list (avoids duplicate DB positions showing twice).
+            ->map(fn (Ranking $row, int $index) => $this->expertCard($row->expert, $index + 1, $row->label))
             ->filter()
             ->values();
     }
@@ -166,27 +209,31 @@ class HomeController extends Controller
         $office = $expert->primaryOffice();
         $first = trim((string) ($expert->contact_person_name ?: ''));
         $last = trim((string) ($expert->contact_person_last_name ?: ''));
-        $displayName = trim($first.' '.$last);
-        if ($displayName === '') {
-            $displayName = $expert->company_name;
-        }
+        $personName = trim($first.' '.$last);
+        $company = trim((string) $expert->company_name);
 
-        $initials = mb_strtoupper(
-            mb_substr($first !== '' ? $first : $expert->company_name, 0, 1)
-            .mb_substr($last !== '' ? $last : $expert->company_name, 0, 1)
-        );
-        if (mb_strlen($initials) < 2) {
-            $initials = mb_strtoupper(mb_substr($expert->company_name, 0, 2));
+        // Company name is primary for public listings (banner, cards, ranks).
+        $displayName = $company !== '' ? $company : ($personName !== '' ? $personName : 'Experte');
+
+        $initialSource = $company !== '' ? $company : $personName;
+        $initials = mb_strtoupper(mb_substr($initialSource, 0, 2));
+        if (mb_strlen($initials) < 2 && $personName !== '') {
+            $initials = mb_strtoupper(
+                mb_substr($first !== '' ? $first : $personName, 0, 1)
+                .mb_substr($last !== '' ? $last : $personName, 0, 1)
+            );
         }
 
         $group = $expert->professional_group ?: ProfessionalGroup::MA_SPECIALIST;
+        $isOperator = $expert->isPlatformOperator();
 
         return [
             'position' => $position,
             'n' => str_pad((string) $position, 2, '0', STR_PAD_LEFT),
             'label' => $label,
             'display_name' => $displayName,
-            'company' => $expert->company_name,
+            'company' => $company,
+            'person_name' => ($personName !== '' && strcasecmp($personName, $company) !== 0) ? $personName : null,
             'slug' => $expert->slug,
             'url' => route('experts.show', $expert->slug),
             'initials' => $initials,
@@ -196,13 +243,14 @@ class HomeController extends Controller
             'offers_buy' => (bool) $expert->offers_buy,
             'offers_sell' => (bool) $expert->offers_sell,
             'rating' => $expert->public_rating !== null ? number_format((float) $expert->public_rating, 1) : null,
-            'deals' => $expert->public_deals_count,
+            'deals' => $expert->public_deals_count ?: null,
             'city' => $office ? $office->city : null,
             'canton_code' => ($office && $office->canton) ? $office->canton->code : null,
             'place_line' => $office
                 ? trim($office->city.($office->canton ? ' · Kanton '.$office->canton->code : ''))
                 : 'Schweiz',
             'logo' => $expert->logo_path ? asset('storage/'.$expert->logo_path) : null,
+            'is_operator' => $isOperator,
         ];
     }
 
@@ -215,11 +263,11 @@ class HomeController extends Controller
         return $rankings
             ->filter(fn (Ranking $row) => $row->article !== null)
             ->values()
-            ->map(function (Ranking $row) {
+            ->map(function (Ranking $row, int $index) {
                 $article = $row->article;
 
                 return [
-                    'n' => str_pad((string) $row->position, 2, '0', STR_PAD_LEFT),
+                    'n' => str_pad((string) ($index + 1), 2, '0', STR_PAD_LEFT),
                     'title' => $article->title,
                     'url' => route('blog.show', $article->slug),
                     'excerpt' => Str::limit(strip_tags((string) ($article->excerpt ?: $article->body)), 120),

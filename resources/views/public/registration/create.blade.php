@@ -21,7 +21,7 @@
             <li>
                 <span class="register-stage__benefit-n">01</span>
                 <div>
-                    <strong>Profil einreichen</strong>
+                    <strong>Als Experte anmelden</strong>
                     <span>Firma, Standort und Schwerpunkt in wenigen Minuten hinterlegen.</span>
                 </div>
             </li>

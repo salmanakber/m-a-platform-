@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>@yield('title', config('app.name'))</title>
-    <meta name="description" content="@yield('meta_description', 'Das unabhängige Schweizer Verzeichnis für M&A- und Unternehmensnachfolge-Experten.')">
+    <meta name="description" content="@yield('meta_description', 'Das Schweizer Verzeichnis für M&A- und Unternehmensnachfolge-Experten — geprüft, kantonal, diskret.')">
     @include('partials.theme-styles')
     @stack('head')
 </head>
@@ -17,12 +17,12 @@
             </a>
             <button class="nav-toggle" type="button" aria-label="Menü" id="navToggle" aria-expanded="false">☰</button>
             <nav class="site-nav" id="siteNav" aria-label="Hauptnavigation">
-                <a href="{{ route('home') }}#top5" class="{{ request()->routeIs('home') ? 'is-active' : '' }}">Top Experten</a>
-                <a href="{{ route('cantons.index') }}" class="{{ request()->routeIs('cantons.*') ? 'is-active' : '' }}">Kantone</a>
+                <a href="{{ route('home') }}#top5" class="{{ request()->routeIs('home') ? 'is-active' : '' }}">Experten</a>
+                <a href="{{ route('home') }}#marktplaetze">Marktplätze</a>
                 <a href="{{ route('blog.index') }}" class="{{ request()->routeIs('blog.*') ? 'is-active' : '' }}">Fachbeiträge</a>
                 <a href="{{ route('events.index') }}" class="{{ request()->routeIs('events.*') ? 'is-active' : '' }}">Events</a>
-                <a href="{{ route('map.index') }}" class="{{ request()->routeIs('map.*') ? 'is-active' : '' }}">Karte</a>
                 <a href="{{ route('directory.index') }}" class="{{ request()->routeIs('directory.*', 'experts.*') ? 'is-active' : '' }}">Verzeichnis</a>
+                <a href="{{ route('map.index') }}" class="{{ request()->routeIs('map.*') ? 'is-active' : '' }}">Karte</a>
                 @auth
                     @if (auth()->user()->isExpert())
                         <a href="{{ route('expert.dashboard') }}">Mein Bereich</a>
@@ -59,7 +59,7 @@
                     <img src="{{ asset('logo-nachfolge-experten/nachfolge-experten-weiss.svg') }}" alt="" width="36" height="32">
                     <span class="site-logo__text">nachfolge-experten<span>.ch</span></span>
                 </a>
-                <p>Das unabhängige Verzeichnis für M&A- und Nachfolge-Experten in der Schweiz. Eine Initiative der KMU Beratungen GmbH, Sarnen.</p>
+                <p>Das Schweizer Verzeichnis für M&A- und Nachfolge-Experten — geprüft und kantonal. Eine Initiative der KMU Beratungen GmbH, Sarnen.</p>
             </div>
             <div>
                 <h4>Kontakt</h4>
@@ -68,8 +68,8 @@
             </div>
             <div>
                 <h4>Verzeichnis</h4>
-                <a href="{{ route('home') }}#top5">Top Experten</a>
-                <a href="{{ route('cantons.index') }}">Kantons-Auswahl</a>
+                <a href="{{ route('home') }}#top5">Experten</a>
+                <a href="{{ route('home') }}#marktplaetze">Marktplätze</a>
                 <a href="{{ route('blog.index') }}">Fachbeiträge</a>
                 <a href="{{ route('map.index') }}">Schweiz-Karte</a>
             </div>

@@ -1,7 +1,7 @@
 @extends('layouts.public')
 
 @section('title', 'nachfolge-experten.ch — M&A und Unternehmensnachfolge')
-@section('meta_description', 'Das unabhängige Verzeichnis für M&A- und Nachfolge-Experten in der Schweiz — geprüft, kantonal, diskret.')
+@section('meta_description', 'Das Schweizer Verzeichnis für M&A- und Nachfolge-Experten — geprüft, kantonal, diskret. Finden Sie den passenden Spezialisten für Verkauf, Bewertung oder Nachfolge.')
 @section('hero')
 <section class="nh-hero" aria-label="Einstieg">
     <div class="nh-hero__grid" aria-hidden="true"></div>
@@ -13,19 +13,45 @@
                 Ihr Lebenswerk.<br>
                 <em>In neuen, guten Händen.</em>
             </h1>
-            <p class="nh-hero__lead">Das unabhängige Verzeichnis für M&A- und Nachfolge-Experten in der Schweiz — geprüft, kantonal, diskret.</p>
+            <p class="nh-hero__lead">Das Schweizer Verzeichnis für M&A- und Nachfolge-Experten — geprüft, kantonal, diskret.</p>
+
+            <form class="nh-hero-search" method="get" action="{{ route('directory.index') }}" role="search" aria-label="Experten finden">
+                <p class="nh-hero-search__label">Ich möchte verkaufen — wer passt zu mir?</p>
+                <div class="nh-hero-search__row">
+                    <div class="nh-hero-search__field">
+                        <label for="hero_kanton">Kanton</label>
+                        <select class="form-control" name="kanton" id="hero_kanton" required>
+                            <option value="">Kanton wählen</option>
+                            @foreach ($cantons as $canton)
+                                <option value="{{ $canton->code }}" @selected(($selectedCanton->code ?? '') === $canton->code)>{{ $canton->code }} — {{ $canton->name_de }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="nh-hero-search__field">
+                        <label for="hero_ziel">Ziel</label>
+                        <select class="form-control" name="ziel" id="hero_ziel" required>
+                            <option value="">Ziel wählen</option>
+                            @foreach ($searchObjectives as $value => $label)
+                                <option value="{{ $value }}">{{ $label }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <button type="submit" class="nh-btn nh-btn--gold nh-hero-search__btn">Passende Experten finden</button>
+                </div>
+            </form>
+
             <div class="nh-hero__actions">
-                <a class="nh-btn nh-btn--gold" href="#top5">Top 5 Experten ansehen ↓</a>
-                <a class="nh-btn nh-btn--ghost" href="{{ route('cantons.index') }}">Kanton wählen ↗</a>
+                <a class="nh-btn nh-btn--ghost" href="#top5">Top 5 ansehen ↓</a>
+                <a class="nh-btn nh-btn--ghost" href="{{ route('map.index') }}">Schweiz-Karte ↗</a>
             </div>
         </div>
 
-        <aside class="nh-match" aria-label="Top Match" data-banner-slider>
+        <aside class="nh-match" aria-label="Empfohlene Experten" data-banner-slider>
             @if (($bannerCards ?? collect())->isNotEmpty())
                 <div class="nh-match__chrome">
                     <div class="nh-match__badge">
                         <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path fill="currentColor" d="M12 2l2.4 4.9L20 8.2l-3.6 3.5.9 5.2L12 14.8 6.7 16.9l.9-5.2L4 8.2l5.6-1.3L12 2z"/></svg>
-                        Top Match · {{ $periodLabel }}
+                        Empfohlen · {{ $periodLabel }}
                     </div>
                     @if ($bannerCards->count() > 1)
                         <div class="nh-match__nav">
@@ -51,11 +77,17 @@
                                     @endif
                                     <div>
                                         <strong>{{ $card['display_name'] }}</strong>
-                                        <span>{{ $card['company'] }}</span>
+                                        @if (!empty($card['person_name']))
+                                            <span>{{ $card['person_name'] }}</span>
+                                        @elseif (!empty($card['place_line']))
+                                            <span>{{ $card['place_line'] }}</span>
+                                        @endif
                                     </div>
                                 </div>
                                 <div class="nh-match__meta">
-                                    @if ($card['rating'])
+                                    @if (!empty($card['is_operator']))
+                                        <em class="nh-op-tag">Plattform-Betreiber</em>
+                                    @elseif ($card['rating'])
                                         <em>★ {{ $card['rating'] }} / 5.0</em>
                                     @endif
                                     <span>{{ $card['place_line'] }}</span>
@@ -67,7 +99,7 @@
                 </div>
 
                 @if ($bannerCards->count() > 1)
-                    <div class="nh-match__dots" data-banner-dots role="tablist" aria-label="Banner-Slides">
+                    <div class="nh-match__dots" data-banner-dots role="tablist" aria-label="Empfohlene Experten">
                         @foreach ($bannerCards as $index => $card)
                             <button type="button" class="nh-match__dot {{ $index === 0 ? 'is-on' : '' }}" data-banner-dot="{{ $index }}" aria-label="Slide {{ $index + 1 }}">
                                 <span class="nh-match__dot-fill" data-banner-dot-fill></span>
@@ -76,8 +108,8 @@
                     </div>
                 @endif
             @else
-                <div class="nh-match__badge">Top Match</div>
-                <p class="nh-match__empty">Noch kein Top Match für diesen Zeitraum. Entdecken Sie das Verzeichnis der geprüften Experten.</p>
+                <div class="nh-match__badge">Empfohlen</div>
+                <p class="nh-match__empty">Nutzen Sie die Suche links — oder entdecken Sie alle geprüften Profile im Verzeichnis.</p>
                 <a class="nh-btn nh-btn--ghost nh-btn--block" href="{{ route('directory.index') }}">Expertenverzeichnis ↗</a>
             @endif
         </aside>
@@ -85,9 +117,15 @@
 
     <div class="nh-stats">
         <div><b>{{ number_format($stats['experts']) }}</b><span>Geprüfte Experten</span></div>
-        <div><b>{{ $stats['deals'] ? number_format($stats['deals']) : '—' }}</b><span>Begleitete Transaktionen</span></div>
-        <div><b>—</b><span>Transaktionsvolumen CHF</span></div>
-        <div><b>{{ $stats['rating'] ? 'Ø '.number_format($stats['rating'], 1) : '—' }}</b><span>Kundenbewertung</span></div>
+        @if (!empty($stats['cantons_covered']))
+            <div><b>{{ number_format($stats['cantons_covered']) }}</b><span>Kantone abgedeckt</span></div>
+        @endif
+        @if (!empty($stats['deals']))
+            <div><b>{{ number_format($stats['deals']) }}</b><span>Begleitete Transaktionen</span></div>
+        @endif
+        @if (!empty($stats['rating']))
+            <div><b>Ø {{ number_format($stats['rating'], 1) }}</b><span>Kundenbewertung</span></div>
+        @endif
     </div>
 </section>
 @endsection
@@ -149,19 +187,19 @@
         @endif
     </section>
 
-    {{-- Marktplätze --}}
+    {{-- Marktplätze (after Experten) --}}
     <section class="nh-band nh-band--soft" id="marktplaetze">
         <div class="nh-section">
             <div class="nh-section__head">
                 <div>
                     <p class="nh-kicker">Fachgruppe</p>
                     <h2>Marktplätze</h2>
-                    <p>Plattformen und Marktplätze als Rangliste — <strong>nicht</strong> auf der Schweiz-Karte.</p>
+                    <p>Digitale Plattformen und Marktplätze für Unternehmensnachfolge und M&A in der Schweiz.</p>
                 </div>
                 <a class="nh-link" href="{{ route('directory.index', ['gruppe' => 'marktplatz']) }}">Alle Marktplätze →</a>
             </div>
             @if ($marktplatzCards->isEmpty())
-                <div class="nh-empty">Noch keine Marktplätze. Fachgruppe «Marktplätze» am Experten setzen oder Ranking anlegen.</div>
+                <div class="nh-empty">Derzeit sind noch keine Marktplätze veröffentlicht.</div>
             @else
                 <div class="nh-topgrid">
                     @foreach ($marktplatzCards as $card)
@@ -178,7 +216,7 @@
             <div>
                 <p class="nh-kicker">Regional</p>
                 <h2>Top 3 Experten je Kanton</h2>
-                <p>Regional verankert, national geprüft: die drei führenden Experten Ihres Kantons.</p>
+                <p>Wählen Sie Ihren Kanton — sehen Sie aktive Experten vor Ort und die kuratierte Top 3.</p>
             </div>
             <a class="nh-link" href="{{ route('cantons.index') }}">Alle Kantone →</a>
         </div>
@@ -186,8 +224,9 @@
         @if (($cantonTiles ?? collect())->isNotEmpty())
             <div class="nh-discover-cantons" aria-label="Kantons-Auswahl">
                 @foreach ($cantonTiles as $tile)
-                    <a class="nh-discover-cantons__tile {{ ($tile['count'] ?? 0) > 0 ? 'is-live' : '' }}"
-                       href="{{ route('home', ['kanton' => $tile['code']]) }}#kantone-top">
+                    <a class="nh-discover-cantons__tile {{ ($tile['count'] ?? 0) > 0 ? 'is-live' : '' }} {{ !empty($tile['selected']) ? 'is-selected' : '' }}"
+                       href="{{ route('home', ['kanton' => $tile['code']]) }}#kantone-top"
+                       @if(!empty($tile['selected'])) aria-current="true" @endif>
                         <b>{{ $tile['code'] }}</b>
                         <span>{{ $tile['name'] }}</span>
                         <em>{{ ($tile['count'] ?? 0) > 0 ? $tile['count'] : '—' }}</em>
@@ -196,29 +235,38 @@
             </div>
         @endif
 
-        <div class="nh-canton">
-            <aside class="nh-canton__rail">
-                <p class="nh-canton__label">Kanton wählen</p>
-                <div class="nh-canton__list">
-                    @foreach ($cantons as $canton)
-                        <a class="{{ ($selectedCanton && $selectedCanton->id === $canton->id) ? 'is-on' : '' }}"
-                           href="{{ route('home', ['kanton' => $canton->code]) }}#kantone-top">
-                            <b>{{ $canton->code }}</b>
-                            <span>{{ $canton->name_de }}</span>
-                        </a>
-                    @endforeach
-                </div>
-            </aside>
+        <div class="nh-canton nh-canton--single">
             <div class="nh-canton__main">
                 <div class="nh-canton__title">
                     <h3>Top 3 in {{ $selectedCanton->name_de ?? '—' }}</h3>
-                    <span>Kanton: {{ $selectedCanton->code ?? '—' }}</span>
+                    <span>Kanton {{ $selectedCanton->code ?? '—' }} · vorausgewählt</span>
                 </div>
+
+                @php $cs = $selectedCantonStats ?? ['total' => 0, 'ma' => 0, 'jurist' => 0, 'other' => 0]; @endphp
+                <div class="nh-canton__stats" aria-label="Aktive Experten in diesem Kanton">
+                    <span><b>{{ $cs['total'] }}</b> aktive Experten</span>
+                    @if (($cs['ma'] ?? 0) > 0)
+                        <span><b>{{ $cs['ma'] }}</b> M&A-Spezialisten</span>
+                    @endif
+                    @if (($cs['jurist'] ?? 0) > 0)
+                        <span><b>{{ $cs['jurist'] }}</b> Juristen</span>
+                    @endif
+                    @if (($cs['other'] ?? 0) > 0)
+                        <span><b>{{ $cs['other'] }}</b> Weitere</span>
+                    @endif
+                </div>
+
                 @if ($cantonCards->isEmpty())
                     <div class="nh-empty nh-empty--panel">
-                        <strong>Noch keine Experten in {{ $selectedCanton->name_de ?? 'diesem Kanton' }}.</strong>
-                        <p>In diesem Kanton sind derzeit keine geprüften Top-Plätze gesetzt — der Platz ist noch frei.</p>
-                        <a class="nh-btn nh-btn--navy" href="{{ route('registration.create') }}">Als Experte anmelden ↗</a>
+                        <strong>Noch keine Top-3-Ränge in {{ $selectedCanton->name_de ?? 'diesem Kanton' }}.</strong>
+                        <p>
+                            @if (($cs['total'] ?? 0) > 0)
+                                In diesem Kanton sind {{ $cs['total'] }} geprüfte Experten aktiv — eine kuratierte Top-3-Liste folgt.
+                            @else
+                                In diesem Kanton sind derzeit keine geprüften Experten gelistet.
+                            @endif
+                        </p>
+                        <a class="nh-btn nh-btn--navy" href="{{ route('directory.index', ['kanton' => $selectedCanton->code ?? '']) }}">Im Verzeichnis ansehen ↗</a>
                     </div>
                 @else
                     <div class="nh-canton__cards">
@@ -232,7 +280,12 @@
                                 @endif
                                 <div class="nh-rankrow__copy">
                                     <strong>{{ $card['display_name'] }}</strong>
-                                    <span>{{ $card['company'] }}</span>
+                                    @if (!empty($card['person_name']))
+                                        <span>{{ $card['person_name'] }}</span>
+                                    @endif
+                                    @if (!empty($card['is_operator']))
+                                        <span class="nh-op-tag">Plattform-Betreiber</span>
+                                    @endif
                                 </div>
                                 <div class="nh-rankrow__meta">
                                     @if ($card['rating'])
@@ -258,7 +311,7 @@
                 <div>
                     <p class="nh-kicker">Wissen</p>
                     <h2>Fachbeiträge zur Nachfolge</h2>
-                    <p>Top 3 kuratiert — weitere Beiträge im Karussell. Ohne Kantons-Differenzierung.</p>
+                    <p>Aktuelle Beiträge von Experten zu Verkauf, Bewertung und Nachfolge.</p>
                 </div>
                 <a class="nh-link nh-link--light" href="{{ route('blog.index') }}">Alle Beiträge →</a>
             </div>
@@ -302,7 +355,7 @@
             <div>
                 <p class="nh-kicker">Veranstaltungen</p>
                 <h2>Events &amp; Webinare</h2>
-                <p>Vergangene Termine verschwinden von der Startseite, bleiben im Expertenprofil sichtbar. Anmeldung geht an den Experten.</p>
+                <p>Kommende Veranstaltungen zu Nachfolge und M&A — Anmeldung geht direkt an den Experten.</p>
             </div>
             <a class="nh-link" href="{{ route('events.index') }}">Alle Events →</a>
         </div>
@@ -351,9 +404,9 @@
     <section class="nh-cta">
         <div class="nh-cta__inner">
             <p class="nh-kicker" style="justify-content:center;display:flex;">Für Experten</p>
-            <h2>Beraten und begleiten Sie Eigentümer bei der Weitergabe der Unternehmung? <em>Listen Sie Ihr Profil.</em></h2>
-            <a class="nh-btn nh-btn--gold" href="{{ route('registration.create') }}">Profil einreichen ↗</a>
-            <p class="nh-cta__map"><a href="{{ route('map.index') }}">Schweiz-Karte öffnen (Unterseite) →</a></p>
+            <h2>Beraten und begleiten Sie Eigentümer bei der Weitergabe ihres Unternehmens? <em>Listen Sie Ihr Profil.</em></h2>
+            <a class="nh-btn nh-btn--gold" href="{{ route('registration.create') }}">Als Experte anmelden ↗</a>
+            <p class="nh-cta__map"><a href="{{ route('map.index') }}">Schweiz-Karte öffnen →</a></p>
         </div>
     </section>
 </div>
@@ -361,7 +414,6 @@
 @push('scripts')
 <script>
 (function () {
-    // Banner Top Match slider — animated dots only (no progress line)
     var banner = document.querySelector('[data-banner-slider]');
     if (banner) {
         var slides = Array.prototype.slice.call(banner.querySelectorAll('[data-banner-slide]'));
@@ -414,7 +466,6 @@
         restart();
     }
 
-    // Top 5 horizontal slider
     var top5 = document.querySelector('[data-top5-slider]');
     if (top5) {
         var track5 = top5.querySelector('[data-top5-track]');
@@ -430,7 +481,6 @@
         if (next5) next5.addEventListener('click', function () { move5(1); });
     }
 
-    // Articles carousel
     var root = document.querySelector('[data-carousel]');
     if (root) {
         var track = root.querySelector('[data-carousel-track]');

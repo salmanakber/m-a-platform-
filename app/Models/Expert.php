@@ -115,4 +115,18 @@ class Expert extends Model
     {
         return $this->hasMany(ExpertMedia::class)->orderBy('sort_order')->orderBy('id');
     }
+
+    /**
+     * Platform operator (KMU Beratungen) — label publicly to avoid "independent" conflict.
+     */
+    public function isPlatformOperator(): bool
+    {
+        $name = mb_strtolower(trim((string) $this->company_name));
+        $email = mb_strtolower(trim((string) $this->email));
+        $website = mb_strtolower(trim((string) $this->website));
+
+        return str_contains($name, 'kmu beratungen')
+            || str_contains($email, 'kmuberatungen')
+            || str_contains($website, 'kmuberatungen');
+    }
 }

@@ -33,7 +33,7 @@
             <div class="nh-empty nh-empty--panel">
                 <strong>Noch keine Experten in {{ $canton->name_de }}.</strong>
                 <p>In diesem Kanton sind derzeit keine geprüften Profile gelistet — der Platz ist noch frei.</p>
-                <a class="nh-btn nh-btn--navy" href="{{ route('registration.create') }}">Als Experte anmelden ↗</a>
+                <a class="nh-btn nh-btn--navy" href="{{ route('directory.index') }}">Im Verzeichnis ansehen ↗</a>
             </div>
         @else
             <div class="nh-profile-list">

@@ -25,12 +25,26 @@ class DirectoryController extends Controller
     public function index(Request $request): View
     {
         $direction = $request->query('richtung');
+        $ziel = strtolower(trim((string) $request->query('ziel', '')));
         $cantonCode = strtoupper(trim((string) $request->query('kanton', '')));
         $group = trim((string) $request->query('gruppe', ''));
         if ($group !== '' && ! in_array($group, ProfessionalGroup::all(), true)) {
             $group = '';
         }
         $q = trim((string) $request->query('q', ''));
+
+        // Hero search objectives → directory filters
+        if ($ziel === 'verkauf' || $ziel === 'verkaufen') {
+            $direction = 'verkaufen';
+        } elseif ($ziel === 'kauf' || $ziel === 'kaufen') {
+            $direction = 'kaufen';
+        } elseif ($ziel === 'bewertung' && $q === '') {
+            $q = 'Bewertung';
+        } elseif ($ziel === 'mbo' && $q === '') {
+            $q = 'MBO';
+        } elseif ($ziel === 'nachfolge' && $q === '') {
+            $q = 'Nachfolge';
+        }
 
         $promotedExpertIds = Promotion::query()
             ->where('status', PromotionStatus::ACTIVE)

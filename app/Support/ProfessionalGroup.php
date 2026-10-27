@@ -16,10 +16,10 @@ final class ProfessionalGroup
     public static function labels(): array
     {
         return [
-            self::MA_SPECIALIST => 'M&A Specialists',
+            self::MA_SPECIALIST => 'M&A-Spezialisten',
             self::JURIST => 'Juristen',
             self::MARKTPLATZ => 'Marktplätze',
-            self::OTHER => 'Others',
+            self::OTHER => 'Weitere',
         ];
     }
 
