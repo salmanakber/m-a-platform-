@@ -19,10 +19,7 @@
             <nav class="site-nav" id="siteNav" aria-label="Hauptnavigation">
                 <a href="{{ route('home') }}#top5" class="{{ request()->routeIs('home') ? 'is-active' : '' }}">Experten</a>
                 <a href="{{ route('home') }}#marktplaetze">Marktplätze</a>
-                <a href="{{ route('blog.index') }}" class="{{ request()->routeIs('blog.*') ? 'is-active' : '' }}">Fachbeiträge</a>
-                <a href="{{ route('events.index') }}" class="{{ request()->routeIs('events.*') ? 'is-active' : '' }}">Events</a>
                 <a href="{{ route('directory.index') }}" class="{{ request()->routeIs('directory.*', 'experts.*') ? 'is-active' : '' }}">Verzeichnis</a>
-                <a href="{{ route('map.index') }}" class="{{ request()->routeIs('map.*') ? 'is-active' : '' }}">Karte</a>
                 @auth
                     @if (auth()->user()->isExpert())
                         <a href="{{ route('expert.dashboard') }}">Mein Bereich</a>
@@ -55,8 +52,8 @@
     <footer class="site-footer">
         <div class="container site-footer__grid">
             <div>
-                <a class="site-logo" href="{{ route('home') }}">
-                    <img src="{{ asset('logo-nachfolge-experten/nachfolge-experten-weiss.svg') }}" alt="" width="36" height="32">
+                <a class="site-logo site-logo--footer" href="{{ route('home') }}">
+                    <img src="{{ asset('logo-nachfolge-experten/logo-nachfolge-experten.svg') }}" alt="" width="36" height="32">
                     <span class="site-logo__text">nachfolge-experten<span>.ch</span></span>
                 </a>
                 <p>Das Schweizer Verzeichnis für M&A- und Nachfolge-Experten — geprüft und kantonal. Eine Initiative der KMU Beratungen GmbH, Sarnen.</p>
@@ -67,11 +64,14 @@
                 <a href="mailto:kontakt@nachfolge-experten.ch">kontakt@nachfolge-experten.ch</a>
             </div>
             <div>
-                <h4>Verzeichnis</h4>
+                <h4>Entdecken</h4>
                 <a href="{{ route('home') }}#top5">Experten</a>
                 <a href="{{ route('home') }}#marktplaetze">Marktplätze</a>
+                <a href="{{ route('directory.index') }}">Verzeichnis</a>
                 <a href="{{ route('blog.index') }}">Fachbeiträge</a>
+                <a href="{{ route('events.index') }}">Events</a>
                 <a href="{{ route('map.index') }}">Schweiz-Karte</a>
+                <a href="{{ route('cantons.index') }}">Kantone</a>
             </div>
             <div>
                 <h4>Rechtliches</h4>

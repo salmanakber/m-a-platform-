@@ -15,35 +15,50 @@
             </h1>
             <p class="nh-hero__lead">Das Schweizer Verzeichnis für M&A- und Nachfolge-Experten — geprüft, kantonal, diskret.</p>
 
-            <form class="nh-hero-search" method="get" action="{{ route('directory.index') }}" role="search" aria-label="Experten finden">
-                <p class="nh-hero-search__label">Ich möchte verkaufen — wer passt zu mir?</p>
-                <div class="nh-hero-search__row">
-                    <div class="nh-hero-search__field">
-                        <label for="hero_kanton">Kanton</label>
-                        <select class="form-control" name="kanton" id="hero_kanton" required>
-                            <option value="">Kanton wählen</option>
-                            @foreach ($cantons as $canton)
-                                <option value="{{ $canton->code }}" @selected(($selectedCanton->code ?? '') === $canton->code)>{{ $canton->code }} — {{ $canton->name_de }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-                    <div class="nh-hero-search__field">
-                        <label for="hero_ziel">Ziel</label>
-                        <select class="form-control" name="ziel" id="hero_ziel" required>
-                            <option value="">Ziel wählen</option>
-                            @foreach ($searchObjectives as $value => $label)
-                                <option value="{{ $value }}">{{ $label }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-                    <button type="submit" class="nh-btn nh-btn--gold nh-hero-search__btn">Passende Experten finden</button>
+            <form class="nh-finder" method="get" action="{{ route('directory.index') }}" role="search" aria-label="Experten finden" data-hero-finder>
+                <div class="nh-finder__head">
+                    <span class="nh-finder__eyebrow">Expertenfinder</span>
+                    <p class="nh-finder__title">Ich möchte verkaufen — wer passt zu mir?</p>
                 </div>
+                <div class="nh-finder__row">
+                    <div class="nh-finder__field" data-fancy-select>
+                        <span class="nh-finder__label">Kanton</span>
+                        <input type="hidden" name="kanton" value="{{ $selectedCanton->code ?? '' }}" data-fancy-value required>
+                        <button type="button" class="nh-finder__trigger" data-fancy-trigger aria-haspopup="listbox" aria-expanded="false">
+                            <span data-fancy-label>{{ ($selectedCanton->code ?? '') !== '' ? ($selectedCanton->code.' — '.$selectedCanton->name_de) : 'Kanton wählen' }}</span>
+                            <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M7 10l5 5 5-5z"/></svg>
+                        </button>
+                        <ul class="nh-finder__menu" data-fancy-menu role="listbox" hidden>
+                            <li role="option" data-value="" data-label="Kanton wählen">Kanton wählen</li>
+                            @foreach ($cantons as $canton)
+                                <li role="option" data-value="{{ $canton->code }}" data-label="{{ $canton->code }} — {{ $canton->name_de }}" @if(($selectedCanton->code ?? '') === $canton->code) aria-selected="true" @endif>
+                                    <b>{{ $canton->code }}</b>
+                                    <span>{{ $canton->name_de }}</span>
+                                </li>
+                            @endforeach
+                        </ul>
+                    </div>
+                    <div class="nh-finder__field" data-fancy-select>
+                        <span class="nh-finder__label">Ziel</span>
+                        <input type="hidden" name="ziel" value="" data-fancy-value required>
+                        <button type="button" class="nh-finder__trigger" data-fancy-trigger aria-haspopup="listbox" aria-expanded="false">
+                            <span data-fancy-label>Ziel wählen</span>
+                            <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M7 10l5 5 5-5z"/></svg>
+                        </button>
+                        <ul class="nh-finder__menu" data-fancy-menu role="listbox" hidden>
+                            <li role="option" data-value="" data-label="Ziel wählen">Ziel wählen</li>
+                            @foreach ($searchObjectives as $value => $label)
+                                <li role="option" data-value="{{ $value }}" data-label="{{ $label }}">{{ $label }}</li>
+                            @endforeach
+                        </ul>
+                    </div>
+                    <button type="submit" class="nh-btn nh-btn--gold nh-finder__submit">
+                        <span>Passende finden</span>
+                        <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M10 6l-1.4 1.4L12.2 12l-3.6 4.6L10 18l6-6z"/></svg>
+                    </button>
+                </div>
+                <p class="nh-finder__hint">Kanton und Ziel wählen — wir zeigen geprüfte Experten im Verzeichnis.</p>
             </form>
-
-            <div class="nh-hero__actions">
-                <a class="nh-btn nh-btn--ghost" href="#top5">Top 5 ansehen ↓</a>
-                <a class="nh-btn nh-btn--ghost" href="{{ route('map.index') }}">Schweiz-Karte ↗</a>
-            </div>
         </div>
 
         <aside class="nh-match" aria-label="Empfohlene Experten" data-banner-slider>
@@ -176,6 +191,8 @@
             </div>
         @else
             <div class="nh-top-slider" data-top5-slider>
+                <div class="nh-top-slider__fade nh-top-slider__fade--left" aria-hidden="true"></div>
+                <div class="nh-top-slider__fade nh-top-slider__fade--right" aria-hidden="true"></div>
                 <div class="nh-top-slider__track" data-top5-track>
                     @foreach ($nationalCards as $card)
                         <div class="nh-top-slider__item">
@@ -229,31 +246,17 @@
                        @if(!empty($tile['selected'])) aria-current="true" @endif>
                         <b>{{ $tile['code'] }}</b>
                         <span>{{ $tile['name'] }}</span>
-                        <em>{{ ($tile['count'] ?? 0) > 0 ? $tile['count'] : '—' }}</em>
                     </a>
                 @endforeach
             </div>
         @endif
 
+        @php $cs = $selectedCantonStats ?? ['total' => 0, 'ma' => 0, 'jurist' => 0, 'other' => 0]; @endphp
         <div class="nh-canton nh-canton--single">
             <div class="nh-canton__main">
                 <div class="nh-canton__title">
                     <h3>Top 3 in {{ $selectedCanton->name_de ?? '—' }}</h3>
                     <span>Kanton {{ $selectedCanton->code ?? '—' }} · vorausgewählt</span>
-                </div>
-
-                @php $cs = $selectedCantonStats ?? ['total' => 0, 'ma' => 0, 'jurist' => 0, 'other' => 0]; @endphp
-                <div class="nh-canton__stats" aria-label="Aktive Experten in diesem Kanton">
-                    <span><b>{{ $cs['total'] }}</b> aktive Experten</span>
-                    @if (($cs['ma'] ?? 0) > 0)
-                        <span><b>{{ $cs['ma'] }}</b> M&A-Spezialisten</span>
-                    @endif
-                    @if (($cs['jurist'] ?? 0) > 0)
-                        <span><b>{{ $cs['jurist'] }}</b> Juristen</span>
-                    @endif
-                    @if (($cs['other'] ?? 0) > 0)
-                        <span><b>{{ $cs['other'] }}</b> Weitere</span>
-                    @endif
                 </div>
 
                 @if ($cantonCards->isEmpty())
@@ -266,7 +269,6 @@
                                 In diesem Kanton sind derzeit keine geprüften Experten gelistet.
                             @endif
                         </p>
-                        <a class="nh-btn nh-btn--navy" href="{{ route('directory.index', ['kanton' => $selectedCanton->code ?? '']) }}">Im Verzeichnis ansehen ↗</a>
                     </div>
                 @else
                     <div class="nh-canton__cards">
@@ -300,6 +302,15 @@
                         @endforeach
                     </div>
                 @endif
+
+                <a class="nh-canton__all" href="{{ route('directory.index', ['kanton' => $selectedCanton->code ?? '']) }}">
+                    <span class="nh-canton__all-copy">
+                        <strong>Alle Experten in {{ $selectedCanton->name_de ?? 'diesem Kanton' }}</strong>
+                        <em>{{ (int) ($cs['total'] ?? 0) }} geprüfte Profile im Verzeichnis</em>
+                    </span>
+                    <span class="nh-canton__all-count">{{ (int) ($cs['total'] ?? 0) }}</span>
+                    <span class="nh-canton__all-cta">Alle ansehen →</span>
+                </a>
             </div>
         </div>
     </section>
@@ -471,6 +482,12 @@
         var track5 = top5.querySelector('[data-top5-track]');
         var prev5 = document.querySelector('[data-top5-prev]');
         var next5 = document.querySelector('[data-top5-next]');
+        function syncFades() {
+            if (!track5) return;
+            var max = track5.scrollWidth - track5.clientWidth;
+            top5.classList.toggle('is-at-start', track5.scrollLeft <= 4);
+            top5.classList.toggle('is-at-end', max <= 4 || track5.scrollLeft >= max - 4);
+        }
         function move5(dir) {
             if (!track5) return;
             var card = track5.querySelector('.nh-top-slider__item');
@@ -479,6 +496,11 @@
         }
         if (prev5) prev5.addEventListener('click', function () { move5(-1); });
         if (next5) next5.addEventListener('click', function () { move5(1); });
+        if (track5) {
+            track5.addEventListener('scroll', syncFades, { passive: true });
+            window.addEventListener('resize', syncFades);
+            syncFades();
+        }
     }
 
     var root = document.querySelector('[data-carousel]');
@@ -492,6 +514,79 @@
         }
         if (prev) prev.addEventListener('click', function () { move(-1); });
         if (next) next.addEventListener('click', function () { move(1); });
+    }
+
+    // Custom hero selects
+    document.querySelectorAll('[data-fancy-select]').forEach(function (wrap) {
+        var trigger = wrap.querySelector('[data-fancy-trigger]');
+        var menu = wrap.querySelector('[data-fancy-menu]');
+        var label = wrap.querySelector('[data-fancy-label]');
+        var input = wrap.querySelector('[data-fancy-value]');
+        if (!trigger || !menu || !label || !input) return;
+
+        function close() {
+            menu.hidden = true;
+            trigger.setAttribute('aria-expanded', 'false');
+            wrap.classList.remove('is-open');
+        }
+        function open() {
+            document.querySelectorAll('[data-fancy-select].is-open').forEach(function (other) {
+                if (other !== wrap) {
+                    var m = other.querySelector('[data-fancy-menu]');
+                    var t = other.querySelector('[data-fancy-trigger]');
+                    if (m) m.hidden = true;
+                    if (t) t.setAttribute('aria-expanded', 'false');
+                    other.classList.remove('is-open');
+                }
+            });
+            menu.hidden = false;
+            trigger.setAttribute('aria-expanded', 'true');
+            wrap.classList.add('is-open');
+        }
+
+        trigger.addEventListener('click', function (e) {
+            e.preventDefault();
+            if (menu.hidden) open(); else close();
+        });
+
+        menu.querySelectorAll('[role="option"]').forEach(function (opt) {
+            opt.addEventListener('click', function () {
+                var value = opt.getAttribute('data-value') || '';
+                var text = opt.getAttribute('data-label') || opt.textContent.trim();
+                input.value = value;
+                label.textContent = text;
+                menu.querySelectorAll('[role="option"]').forEach(function (o) {
+                    o.removeAttribute('aria-selected');
+                });
+                if (value !== '') opt.setAttribute('aria-selected', 'true');
+                close();
+            });
+        });
+    });
+
+    document.addEventListener('click', function (e) {
+        if (e.target.closest('[data-fancy-select]')) return;
+        document.querySelectorAll('[data-fancy-select].is-open').forEach(function (wrap) {
+            var m = wrap.querySelector('[data-fancy-menu]');
+            var t = wrap.querySelector('[data-fancy-trigger]');
+            if (m) m.hidden = true;
+            if (t) t.setAttribute('aria-expanded', 'false');
+            wrap.classList.remove('is-open');
+        });
+    });
+
+    var finder = document.querySelector('[data-hero-finder]');
+    if (finder) {
+        finder.addEventListener('submit', function (e) {
+            var kanton = finder.querySelector('[name="kanton"]');
+            var ziel = finder.querySelector('[name="ziel"]');
+            if (!kanton || !ziel || !kanton.value || !ziel.value) {
+                e.preventDefault();
+                finder.classList.add('is-invalid');
+                return;
+            }
+            finder.classList.remove('is-invalid');
+        });
     }
 })();
 </script>
