@@ -75,18 +75,27 @@ class WebsiteCrawler
             ...array_map(fn ($path) => $this->normalizeUrl($origin.$path), self::HUB_PATHS),
         ])));
 
-        // Sitemap (incl. nested post sitemaps)
-        foreach ($this->fetchSitemapUrls($origin.'/sitemap.xml', 0) as $url) {
-            $candidates[] = $url;
-        }
-        foreach (['/sitemap_index.xml', '/wp-sitemap.xml', '/sitemap-index.xml', '/post-sitemap.xml', '/news-sitemap.xml'] as $extra) {
-            foreach ($this->fetchSitemapUrls($origin.$extra, 0) as $url) {
+        // Sitemaps from robots.txt + common paths (Wix, WordPress, …)
+        $sitemapSeeds = array_values(array_unique(array_merge(
+            $this->sitemapsFromRobots($origin),
+            [
+                $origin.'/sitemap.xml',
+                $origin.'/sitemap_index.xml',
+                $origin.'/wp-sitemap.xml',
+                $origin.'/sitemap-index.xml',
+                $origin.'/post-sitemap.xml',
+                $origin.'/news-sitemap.xml',
+                $origin.'/blog-sitemap.xml',
+            ]
+        )));
+        foreach ($sitemapSeeds as $sitemapUrl) {
+            foreach ($this->fetchSitemapUrls($sitemapUrl, 0) as $url) {
                 $candidates[] = $url;
             }
         }
 
-        // RSS / Atom
-        foreach (['/feed', '/rss', '/blog/feed', '/news/feed', '/atom.xml', '/index.xml', '/feed.xml'] as $feedPath) {
+        // RSS / Atom (incl. Wix blog-feed.xml)
+        foreach (['/feed', '/rss', '/blog/feed', '/news/feed', '/atom.xml', '/index.xml', '/feed.xml', '/blog-feed.xml', '/blog/feed.xml'] as $feedPath) {
             foreach ($this->fetchRssUrls($origin.$feedPath) as $url) {
                 $candidates[] = $url;
             }
@@ -503,12 +512,17 @@ class WebsiteCrawler
         $score = 0;
         $boost = [
             'blog' => 40, 'news' => 40, 'artikel' => 35, 'article' => 35,
-            'wissen' => 30, 'aktuell' => 30, 'insights' => 30, 'post' => 28,
+            'wissen' => 30, 'aktuell' => 30, 'insights' => 30, 'post' => 45,
             'magazin' => 28, 'beitrag' => 28, 'presse' => 22, 'media' => 15,
             'nachfolge' => 18, 'unternehmen' => 10, 'fach' => 12,
             'event' => 42, 'veranstaltung' => 42, 'workshop' => 40, 'seminar' => 38,
             'hearing' => 36, 'agenda' => 34, 'termin' => 32, 'Vortrag' => 0, 'vortrag' => 34,
         ];
+
+        // Wix-style /post/slug articles
+        if (preg_match('#^/post/[^/]+#', $path)) {
+            $score += 50;
+        }
 
         foreach ($boost as $needle => $points) {
             if (str_contains($path, $needle)) {
@@ -596,6 +610,8 @@ class WebsiteCrawler
         }
 
         $url = trim($url);
+        // Encode non-ASCII path chars so FILTER_VALIDATE_URL accepts umlaut slugs (Wix etc.)
+        $url = $this->encodeUrlPath($url);
         if (! filter_var($url, FILTER_VALIDATE_URL)) {
             return null;
         }
@@ -630,6 +646,65 @@ class WebsiteCrawler
         }
 
         return rtrim($normalized, '#');
+    }
+
+    /**
+     * Percent-encode non-ASCII characters in the URL path (keeps already-encoded segments).
+     */
+    private function encodeUrlPath(string $url): string
+    {
+        $parts = parse_url($url);
+        if ($parts === false || empty($parts['scheme']) || empty($parts['host']) || empty($parts['path'])) {
+            return $url;
+        }
+
+        $segments = explode('/', $parts['path']);
+        $encoded = array_map(static function (string $segment): string {
+            if ($segment === '') {
+                return '';
+            }
+            // Decode first so we don't double-encode, then encode UTF-8 safely.
+            $decoded = rawurldecode($segment);
+
+            return rawurlencode($decoded);
+        }, $segments);
+
+        $rebuild = $parts['scheme'].'://'.$parts['host'];
+        if (! empty($parts['port'])) {
+            $rebuild .= ':'.$parts['port'];
+        }
+        $rebuild .= implode('/', $encoded);
+        if (! empty($parts['query'])) {
+            $rebuild .= '?'.$parts['query'];
+        }
+        if (! empty($parts['fragment'])) {
+            $rebuild .= '#'.$parts['fragment'];
+        }
+
+        return $rebuild;
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function sitemapsFromRobots(string $origin): array
+    {
+        $body = $this->fetchHtml(rtrim($origin, '/').'/robots.txt');
+        if ($body === null || $body === '') {
+            return [];
+        }
+
+        $urls = [];
+        if (preg_match_all('/^Sitemap:\s*(\S+)/im', $body, $matches)) {
+            foreach ($matches[1] as $loc) {
+                $normalized = $this->normalizeUrl(trim($loc));
+                if ($normalized !== null) {
+                    $urls[] = $normalized;
+                }
+            }
+        }
+
+        return $urls;
     }
 
     private function absolutizeUrl(string $href, string $baseUrl): ?string

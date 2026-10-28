@@ -1,13 +1,19 @@
 @extends('layouts.public')
 
 @section('title', $expert->company_name.' — nachfolge-experten.ch')
-@section('meta_description', 'Vertrauliche Kontaktaufnahme mit '.$expert->company_name.' über nachfolge-experten.ch')
+@section('meta_description', $expert->company_name.' auf nachfolge-experten.ch')
 @section('flush')
 @endsection
 
 @section('content')
 @php
     $offices = $offices ?? collect([$office])->filter();
+    $isMarketplace = ($expert->professional_group ?? '') === \App\Support\ProfessionalGroup::MARKTPLATZ;
+    $website = trim((string) ($expert->website ?? ''));
+    if ($website !== '' && ! preg_match('#^https?://#i', $website)) {
+        $website = 'https://'.$website;
+    }
+    $websiteHost = $website !== '' ? (parse_url($website, PHP_URL_HOST) ?: $website) : null;
 @endphp
 
 <div class="page-main--flush">
@@ -16,7 +22,9 @@
     </div>
     <section class="xp-stage">
         <div class="container">
-            <a class="xp-stage__crumb" href="{{ route('directory.index') }}">← Expertenverzeichnis</a>
+            <a class="xp-stage__crumb" href="{{ $isMarketplace ? route('directory.index', ['gruppe' => 'marktplatz']) : route('directory.index') }}">
+                ← {{ $isMarketplace ? 'Marktplätze' : 'Expertenverzeichnis' }}
+            </a>
             <div class="xp-stage__grid reveal-on-scroll">
                 <div class="xp-mark logo-pos--{{ $expert->logo_position ?? 'left' }}" aria-hidden="true">
                     @if ($expert->logo_path)
@@ -28,7 +36,14 @@
                 <div class="xp-stage__meta">
                     <p class="xp-stage__eyebrow">{{ \App\Support\ProfessionalGroup::label($expert->professional_group ?? 'ma_specialist') }} · Schweiz</p>
                     <h1 class="xp-stage__name">{{ $expert->company_name }}</h1>
-                    @if ($office)
+                    @if ($isMarketplace)
+                        <p class="xp-stage__place">Schweizweit · Digitaler Marktplatz</p>
+                        @if ($websiteHost)
+                            <p class="xp-stage__web">
+                                <a href="{{ $website }}" target="_blank" rel="noopener">{{ $websiteHost }} ↗</a>
+                            </p>
+                        @endif
+                    @elseif ($office)
                         <p class="xp-stage__place">
                             {{ $office->address_line }}<br>
                             {{ $office->postal_code }} {{ $office->city }}
@@ -39,9 +54,13 @@
                     @endif
                     <div class="xp-stage__chips">
                         <span class="xp-chip">{{ \App\Support\ProfessionalGroup::label($expert->professional_group ?? 'ma_specialist') }}</span>
-                        @if ($expert->offers_buy)<span class="xp-chip">Kauf</span>@endif
-                        @if ($expert->offers_sell)<span class="xp-chip">Verkauf</span>@endif
-                        @if ($office && $office->canton)<span class="xp-chip">{{ $office->canton->code }}</span>@endif
+                        @if ($isMarketplace)
+                            <span class="xp-chip">CH</span>
+                        @else
+                            @if ($expert->offers_buy)<span class="xp-chip">Kauf</span>@endif
+                            @if ($expert->offers_sell)<span class="xp-chip">Verkauf</span>@endif
+                            @if ($office && $office->canton)<span class="xp-chip">{{ $office->canton->code }}</span>@endif
+                        @endif
                         <span class="xp-chip">Geprüft</span>
                     </div>
                 </div>
@@ -52,42 +71,71 @@
     <div class="xp-body">
         <div class="container">
             @include('partials.flash')
-            <div class="xp-layout">
+            <div class="xp-layout {{ $isMarketplace ? 'xp-layout--single' : '' }}">
                 <div>
-                    <div class="xp-trust reveal-on-scroll">
-                        <div class="xp-trust__item">
-                            <strong>Diskret</strong>
-                            <span>Keine öffentlichen Kontaktdaten</span>
+                    @unless ($isMarketplace)
+                        <div class="xp-trust reveal-on-scroll">
+                            <div class="xp-trust__item">
+                                <strong>Diskret</strong>
+                                <span>Keine öffentlichen Kontaktdaten</span>
+                            </div>
+                            <div class="xp-trust__item">
+                                <strong>Direkt</strong>
+                                <span>Weiterleitung an die Firma</span>
+                            </div>
+                            <div class="xp-trust__item">
+                                <strong>1–2 Tage</strong>
+                                <span>Übliche Rückmeldung</span>
+                            </div>
                         </div>
-                        <div class="xp-trust__item">
-                            <strong>Direkt</strong>
-                            <span>Weiterleitung an die Firma</span>
-                        </div>
-                        <div class="xp-trust__item">
-                            <strong>1–2 Tage</strong>
-                            <span>Übliche Rückmeldung</span>
-                        </div>
-                    </div>
+                    @endunless
 
-                    <section class="xp-card reveal-on-scroll">
-                        <h2 class="xp-card__title">Standort</h2>
-                        <p class="xp-card__sub">Öffentlich sichtbar: Name, Adresse, Ort und Logo — gemäss Plattformregeln.</p>
-                        @forelse ($offices as $loc)
+                    @if ($isMarketplace)
+                        <section class="xp-card reveal-on-scroll">
+                            <h2 class="xp-card__title">Digitaler Marktplatz</h2>
+                            <p class="xp-card__sub">Diese Plattform ist schweizweit tätig — nicht an einen einzelnen Kanton gebunden.</p>
                             <div class="xp-office">
-                                <div class="xp-office__pin">{{ $loc->canton->code ?? 'CH' }}</div>
+                                <div class="xp-office__pin">CH</div>
                                 <div>
-                                    <p class="xp-office__label">{{ $loc->is_primary ? 'Hauptsitz' : ($loc->label ?: 'Standort') }}</p>
+                                    <p class="xp-office__label">Reichweite</p>
                                     <p class="xp-office__text">
-                                        {{ $loc->address_line }}<br>
-                                        {{ $loc->postal_code }} {{ $loc->city }}
-                                        @if ($loc->canton)<br>{{ $loc->canton->name_de }}@endif
+                                        Mitte der Schweiz · national verfügbar<br>
+                                        Für Käufer und Verkäufer in der gesamten Schweiz
                                     </p>
+                                    @if ($website)
+                                        <p class="xp-office__web">
+                                            <a href="{{ $website }}" target="_blank" rel="noopener">{{ $websiteHost }} ↗</a>
+                                        </p>
+                                    @endif
                                 </div>
                             </div>
-                        @empty
-                            <p style="color:var(--stone);margin:0;">Keine Standortdaten hinterlegt.</p>
-                        @endforelse
-                    </section>
+                            @if ($expert->description)
+                                <div class="xp-prose" style="margin-top:1rem;">
+                                    <p>{{ $expert->description }}</p>
+                                </div>
+                            @endif
+                        </section>
+                    @else
+                        <section class="xp-card reveal-on-scroll">
+                            <h2 class="xp-card__title">Standort</h2>
+                            <p class="xp-card__sub">Öffentlich sichtbar: Name, Adresse, Ort und Logo — gemäss Plattformregeln.</p>
+                            @forelse ($offices as $loc)
+                                <div class="xp-office">
+                                    <div class="xp-office__pin">{{ $loc->canton->code ?? 'CH' }}</div>
+                                    <div>
+                                        <p class="xp-office__label">{{ $loc->is_primary ? 'Hauptsitz' : ($loc->label ?: 'Standort') }}</p>
+                                        <p class="xp-office__text">
+                                            {{ $loc->address_line }}<br>
+                                            {{ $loc->postal_code }} {{ $loc->city }}
+                                            @if ($loc->canton)<br>{{ $loc->canton->name_de }}@endif
+                                        </p>
+                                    </div>
+                                </div>
+                            @empty
+                                <p style="color:var(--stone);margin:0;">Keine Standortdaten hinterlegt.</p>
+                            @endforelse
+                        </section>
+                    @endif
 
                     @if (($media ?? collect())->isNotEmpty())
                         <section class="xp-card reveal-on-scroll" style="margin-top:1.15rem;">
@@ -122,68 +170,70 @@
                     @endif
                 </div>
 
-                <aside class="xp-card xp-card--lift xp-card--inquiry xp-sticky reveal-on-scroll" id="kontakt">
-                    <div class="xp-form-head">
-                        <div>
-                            <h2 class="xp-card__title">Vertrauliche Anfrage</h2>
-                            <p class="xp-card__sub">Nur an {{ $expert->company_name }} — diskret &amp; kostenlos.</p>
+                @unless ($isMarketplace)
+                    <aside class="xp-card xp-card--lift xp-card--inquiry xp-sticky reveal-on-scroll" id="kontakt">
+                        <div class="xp-form-head">
+                            <div>
+                                <h2 class="xp-card__title">Vertrauliche Anfrage</h2>
+                                <p class="xp-card__sub">Nur an {{ $expert->company_name }} — diskret &amp; kostenlos.</p>
+                            </div>
+                            <span class="xp-lock">Privat</span>
                         </div>
-                        <span class="xp-lock">Privat</span>
-                    </div>
 
-                    <form method="post" action="{{ route('leads.store', $expert->slug) }}" class="xp-inquiry">
-                        @csrf
-                        <div class="xp-inquiry__grid">
-                            <div class="form-group xp-inquiry__span2">
-                                <label for="owner_name">Ihr Name *</label>
-                                <input class="form-control" type="text" name="owner_name" id="owner_name" value="{{ old('owner_name') }}" required autocomplete="name">
-                                @error('owner_name')<div class="field-error">{{ $message }}</div>@enderror
+                        <form method="post" action="{{ route('leads.store', $expert->slug) }}" class="xp-inquiry">
+                            @csrf
+                            <div class="xp-inquiry__grid">
+                                <div class="form-group xp-inquiry__span2">
+                                    <label for="owner_name">Ihr Name *</label>
+                                    <input class="form-control" type="text" name="owner_name" id="owner_name" value="{{ old('owner_name') }}" required autocomplete="name">
+                                    @error('owner_name')<div class="field-error">{{ $message }}</div>@enderror
+                                </div>
+                                <div class="form-group">
+                                    <label for="email">E-Mail *</label>
+                                    <input class="form-control" type="email" name="email" id="email" value="{{ old('email') }}" required autocomplete="email">
+                                    @error('email')<div class="field-error">{{ $message }}</div>@enderror
+                                </div>
+                                <div class="form-group">
+                                    <label for="phone">Telefon</label>
+                                    <input class="form-control" type="text" name="phone" id="phone" value="{{ old('phone') }}" autocomplete="tel">
+                                </div>
+                                <div class="form-group">
+                                    <label for="company_name">Unternehmen</label>
+                                    <input class="form-control" type="text" name="company_name" id="company_name" value="{{ old('company_name') }}">
+                                </div>
+                                <div class="form-group">
+                                    <label for="industry">Branche</label>
+                                    <input class="form-control" type="text" name="industry" id="industry" value="{{ old('industry') }}">
+                                </div>
+                                <div class="form-group">
+                                    <label for="canton_id">Ihr Kanton</label>
+                                    <select class="form-control" name="canton_id" id="canton_id">
+                                        <option value="">— optional —</option>
+                                        @foreach (\App\Models\Canton::query()->orderBy('name_de')->get() as $canton)
+                                            <option value="{{ $canton->id }}" @selected(old('canton_id') == $canton->id)>{{ $canton->name_de }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="buy_sell_context">Anliegen</label>
+                                    <select class="form-control" name="buy_sell_context" id="buy_sell_context">
+                                        <option value="">— wählen —</option>
+                                        <option value="buy" @selected(old('buy_sell_context') === 'buy')>Unternehmen kaufen</option>
+                                        <option value="sell" @selected(old('buy_sell_context') === 'sell')>Verkauf / Nachfolge</option>
+                                        <option value="both" @selected(old('buy_sell_context') === 'both')>Beides / Beratung</option>
+                                    </select>
+                                </div>
+                                <div class="form-group xp-inquiry__span2">
+                                    <label for="message">Nachricht *</label>
+                                    <textarea class="form-control" name="message" id="message" rows="3" required placeholder="Kurz Ihr Anliegen…">{{ old('message') }}</textarea>
+                                    @error('message')<div class="field-error">{{ $message }}</div>@enderror
+                                </div>
                             </div>
-                            <div class="form-group">
-                                <label for="email">E-Mail *</label>
-                                <input class="form-control" type="email" name="email" id="email" value="{{ old('email') }}" required autocomplete="email">
-                                @error('email')<div class="field-error">{{ $message }}</div>@enderror
-                            </div>
-                            <div class="form-group">
-                                <label for="phone">Telefon</label>
-                                <input class="form-control" type="text" name="phone" id="phone" value="{{ old('phone') }}" autocomplete="tel">
-                            </div>
-                            <div class="form-group">
-                                <label for="company_name">Unternehmen</label>
-                                <input class="form-control" type="text" name="company_name" id="company_name" value="{{ old('company_name') }}">
-                            </div>
-                            <div class="form-group">
-                                <label for="industry">Branche</label>
-                                <input class="form-control" type="text" name="industry" id="industry" value="{{ old('industry') }}">
-                            </div>
-                            <div class="form-group">
-                                <label for="canton_id">Ihr Kanton</label>
-                                <select class="form-control" name="canton_id" id="canton_id">
-                                    <option value="">— optional —</option>
-                                    @foreach (\App\Models\Canton::query()->orderBy('name_de')->get() as $canton)
-                                        <option value="{{ $canton->id }}" @selected(old('canton_id') == $canton->id)>{{ $canton->name_de }}</option>
-                                    @endforeach
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label for="buy_sell_context">Anliegen</label>
-                                <select class="form-control" name="buy_sell_context" id="buy_sell_context">
-                                    <option value="">— wählen —</option>
-                                    <option value="buy" @selected(old('buy_sell_context') === 'buy')>Unternehmen kaufen</option>
-                                    <option value="sell" @selected(old('buy_sell_context') === 'sell')>Verkauf / Nachfolge</option>
-                                    <option value="both" @selected(old('buy_sell_context') === 'both')>Beides / Beratung</option>
-                                </select>
-                            </div>
-                            <div class="form-group xp-inquiry__span2">
-                                <label for="message">Nachricht *</label>
-                                <textarea class="form-control" name="message" id="message" rows="3" required placeholder="Kurz Ihr Anliegen…">{{ old('message') }}</textarea>
-                                @error('message')<div class="field-error">{{ $message }}</div>@enderror
-                            </div>
-                        </div>
-                        <button type="submit" class="btn btn--block">Anfrage vertraulich senden</button>
-                        <p class="xp-form-note">Antwort in der Regel innerhalb von 1–2 Werktagen.</p>
-                    </form>
-                </aside>
+                            <button type="submit" class="btn btn--block">Anfrage vertraulich senden</button>
+                            <p class="xp-form-note">Antwort in der Regel innerhalb von 1–2 Werktagen.</p>
+                        </form>
+                    </aside>
+                @endunless
             </div>
         </div>
     </div>

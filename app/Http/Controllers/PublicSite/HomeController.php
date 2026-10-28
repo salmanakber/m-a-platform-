@@ -94,6 +94,25 @@ class HomeController extends Controller
                 });
         }
 
+        $juristRankings = $this->rankings->nationalTop5(ProfessionalGroup::JURIST);
+        if ($juristRankings->isEmpty()) {
+            $juristRankings = Expert::query()
+                ->where('status', ExpertStatus::APPROVED)
+                ->where('is_public', true)
+                ->where('professional_group', ProfessionalGroup::JURIST)
+                ->with('offices.canton')
+                ->orderBy('company_name')
+                ->limit(5)
+                ->get()
+                ->values()
+                ->map(function (Expert $expert, int $index) {
+                    $row = new Ranking(['position' => $index + 1]);
+                    $row->setRelation('expert', $expert);
+
+                    return $row;
+                });
+        }
+
         $articleTopIds = $articleTopRankings->pluck('article_id')->filter()->all();
         $articleCarousel = Article::query()
             ->where('status', ArticleStatus::PUBLISHED)
@@ -138,11 +157,16 @@ class HomeController extends Controller
             'cantons_covered' => $cantonsCovered,
         ];
 
-        $periodLabel = $heroMatch && $heroMatch->label
-            ? $heroMatch->label
-            : ($nationalTop->first() && $nationalTop->first()->label
-                ? $nationalTop->first()->label
-                : now()->format('m.Y'));
+        // Public period badge: prefer real date window, never free-text admin notes like "Testing".
+        $periodSource = $heroMatch ?: $nationalTop->first();
+        if ($periodSource && $periodSource->starts_on) {
+            $periodLabel = $periodSource->starts_on->format('m.Y');
+            if ($periodSource->ends_on) {
+                $periodLabel .= '–'.$periodSource->ends_on->format('m.Y');
+            }
+        } else {
+            $periodLabel = now()->format('m.Y');
+        }
 
         $nationalCards = $this->expertCardsFromRankings($nationalTop);
         $bannerCards = $this->expertCardsFromRankings($heroMatches)->take(3)->values();
@@ -154,6 +178,7 @@ class HomeController extends Controller
             'bannerCards' => $bannerCards,
             'nationalCards' => $nationalCards,
             'marktplatzCards' => $this->expertCardsFromRankings($marktplatzRankings),
+            'juristCards' => $this->expertCardsFromRankings($juristRankings),
             'cantonCards' => $this->expertCardsFromRankings($cantonTop),
             'articleTopCards' => $this->articleCardsFromRankings($articleTopRankings),
             'articleCarouselCards' => $articleCarousel->values()->map(function (Article $article, int $i) {
@@ -225,7 +250,6 @@ class HomeController extends Controller
         }
 
         $group = $expert->professional_group ?: ProfessionalGroup::MA_SPECIALIST;
-        $isOperator = $expert->isPlatformOperator();
 
         return [
             'position' => $position,
@@ -250,7 +274,6 @@ class HomeController extends Controller
                 ? trim($office->city.($office->canton ? ' · Kanton '.$office->canton->code : ''))
                 : 'Schweiz',
             'logo' => $expert->logo_path ? asset('storage/'.$expert->logo_path) : null,
-            'is_operator' => $isOperator,
         ];
     }
 

@@ -19,6 +19,7 @@
             <nav class="site-nav" id="siteNav" aria-label="Hauptnavigation">
                 <a href="{{ route('home') }}#top5" class="{{ request()->routeIs('home') ? 'is-active' : '' }}">Experten</a>
                 <a href="{{ route('home') }}#marktplaetze">Marktplätze</a>
+                <a href="{{ route('home') }}#juristen">Juristen</a>
                 <a href="{{ route('directory.index') }}" class="{{ request()->routeIs('directory.*', 'experts.*') ? 'is-active' : '' }}">Verzeichnis</a>
                 @auth
                     @if (auth()->user()->isExpert())
@@ -67,6 +68,7 @@
                 <h4>Entdecken</h4>
                 <a href="{{ route('home') }}#top5">Experten</a>
                 <a href="{{ route('home') }}#marktplaetze">Marktplätze</a>
+                <a href="{{ route('home') }}#juristen">Juristen</a>
                 <a href="{{ route('directory.index') }}">Verzeichnis</a>
                 <a href="{{ route('blog.index') }}">Fachbeiträge</a>
                 <a href="{{ route('events.index') }}">Events</a>

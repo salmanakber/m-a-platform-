@@ -100,29 +100,19 @@
             <input type="hidden" name="professional_group" value="{{ $professionalGroup }}">
         @endif
 
-        <div class="rk-editor__meta form-row">
-            <div class="form-group">
-                <label for="label">Bezeichnung <em class="label-optional">(z. B. Q1 2026)</em></label>
-                <input class="form-control" type="text" name="label" id="label" value="{{ old('label', $meta['label'] ?? '') }}">
-            </div>
-            <div class="form-group">
-                <label for="starts_on">Von</label>
-                <input class="form-control" type="date" name="starts_on" id="starts_on" value="{{ old('starts_on', $meta['starts_on'] ?? '') }}">
-            </div>
-            <div class="form-group">
-                <label for="ends_on">Bis</label>
-                <input class="form-control" type="date" name="ends_on" id="ends_on" value="{{ old('ends_on', $meta['ends_on'] ?? '') }}">
-            </div>
-            <div class="form-group" style="align-self:end;">
-                <label class="rk-active"><input type="checkbox" name="is_active" value="1" @checked(old('is_active', $meta['is_active'] ?? true))> Aktiv</label>
-            </div>
-        </div>
+        <p class="rk-editor__hint">Jedes Ranking-Slot hat eigene Gültigkeit (Von / Bis). Leere Slots werden nicht gespeichert.</p>
 
         <div class="rk-slots">
             @for ($position = 1; $position <= $maxPosition; $position++)
                 @php
                     $slot = $slots->get($position);
                     $oldSlot = old('slots.'.$position);
+                    $slotStarts = $oldSlot['starts_on'] ?? optional($slot?->starts_on)->format('Y-m-d');
+                    $slotEnds = $oldSlot['ends_on'] ?? optional($slot?->ends_on)->format('Y-m-d');
+                    $slotLabel = $oldSlot['label'] ?? ($slot?->label ?? '');
+                    $slotActive = array_key_exists('is_active', (array) $oldSlot)
+                        ? (bool) ($oldSlot['is_active'] ?? false)
+                        : (bool) ($slot?->is_active ?? true);
                 @endphp
                 <div class="rk-slot">
                     <div class="rk-slot__rank">
@@ -164,6 +154,26 @@
                                 @endforeach
                             </select>
                         @endif
+
+                        <div class="rk-slot__dates form-row">
+                            <div class="form-group">
+                                <label>Bezeichnung <em class="label-optional">(optional)</em></label>
+                                <input class="form-control" type="text" name="slots[{{ $position }}][label]" value="{{ $slotLabel }}" placeholder="z. B. Q1 2026">
+                            </div>
+                            <div class="form-group">
+                                <label>Von</label>
+                                <input class="form-control" type="date" name="slots[{{ $position }}][starts_on]" value="{{ $slotStarts }}">
+                            </div>
+                            <div class="form-group">
+                                <label>Bis</label>
+                                <input class="form-control" type="date" name="slots[{{ $position }}][ends_on]" value="{{ $slotEnds }}">
+                            </div>
+                            <div class="form-group" style="align-self:end;">
+                                <label class="rk-active">
+                                    <input type="checkbox" name="slots[{{ $position }}][is_active]" value="1" @checked($slotActive)> Aktiv
+                                </label>
+                            </div>
+                        </div>
                     </div>
                 </div>
             @endfor

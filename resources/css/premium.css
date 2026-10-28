@@ -7838,6 +7838,27 @@ body.is-public-redesign .register-stage__benefit-n { color: var(--nh-gold); }
     display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; margin-top: 0.4rem;
 }
 .rk-slot__foot .rk-expert-picker__selected { margin: 0; flex: 1; }
+.rk-slot__dates {
+    margin-top: 0.75rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid #efe7db;
+}
+.rk-editor__hint {
+    margin: 0 0 1rem;
+    color: #6a7380;
+    font-size: 0.9rem;
+}
+.xp-layout--single { grid-template-columns: 1fr; max-width: 740px; }
+.xp-stage__web,
+.xp-office__web { margin: 0.45rem 0 0; }
+.xp-stage__web a,
+.xp-office__web a {
+    color: #dbb56e;
+    font-weight: 700;
+    text-decoration: none;
+}
+.xp-stage__web a:hover,
+.xp-office__web a:hover { text-decoration: underline; }
 
 /* Hero banner slider */
 .nh-match {
@@ -7976,14 +7997,21 @@ body.is-public-redesign .register-stage__benefit-n { color: var(--nh-gold); }
 /* Hero expert finder (custom selects) */
 .nh-finder {
     margin: 1.35rem 0 0.35rem;
-    padding: 1.15rem 1.15rem 1rem;
-    border-radius: 18px;
-    background:
-        linear-gradient(155deg, rgba(255,255,255,0.12), rgba(255,255,255,0.04)),
-        rgba(8, 17, 28, 0.35);
-    border: 1px solid rgba(197,160,89,0.34);
-    box-shadow: 0 18px 40px rgba(0,0,0,0.18);
-    backdrop-filter: blur(10px);
+    padding: 0.15rem 0;
+    border-radius: 0;
+    background: transparent;
+    border: 0;
+    box-shadow: none;
+}
+.nh-stats__cantons {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+}
+.nh-match__dots--stats {
+    margin-top: 0.55rem;
+    justify-content: flex-start;
 }
 .nh-finder__head { margin-bottom: 0.85rem; }
 .nh-finder__eyebrow {
@@ -8202,11 +8230,17 @@ body.is-public-redesign .register-stage__benefit-n { color: var(--nh-gold); }
     padding: 0.55rem 0.8rem; border-radius: 10px;
 }
 .ax-tabs a:hover { background: #f7f2ea; color: #132033; }
+.ax-tabs a.is-active {
+    background: #0b1626; color: #fff;
+}
+.ax-tabs a.is-active em { background: rgba(197,160,89,0.25); color: #dbb56e; }
 .ax-tabs em {
     font-style: normal; margin-left: 0.3rem;
     background: #efe8dc; color: #6b5530; border-radius: 999px;
     padding: 0.05rem 0.4rem; font-size: 0.72rem;
 }
+.ax-panel[hidden] { display: none !important; }
+.ax-panel { display: grid; gap: 1rem; }
 .ax-grid {
     display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 1rem;
 }

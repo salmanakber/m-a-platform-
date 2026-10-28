@@ -18,7 +18,7 @@
             <form class="nh-finder" method="get" action="{{ route('directory.index') }}" role="search" aria-label="Experten finden" data-hero-finder>
                 <div class="nh-finder__head">
                     <span class="nh-finder__eyebrow">Expertenfinder</span>
-                    <p class="nh-finder__title">Ich möchte verkaufen — wer passt zu mir?</p>
+                    <p class="nh-finder__title">Ich möchte verkaufen oder kaufen — wer passt zu mir?</p>
                 </div>
                 <div class="nh-finder__row">
                     <div class="nh-finder__field" data-fancy-select>
@@ -66,7 +66,7 @@
                 <div class="nh-match__chrome">
                     <div class="nh-match__badge">
                         <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path fill="currentColor" d="M12 2l2.4 4.9L20 8.2l-3.6 3.5.9 5.2L12 14.8 6.7 16.9l.9-5.2L4 8.2l5.6-1.3L12 2z"/></svg>
-                        Empfohlen · {{ $periodLabel }}
+                        Empfohlen
                     </div>
                     @if ($bannerCards->count() > 1)
                         <div class="nh-match__nav">
@@ -100,9 +100,7 @@
                                     </div>
                                 </div>
                                 <div class="nh-match__meta">
-                                    @if (!empty($card['is_operator']))
-                                        <em class="nh-op-tag">Plattform-Betreiber</em>
-                                    @elseif ($card['rating'])
+                                    @if ($card['rating'])
                                         <em>★ {{ $card['rating'] }} / 5.0</em>
                                     @endif
                                     <span>{{ $card['place_line'] }}</span>
@@ -112,16 +110,6 @@
                         @endforeach
                     </div>
                 </div>
-
-                @if ($bannerCards->count() > 1)
-                    <div class="nh-match__dots" data-banner-dots role="tablist" aria-label="Empfohlene Experten">
-                        @foreach ($bannerCards as $index => $card)
-                            <button type="button" class="nh-match__dot {{ $index === 0 ? 'is-on' : '' }}" data-banner-dot="{{ $index }}" aria-label="Slide {{ $index + 1 }}">
-                                <span class="nh-match__dot-fill" data-banner-dot-fill></span>
-                            </button>
-                        @endforeach
-                    </div>
-                @endif
             @else
                 <div class="nh-match__badge">Empfohlen</div>
                 <p class="nh-match__empty">Nutzen Sie die Suche links — oder entdecken Sie alle geprüften Profile im Verzeichnis.</p>
@@ -130,10 +118,22 @@
         </aside>
     </div>
 
-    <div class="nh-stats">
+    <div class="nh-stats" data-banner-stats>
         <div><b>{{ number_format($stats['experts']) }}</b><span>Geprüfte Experten</span></div>
         @if (!empty($stats['cantons_covered']))
-            <div><b>{{ number_format($stats['cantons_covered']) }}</b><span>Kantone abgedeckt</span></div>
+            <div class="nh-stats__cantons">
+                <b>{{ number_format($stats['cantons_covered']) }}</b>
+                <span>Kantone abgedeckt</span>
+                @if (($bannerCards ?? collect())->count() > 1)
+                    <div class="nh-match__dots nh-match__dots--stats" data-banner-dots role="tablist" aria-label="Empfohlene Experten">
+                        @foreach ($bannerCards as $index => $card)
+                            <button type="button" class="nh-match__dot {{ $index === 0 ? 'is-on' : '' }}" data-banner-dot="{{ $index }}" aria-label="Slide {{ $index + 1 }}">
+                                <span class="nh-match__dot-fill" data-banner-dot-fill></span>
+                            </button>
+                        @endforeach
+                    </div>
+                @endif
+            </div>
         @endif
         @if (!empty($stats['deals']))
             <div><b>{{ number_format($stats['deals']) }}</b><span>Begleitete Transaktionen</span></div>
@@ -225,6 +225,27 @@
         </div>
     </section>
 
+    {{-- Juristen --}}
+    <section class="nh-section" id="juristen">
+        <div class="nh-section__head">
+            <div>
+                <p class="nh-kicker">Fachgruppe</p>
+                <h2>Juristen</h2>
+                <p>Rechtliche Begleitung für Unternehmensnachfolge, Kauf und Verkauf — geprüfte Juristen im Verzeichnis.</p>
+            </div>
+            <a class="nh-link" href="{{ route('directory.index', ['gruppe' => 'jurist']) }}">Alle Juristen →</a>
+        </div>
+        @if (($juristCards ?? collect())->isEmpty())
+            <div class="nh-empty">Derzeit sind noch keine Juristen veröffentlicht. Im Verzeichnis können Sie die Fachgruppe «Juristen» filtern.</div>
+        @else
+            <div class="nh-topgrid">
+                @foreach ($juristCards as $card)
+                    @include('public.partials.nh-expert-card', ['card' => $card, 'forceTag' => 'Jurist'])
+                @endforeach
+            </div>
+        @endif
+    </section>
+
     {{-- Top 3 Kanton --}}
     <section class="nh-section" id="kantone-top">
         <div class="nh-section__head">
@@ -282,9 +303,6 @@
                                     <strong>{{ $card['display_name'] }}</strong>
                                     @if (!empty($card['person_name']))
                                         <span>{{ $card['person_name'] }}</span>
-                                    @endif
-                                    @if (!empty($card['is_operator']))
-                                        <span class="nh-op-tag">Plattform-Betreiber</span>
                                     @endif
                                 </div>
                                 <div class="nh-rankrow__meta">
@@ -426,7 +444,7 @@
     var banner = document.querySelector('[data-banner-slider]');
     if (banner) {
         var slides = Array.prototype.slice.call(banner.querySelectorAll('[data-banner-slide]'));
-        var dots = Array.prototype.slice.call(banner.querySelectorAll('[data-banner-dot]'));
+        var dots = Array.prototype.slice.call(document.querySelectorAll('[data-banner-dot]'));
         var index = 0;
         var timer = null;
         var duration = 6500;

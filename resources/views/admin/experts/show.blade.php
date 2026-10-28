@@ -72,16 +72,17 @@
         </div>
     </header>
 
-    <nav class="ax-tabs" aria-label="Bereiche">
-        <a href="#uebersicht">Übersicht</a>
-        <a href="#crawl">Crawl</a>
-        <a href="#ki">KI-Vorschläge <em>{{ $aiSuggestions->count() }}</em></a>
-        <a href="#artikel">Fachbeiträge <em>{{ $articles->count() }}</em></a>
-        <a href="#events">Events <em>{{ $events->count() }}</em></a>
-        <a href="#zugang">Zugang</a>
+    <nav class="ax-tabs" aria-label="Bereiche" data-ax-tabs>
+        <a href="#uebersicht" data-ax-tab="uebersicht" class="is-active">Übersicht</a>
+        <a href="#crawl" data-ax-tab="crawl">Crawl</a>
+        <a href="#ki" data-ax-tab="ki">KI-Vorschläge <em>{{ $aiSuggestions->count() }}</em></a>
+        <a href="#artikel" data-ax-tab="artikel">Fachbeiträge <em>{{ $articles->count() }}</em></a>
+        <a href="#events" data-ax-tab="events">Events <em>{{ $events->count() }}</em></a>
+        <a href="#zugang" data-ax-tab="zugang">Zugang</a>
     </nav>
 
-    <div class="ax-grid" id="uebersicht">
+    <div class="ax-panel is-active" data-ax-panel="uebersicht" id="uebersicht">
+    <div class="ax-grid">
         <section class="ax-card">
             <header class="ax-card__head"><h2>Stammdaten</h2></header>
             <dl class="ax-meta">
@@ -123,9 +124,11 @@
             @endif
         </section>
     </div>
+    </div>
 
     {{-- Crawl --}}
-    <section class="ax-card ax-card--wide" id="crawl">
+    <div class="ax-panel" data-ax-panel="crawl" id="crawl" hidden>
+    <section class="ax-card ax-card--wide">
         <header class="ax-card__head">
             <div>
                 <h2>Website-Crawl</h2>
@@ -171,9 +174,11 @@
             </div>
         @endif
     </section>
+    </div>
 
     {{-- AI --}}
-    <section class="ax-card ax-card--wide" id="ki">
+    <div class="ax-panel" data-ax-panel="ki" id="ki" hidden>
+    <section class="ax-card ax-card--wide">
         <header class="ax-card__head">
             <div>
                 <h2>KI-Vorschläge</h2>
@@ -201,9 +206,11 @@
             </div>
         @endif
     </section>
+    </div>
 
     {{-- Articles --}}
-    <section class="ax-card ax-card--wide" id="artikel">
+    <div class="ax-panel" data-ax-panel="artikel" id="artikel" hidden>
+    <section class="ax-card ax-card--wide">
         <header class="ax-card__head">
             <div>
                 <h2>Fachbeiträge</h2>
@@ -249,9 +256,11 @@
             </div>
         @endif
     </section>
+    </div>
 
     {{-- Events --}}
-    <section class="ax-card ax-card--wide" id="events">
+    <div class="ax-panel" data-ax-panel="events" id="events" hidden>
+    <section class="ax-card ax-card--wide">
         <header class="ax-card__head">
             <div>
                 <h2>Events</h2>
@@ -299,9 +308,11 @@
             </div>
         @endif
     </section>
+    </div>
 
     {{-- Access --}}
-    <section class="ax-card ax-card--wide" id="zugang">
+    <div class="ax-panel" data-ax-panel="zugang" id="zugang" hidden>
+    <section class="ax-card ax-card--wide">
         <header class="ax-card__head"><h2>Login-Zugang</h2></header>
         @php
             $loginUser = $expert->user;
@@ -330,10 +341,38 @@
             </div>
         </div>
     </section>
+    </div>
 </div>
 
 <script>
 (function () {
+    // Tab panels — show only the active section
+    var tabs = document.querySelector('[data-ax-tabs]');
+    if (tabs) {
+        var links = Array.prototype.slice.call(tabs.querySelectorAll('[data-ax-tab]'));
+        var panels = Array.prototype.slice.call(document.querySelectorAll('[data-ax-panel]'));
+        function showTab(id) {
+            links.forEach(function (a) {
+                a.classList.toggle('is-active', a.getAttribute('data-ax-tab') === id);
+            });
+            panels.forEach(function (p) {
+                var on = p.getAttribute('data-ax-panel') === id;
+                p.classList.toggle('is-active', on);
+                p.hidden = !on;
+            });
+            try { history.replaceState(null, '', '#' + id); } catch (e) {}
+        }
+        links.forEach(function (a) {
+            a.addEventListener('click', function (e) {
+                e.preventDefault();
+                showTab(a.getAttribute('data-ax-tab'));
+            });
+        });
+        var hash = (location.hash || '#uebersicht').replace('#', '');
+        if (!document.querySelector('[data-ax-panel="'+hash+'"]')) hash = 'uebersicht';
+        showTab(hash);
+    }
+
     var wrap = document.getElementById('adminCrawlRun');
     var btn = document.getElementById('adminCrawlStartBtn');
     if (!wrap || !btn) return;

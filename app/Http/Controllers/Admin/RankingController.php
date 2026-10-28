@@ -115,12 +115,12 @@ class RankingController extends Controller
             'scope' => ['required', Rule::in(RankingScope::all())],
             'professional_group' => ['nullable', Rule::in(ProfessionalGroup::all())],
             'canton_id' => ['nullable', 'exists:cantons,id'],
-            'label' => ['nullable', 'string', 'max:120'],
-            'starts_on' => ['nullable', 'date'],
-            'ends_on' => ['nullable', 'date', 'after_or_equal:starts_on'],
-            'is_active' => ['nullable', 'boolean'],
             'slots' => ['required', 'array', 'max:'.$max],
             'slots.*.position' => ['required', 'integer', 'min:1', 'max:'.$max],
+            'slots.*.label' => ['nullable', 'string', 'max:120'],
+            'slots.*.starts_on' => ['nullable', 'date'],
+            'slots.*.ends_on' => ['nullable', 'date', 'after_or_equal:slots.*.starts_on'],
+            'slots.*.is_active' => ['nullable', 'boolean'],
         ];
 
         if ($slotKind === 'expert') {
@@ -157,6 +157,10 @@ class RankingController extends Controller
                 return [
                     'position' => $position,
                     'target_id' => $targetId,
+                    'label' => isset($slot['label']) ? trim((string) $slot['label']) : null,
+                    'starts_on' => $slot['starts_on'] ?? null,
+                    'ends_on' => $slot['ends_on'] ?? null,
+                    'is_active' => ! empty($slot['is_active']),
                 ];
             })
             ->filter(fn (array $slot) => $slot['position'] >= 1 && $slot['target_id'])
@@ -179,12 +183,7 @@ class RankingController extends Controller
             ]);
         }
 
-        $label = $data['label'] ?? null;
-        $startsOn = $data['starts_on'] ?? null;
-        $endsOn = $data['ends_on'] ?? null;
-        $isActive = $request->boolean('is_active', true);
-
-        DB::transaction(function () use ($scope, $cantonId, $groupKey, $filled, $slotKind, $label, $startsOn, $endsOn, $isActive) {
+        DB::transaction(function () use ($scope, $cantonId, $groupKey, $filled, $slotKind) {
             $this->groupQuery($scope, $cantonId, $groupKey)->delete();
 
             foreach ($filled as $slot) {
@@ -196,10 +195,10 @@ class RankingController extends Controller
                     'article_id' => $slotKind === 'article' ? $slot['target_id'] : null,
                     'event_id' => $slotKind === 'event' ? $slot['target_id'] : null,
                     'position' => $slot['position'],
-                    'starts_on' => $startsOn,
-                    'ends_on' => $endsOn,
-                    'is_active' => $isActive,
-                    'label' => $label,
+                    'starts_on' => $slot['starts_on'] ?: null,
+                    'ends_on' => $slot['ends_on'] ?: null,
+                    'is_active' => (bool) $slot['is_active'],
+                    'label' => $slot['label'] !== '' ? $slot['label'] : null,
                 ]);
             }
         });

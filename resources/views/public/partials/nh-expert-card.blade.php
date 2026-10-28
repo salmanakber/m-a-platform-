@@ -2,7 +2,7 @@
     /** @var array $card */
     $forceTag = $forceTag ?? null;
 @endphp
-<article class="nh-card {{ !empty($card['is_operator']) ? 'nh-card--operator' : '' }}">
+<article class="nh-card">
     <span class="nh-card__rank" aria-hidden="true">{{ $card['n'] }}</span>
     @if (!empty($card['canton_code']))
         <span class="nh-card__place">{{ $card['canton_code'] }}@if(!empty($card['city'])) · {{ mb_strtoupper($card['city']) }}@endif</span>
@@ -20,9 +20,6 @@
     @endif
 
     <div class="nh-tags">
-        @if (!empty($card['is_operator']))
-            <span class="is-operator">Plattform-Betreiber</span>
-        @endif
         @if ($forceTag)
             <span>{{ $forceTag }}</span>
         @else
