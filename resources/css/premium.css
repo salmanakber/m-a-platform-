@@ -8003,26 +8003,30 @@ body.is-public-redesign .register-stage__benefit-n { color: var(--nh-gold); }
     border: 0;
     box-shadow: none;
 }
-/* Dots sit beside "Kantone abgedeckt" in the hero stats center */
-.nh-stats__with-dots {
-    display: flex;
-    align-items: center;
-    gap: 1.15rem;
-    flex-wrap: wrap;
-}
-.nh-stats__with-dots--only {
-    justify-content: flex-start;
-}
+/* Banner dots: true horizontal center of the stats bar */
 .nh-match__dots--stats {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
     margin: 0;
-    justify-content: flex-start;
-    flex-shrink: 0;
+    justify-content: center;
+    z-index: 2;
 }
 .nh-match__dots--stats .nh-match__dot {
     background: rgba(255,255,255,0.32);
 }
 .nh-match__dots--stats .nh-match__dot.is-on {
     background: rgba(197,160,89,0.28);
+}
+@media (max-width: 1100px) {
+    .nh-match__dots--stats {
+        position: static;
+        transform: none;
+        grid-column: 1 / -1;
+        justify-content: center;
+        padding-top: 0.35rem;
+    }
 }
 .nh-finder__head { margin-bottom: 0.85rem; }
 .nh-finder__eyebrow {

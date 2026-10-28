@@ -121,30 +121,9 @@
     <div class="nh-stats" data-banner-stats>
         <div><b>{{ number_format($stats['experts']) }}</b><span>Geprüfte Experten</span></div>
         @if (!empty($stats['cantons_covered']))
-            <div class="nh-stats__with-dots">
-                <div>
-                    <b>{{ number_format($stats['cantons_covered']) }}</b>
-                    <span>Kantone abgedeckt</span>
-                </div>
-                @if (($bannerCards ?? collect())->count() > 1)
-                    <div class="nh-match__dots nh-match__dots--stats" data-banner-dots role="tablist" aria-label="Empfohlene Experten">
-                        @foreach ($bannerCards as $index => $card)
-                            <button type="button" class="nh-match__dot {{ $index === 0 ? 'is-on' : '' }}" data-banner-dot="{{ $index }}" aria-label="Slide {{ $index + 1 }}">
-                                <span class="nh-match__dot-fill" data-banner-dot-fill></span>
-                            </button>
-                        @endforeach
-                    </div>
-                @endif
-            </div>
-        @elseif (($bannerCards ?? collect())->count() > 1)
-            <div class="nh-stats__with-dots nh-stats__with-dots--only">
-                <div class="nh-match__dots nh-match__dots--stats" data-banner-dots role="tablist" aria-label="Empfohlene Experten">
-                    @foreach ($bannerCards as $index => $card)
-                        <button type="button" class="nh-match__dot {{ $index === 0 ? 'is-on' : '' }}" data-banner-dot="{{ $index }}" aria-label="Slide {{ $index + 1 }}">
-                            <span class="nh-match__dot-fill" data-banner-dot-fill></span>
-                        </button>
-                    @endforeach
-                </div>
+            <div>
+                <b>{{ number_format($stats['cantons_covered']) }}</b>
+                <span>Kantone abgedeckt</span>
             </div>
         @endif
         @if (!empty($stats['deals']))
@@ -152,6 +131,15 @@
         @endif
         @if (!empty($stats['rating']))
             <div><b>Ø {{ number_format($stats['rating'], 1) }}</b><span>Kundenbewertung</span></div>
+        @endif
+        @if (($bannerCards ?? collect())->count() > 1)
+            <div class="nh-match__dots nh-match__dots--stats" data-banner-dots role="tablist" aria-label="Empfohlene Experten">
+                @foreach ($bannerCards as $index => $card)
+                    <button type="button" class="nh-match__dot {{ $index === 0 ? 'is-on' : '' }}" data-banner-dot="{{ $index }}" aria-label="Slide {{ $index + 1 }}">
+                        <span class="nh-match__dot-fill" data-banner-dot-fill></span>
+                    </button>
+                @endforeach
+            </div>
         @endif
     </div>
 </section>
