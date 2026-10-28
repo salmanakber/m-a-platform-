@@ -8003,15 +8003,26 @@ body.is-public-redesign .register-stage__benefit-n { color: var(--nh-gold); }
     border: 0;
     box-shadow: none;
 }
-.nh-stats__cantons {
-    position: relative;
+/* Dots sit beside "Kantone abgedeckt" in the hero stats center */
+.nh-stats__with-dots {
     display: flex;
-    flex-direction: column;
-    align-items: flex-start;
+    align-items: center;
+    gap: 1.15rem;
+    flex-wrap: wrap;
+}
+.nh-stats__with-dots--only {
+    justify-content: flex-start;
 }
 .nh-match__dots--stats {
-    margin-top: 0.55rem;
+    margin: 0;
     justify-content: flex-start;
+    flex-shrink: 0;
+}
+.nh-match__dots--stats .nh-match__dot {
+    background: rgba(255,255,255,0.32);
+}
+.nh-match__dots--stats .nh-match__dot.is-on {
+    background: rgba(197,160,89,0.28);
 }
 .nh-finder__head { margin-bottom: 0.85rem; }
 .nh-finder__eyebrow {
