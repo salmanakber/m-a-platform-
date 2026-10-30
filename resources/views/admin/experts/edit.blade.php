@@ -123,7 +123,7 @@
                         <option value="{{ $groupKey }}" @selected(old('professional_group', $expert->professional_group ?? 'ma_specialist') === $groupKey)>{{ $groupLabel }}</option>
                     @endforeach
                 </select>
-                <p class="field-hint">«Marktplätze» erscheinen als Kartenliste — nicht auf der Karte.</p>
+                <p class="field-hint">M&A, Juristen, Marktplätze oder Weitere — steuert Verzeichnis, Ranking und Kartenfarbe. Dieselbe E-Mail darf für ein zweites Profil (z.&nbsp;B. Marktplatz) verwendet werden.</p>
             </div>
             <div class="form-group">
                 <label for="logo_position">Logo-Position</label>
@@ -155,6 +155,23 @@
                 <p class="field-hint">Manuelles Logo — wird bei Crawls nicht überschrieben.</p>
             @endif
         </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label for="contact_photo">Foto Berater / Kontaktperson</label>
+                <input class="form-control" type="file" name="contact_photo" id="contact_photo" accept="image/png,image/jpeg,image/webp,image/gif">
+                @if ($expert->contact_photo_path)
+                    <p style="margin:0.5rem 0 0;"><img src="{{ asset('storage/'.$expert->contact_photo_path) }}" alt="" style="max-height:96px;border-radius:8px;"></p>
+                    <label style="display:inline-flex;gap:0.35rem;align-items:center;margin-top:0.35rem;">
+                        <input type="checkbox" name="remove_contact_photo" value="1"> Foto entfernen
+                    </label>
+                @endif
+            </div>
+            <div class="form-group">
+                <label for="video_url">Video-Link (YouTube / Vimeo / Website)</label>
+                <input class="form-control" type="url" name="video_url" id="video_url" value="{{ old('video_url', $expert->video_url) }}" placeholder="https://…">
+                <p class="field-hint">Öffentlich auf dem Expertenprofil verlinkt.</p>
+            </div>
+        </div>
         <div class="form-group">
             <label><input type="checkbox" name="offers_buy" value="1" @checked(old('offers_buy', $expert->offers_buy))> Bietet Kaufberatung</label>
             <p class="field-hint">Erscheint im Verzeichnis-Filter «Kauf».</p>
@@ -182,7 +199,7 @@
 
     <section class="card" id="standorte">
         <h2 style="margin:0 0 0.35rem;font-size:1.05rem;">Standorte &amp; Adressen</h2>
-        <p class="field-hint" style="margin-top:0;">Adressen hinzufügen, bearbeiten oder löschen — inkl. Kartenkoordinaten.</p>
+        <p class="field-hint" style="margin-top:0;">Mehrere Filialen möglich (z.&nbsp;B. Zürich, Bern, Aarau). Für schweizweite Präsenz Kanton «CH — Ganze Schweiz» wählen.</p>
 
         @forelse ($expert->offices as $office)
             <details class="admin-office" @if ($errors->any() && (int) old('office_id') === (int) $office->id) open @endif>

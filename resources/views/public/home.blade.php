@@ -246,13 +246,13 @@
         @endif
     </section>
 
-    {{-- Top 3 Kanton --}}
+    {{-- Top 5 Kanton --}}
     <section class="nh-section" id="kantone-top">
         <div class="nh-section__head">
             <div>
                 <p class="nh-kicker">Regional</p>
-                <h2>Top 3 Experten je Kanton</h2>
-                <p>Wählen Sie Ihren Kanton — sehen Sie aktive Experten vor Ort und die kuratierte Top 3.</p>
+                <h2>Top 5 Experten je Kanton</h2>
+                <p>Wählen Sie Ihren Kanton — sehen Sie aktive Experten vor Ort und die kuratierte Top 5.</p>
             </div>
             <a class="nh-link" href="{{ route('cantons.index') }}">Alle Kantone →</a>
         </div>
@@ -274,16 +274,16 @@
         <div class="nh-canton nh-canton--single">
             <div class="nh-canton__main">
                 <div class="nh-canton__title">
-                    <h3>Top 3 in {{ $selectedCanton->name_de ?? '—' }}</h3>
+                    <h3>Top 5 in {{ $selectedCanton->name_de ?? '—' }}</h3>
                     <span>Kanton {{ $selectedCanton->code ?? '—' }} · vorausgewählt</span>
                 </div>
 
                 @if ($cantonCards->isEmpty())
                     <div class="nh-empty nh-empty--panel">
-                        <strong>Noch keine Top-3-Ränge in {{ $selectedCanton->name_de ?? 'diesem Kanton' }}.</strong>
+                        <strong>Noch keine Top-5-Ränge in {{ $selectedCanton->name_de ?? 'diesem Kanton' }}.</strong>
                         <p>
                             @if (($cs['total'] ?? 0) > 0)
-                                In diesem Kanton sind {{ $cs['total'] }} geprüfte Experten aktiv — eine kuratierte Top-3-Liste folgt.
+                                In diesem Kanton sind {{ $cs['total'] }} geprüfte Experten aktiv — eine kuratierte Top-5-Liste folgt.
                             @else
                                 In diesem Kanton sind derzeit keine geprüften Experten gelistet.
                             @endif

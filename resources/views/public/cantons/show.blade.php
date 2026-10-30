@@ -18,7 +18,7 @@
                 <div class="nh-page-hero__actions">
                     <a class="nh-btn nh-btn--navy" href="{{ route('directory.index', ['kanton' => $canton->code]) }}">Im Verzeichnis</a>
                     <a class="nh-btn nh-btn--ghost nh-btn--on-light" href="{{ route('map.index', ['kanton' => $canton->code]) }}">Auf der Karte ↗</a>
-                    <a class="nh-btn nh-btn--ghost nh-btn--on-light" href="{{ route('home', ['kanton' => $canton->code]) }}#kantone-top">Top 3 ansehen</a>
+                    <a class="nh-btn nh-btn--ghost nh-btn--on-light" href="{{ route('home', ['kanton' => $canton->code]) }}#kantone-top">Top 5 ansehen</a>
                 </div>
             </div>
             <aside class="nh-canton-show__badge" aria-label="Kanton">

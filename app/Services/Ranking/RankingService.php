@@ -53,7 +53,7 @@ class RankingService
     /**
      * @return Collection<int, Ranking>
      */
-    public function cantonTop3(int $cantonId, ?string $group = null): Collection
+    public function cantonTop5(int $cantonId, ?string $group = null): Collection
     {
         return Ranking::query()
             ->currentlyActive()
@@ -62,16 +62,35 @@ class RankingService
             ->when($group, fn ($q) => $q->where('professional_group', $group))
             ->with(['expert.offices.canton', 'canton'])
             ->orderBy('position')
-            ->take(3)
+            ->take(5)
             ->get();
     }
 
+    /** @deprecated Use cantonTop5() */
+    public function cantonTop3(int $cantonId, ?string $group = null): Collection
+    {
+        return $this->cantonTop5($cantonId, $group);
+    }
+
     /**
+     * Global Top 3 Fachbeiträge (no category), or Top 3 within a Fachbereich group.
+     *
      * @return Collection<int, Ranking>
      */
-    public function articleTop3(): Collection
+    public function articleTop3(?int $categoryId = null): Collection
     {
-        return $this->active(RankingScope::ARTICLE_TOP)->take(3);
+        return Ranking::query()
+            ->currentlyActive()
+            ->where('scope', RankingScope::ARTICLE_TOP)
+            ->when(
+                $categoryId !== null,
+                fn ($q) => $q->where('article_category_id', $categoryId),
+                fn ($q) => $q->whereNull('article_category_id')
+            )
+            ->with(['article.category', 'article.expert', 'articleCategory'])
+            ->orderBy('position')
+            ->take(3)
+            ->get();
     }
 
     /**

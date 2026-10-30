@@ -102,10 +102,19 @@
                     @endforeach
                 </select>
             </div>
+            <div class="form-group">
+                <label for="filter_gruppe">Fachgruppe</label>
+                <select class="form-control" name="gruppe" id="filter_gruppe">
+                    <option value="">Alle</option>
+                    @foreach (($professionalGroups ?? []) as $groupKey => $groupLabel)
+                        <option value="{{ $groupKey }}" @selected(($group ?? '') === $groupKey)>{{ $groupLabel }}</option>
+                    @endforeach
+                </select>
+            </div>
         </div>
         <div class="admin-filterbar__actions">
             <button type="submit" class="btn btn--small">Filtern</button>
-            @if (($q ?? '') !== '' || ($status ?? '') !== '' || ($cantonId ?? '') !== '')
+            @if (($q ?? '') !== '' || ($status ?? '') !== '' || ($cantonId ?? '') !== '' || ($group ?? '') !== '')
                 <a class="admin-filterbar__reset" href="{{ route('admin.experts.index') }}">Zurücksetzen</a>
             @endif
         </div>
@@ -185,7 +194,8 @@
                             </th>
                             <th>Experte</th>
                             <th>Kontakt</th>
-                            <th>Fokus</th>
+                            <th>Gruppe</th>
+                            <th>Anfragen</th>
                             <th>Status</th>
                             <th></th>
                         </tr>
@@ -219,10 +229,14 @@
                                     <div class="entity-sub">{{ trim(($expert->contact_person_name ?? '').' '.($expert->contact_person_last_name ?? '')) ?: '—' }}</div>
                                 </td>
                                 <td>
-                                    <div class="chip-row" style="justify-content:flex-start;">
+                                    <span class="entity-sub">{{ ($professionalGroups ?? [])[$expert->professional_group] ?? ($expert->professional_group ?: '—') }}</span>
+                                    <div class="chip-row" style="justify-content:flex-start;margin-top:0.25rem;">
                                         @if ($expert->offers_buy)<span class="badge badge--buy">Kauf</span>@endif
                                         @if ($expert->offers_sell)<span class="badge badge--sell">Verkauf</span>@endif
                                     </div>
+                                </td>
+                                <td>
+                                    <a href="{{ route('admin.experts.show', $expert) }}#anfragen">{{ (int) ($expert->leads_count ?? 0) }}</a>
                                 </td>
                                 <td>
                                     <span class="pill pill--{{ $pill[$expert->status] ?? 'muted' }}">{{ $statusLabel[$expert->status] ?? $expert->status }}</span>

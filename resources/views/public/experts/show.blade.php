@@ -64,6 +64,16 @@
                         <span class="xp-chip">Geprüft</span>
                     </div>
                 </div>
+                @if ($expert->contact_photo_path || $expert->video_url)
+                    <div class="xp-stage__person">
+                        @if ($expert->contact_photo_path)
+                            <img class="xp-stage__photo" src="{{ asset('storage/'.$expert->contact_photo_path) }}" alt="{{ trim(($expert->contact_person_name ?? '').' '.($expert->contact_person_last_name ?? '')) ?: $expert->company_name }}">
+                        @endif
+                        @if ($expert->video_url)
+                            <a class="xp-stage__video" href="{{ $expert->video_url }}" target="_blank" rel="noopener">Video ansehen ↗</a>
+                        @endif
+                    </div>
+                @endif
             </div>
         </div>
     </section>

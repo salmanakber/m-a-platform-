@@ -74,6 +74,7 @@
 
     <nav class="ax-tabs" aria-label="Bereiche" data-ax-tabs>
         <a href="#uebersicht" data-ax-tab="uebersicht" class="is-active">Übersicht</a>
+        <a href="#anfragen" data-ax-tab="anfragen">Anfragen <em>{{ $leadsCount ?? ($leads ?? collect())->count() }}</em></a>
         <a href="#crawl" data-ax-tab="crawl">Crawl</a>
         <a href="#ki" data-ax-tab="ki">KI-Vorschläge <em>{{ $aiSuggestions->count() }}</em></a>
         <a href="#artikel" data-ax-tab="artikel">Fachbeiträge <em>{{ $articles->count() }}</em></a>
@@ -123,7 +124,75 @@
                 </ul>
             @endif
         </section>
+
+        <section class="ax-card">
+            <header class="ax-card__head">
+                <h2>Anfragen</h2>
+                <a href="{{ route('admin.leads.index', ['expert_id' => $expert->id]) }}">Alle Anfragen</a>
+            </header>
+            <p style="margin:0 0 0.75rem;color:var(--stone);"><strong>{{ $leadsCount ?? 0 }}</strong> Anfragen insgesamt</p>
+            @if (($leads ?? collect())->isEmpty())
+                <p class="ax-empty">Noch keine Anfragen über das Kontaktformular.</p>
+            @else
+                <ul class="ax-list">
+                    @foreach (($leads ?? collect())->take(8) as $lead)
+                        <li>
+                            <strong>{{ $lead->owner_name }}</strong>
+                            <span>
+                                <a href="mailto:{{ $lead->email }}">{{ $lead->email }}</a>
+                                @if ($lead->phone) · {{ $lead->phone }}@endif
+                                · {{ optional($lead->created_at)->format('d.m.Y H:i') }}
+                                · {{ $lead->status }}
+                            </span>
+                        </li>
+                    @endforeach
+                </ul>
+            @endif
+        </section>
     </div>
+    </div>
+
+    {{-- Inquiries detail --}}
+    <div class="ax-panel" data-ax-panel="anfragen" id="anfragen" hidden>
+    <section class="ax-card ax-card--wide">
+        <header class="ax-card__head">
+            <div>
+                <h2>Anfragen an {{ $expert->company_name }}</h2>
+                <p>{{ $leadsCount ?? 0 }} Personen haben das Kontaktformular ausgefüllt.</p>
+            </div>
+            <a class="btn btn--small btn--ghost" href="{{ route('admin.leads.index', ['expert_id' => $expert->id]) }}">Lead-Verwaltung</a>
+        </header>
+        @if (($leads ?? collect())->isEmpty())
+            <p class="ax-empty">Keine Anfragen vorhanden.</p>
+        @else
+            <div class="table-wrap">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>E-Mail</th>
+                            <th>Telefon</th>
+                            <th>Firma</th>
+                            <th>Status</th>
+                            <th>Datum</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach ($leads as $lead)
+                            <tr>
+                                <td>{{ $lead->owner_name }}</td>
+                                <td><a href="mailto:{{ $lead->email }}">{{ $lead->email }}</a></td>
+                                <td>{{ $lead->phone ?: '—' }}</td>
+                                <td>{{ $lead->company_name ?: '—' }}</td>
+                                <td>{{ $lead->status }}</td>
+                                <td>{{ optional($lead->created_at)->format('d.m.Y H:i') }}</td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        @endif
+    </section>
     </div>
 
     {{-- Crawl --}}

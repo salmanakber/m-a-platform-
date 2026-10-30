@@ -14,7 +14,13 @@ final class SettingKey
 
     public const GROUP_PROMOTION = 'promotion';
 
+    public const GROUP_FOOTER = 'footer';
+
     public const APP_NAME = 'app.name';
+
+    public const FOOTER_CONTACT_LINES = 'footer.contact_lines';
+
+    public const FOOTER_CONTACT_EMAIL = 'footer.contact_email';
 
     public const GOOGLE_MAPS_API_KEY = 'maps.google_api_key';
 

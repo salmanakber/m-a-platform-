@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Support\Role;
 use App\Services\Email\NotificationService;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -44,7 +45,13 @@ class User extends Authenticatable
 
     public function expert(): HasOne
     {
-        return $this->hasOne(Expert::class);
+        // Primary profile for the portal (first linked expert).
+        return $this->hasOne(Expert::class)->oldestOfMany();
+    }
+
+    public function experts(): HasMany
+    {
+        return $this->hasMany(Expert::class);
     }
 
     public function isAdmin(): bool

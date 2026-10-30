@@ -23,6 +23,11 @@ class SettingsController extends Controller
             'tab' => $tab,
             'appName' => $this->settings->get(SettingKey::APP_NAME, config('app.name')),
             'adminNotificationEmail' => $this->settings->get(SettingKey::ADMIN_NOTIFICATION_EMAIL),
+            'footerContactLines' => $this->settings->get(
+                SettingKey::FOOTER_CONTACT_LINES,
+                "nachfolge-experten.ch\nBrünigstrasse 144\n6060 Sarnen"
+            ),
+            'footerContactEmail' => $this->settings->get(SettingKey::FOOTER_CONTACT_EMAIL, 'kontakt@nachfolge-experten.ch'),
             'promotionMonthlyPrice' => $this->settings->get(SettingKey::PROMOTION_MONTHLY_PRICE_CHF, '0'),
             'mapsKeyMasked' => $this->settings->getMasked(SettingKey::GOOGLE_MAPS_API_KEY),
             'aiProviderOrder' => $this->settings->get(SettingKey::AI_PROVIDER_ORDER, 'gemini,groq,openai,anthropic'),
@@ -52,9 +57,11 @@ class SettingsController extends Controller
         $tab = $request->input('tab', 'general');
 
         $validated = $request->validate([
-            'tab' => ['nullable', 'string', 'in:general,maps,email,ai,promotion'],
+            'tab' => ['nullable', 'string', 'in:general,maps,email,ai,promotion,footer'],
             'app_name' => ['nullable', 'string', 'max:255'],
             'admin_notification_email' => ['nullable', 'email', 'max:255'],
+            'footer_contact_lines' => ['nullable', 'string', 'max:2000'],
+            'footer_contact_email' => ['nullable', 'email', 'max:255'],
             'promotion_monthly_price_chf' => ['nullable', 'numeric', 'min:0'],
             'maps_google_api_key' => ['nullable', 'string'],
             'ai_provider_order' => ['nullable', 'string', 'max:255'],
@@ -81,6 +88,19 @@ class SettingsController extends Controller
                 SettingKey::ADMIN_NOTIFICATION_EMAIL,
                 $validated['admin_notification_email'] ?? null,
                 SettingKey::GROUP_EMAIL
+            );
+        }
+
+        if ($tab === 'footer') {
+            $this->settings->set(
+                SettingKey::FOOTER_CONTACT_LINES,
+                $validated['footer_contact_lines'] ?? null,
+                SettingKey::GROUP_FOOTER
+            );
+            $this->settings->set(
+                SettingKey::FOOTER_CONTACT_EMAIL,
+                $validated['footer_contact_email'] ?? null,
+                SettingKey::GROUP_FOOTER
             );
         }
 

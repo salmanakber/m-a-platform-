@@ -29,6 +29,7 @@
             <div class="form-group">
                 <label for="email">E-Mail / Login *</label>
                 <input class="form-control" type="email" name="email" id="email" value="{{ old('email') }}" required>
+                <p class="field-hint">Darf dieselbe E-Mail wie ein bestehendes Profil sein (z.&nbsp;B. zusätzlicher Marktplatz) — Login wird dann geteilt.</p>
             </div>
         </div>
         <div class="form-row">

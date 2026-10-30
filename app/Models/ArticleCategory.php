@@ -10,6 +10,7 @@ class ArticleCategory extends Model
     protected $fillable = [
         'slug',
         'name_de',
+        'description_de',
         'sort_order',
     ];
 

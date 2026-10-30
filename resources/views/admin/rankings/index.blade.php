@@ -44,7 +44,7 @@
 
     @if ($scopes['canton_top3'] ?? false)
         <section class="rk-quick card">
-            <h3>Top 3 für einen anderen Kanton</h3>
+            <h3>Top 5 für einen anderen Kanton</h3>
             <form method="get" action="{{ route('admin.rankings.edit-group') }}" class="rk-quick__form">
                 <input type="hidden" name="scope" value="canton_top3">
                 <select class="form-control" name="canton_id" required>
@@ -72,6 +72,22 @@
         </section>
     @endif
 
+    @if (($scopes['article_top'] ?? false) && isset($articleCategories))
+        <section class="rk-quick card">
+            <h3>Top 3 Fachbeiträge je Fachbereich</h3>
+            <form method="get" action="{{ route('admin.rankings.edit-group') }}" class="rk-quick__form">
+                <input type="hidden" name="scope" value="article_top">
+                <select class="form-control" name="article_category_id">
+                    <option value="">Global (Startseite)</option>
+                    @foreach ($articleCategories as $cat)
+                        <option value="{{ $cat->id }}">{{ $cat->name_de }}</option>
+                    @endforeach
+                </select>
+                <button type="submit" class="btn btn--small">Öffnen</button>
+            </form>
+        </section>
+    @endif
+
     <section class="admin-card" style="margin-top:1.5rem;">
         <div class="admin-card__head admin-card__head--row">
             <h2>Aktuell gespeichert</h2>
@@ -88,6 +104,8 @@
                                 <h3>
                                     @if ($group['canton'])
                                         {{ $group['canton']->code }} · {{ $group['canton']->name_de }}
+                                    @elseif (!empty($group['article_category']))
+                                        {{ $group['article_category']->name_de }}
                                     @elseif ($group['professional_group'])
                                         {{ $professionalGroups[$group['professional_group']] ?? $group['professional_group'] }}
                                     @else

@@ -62,7 +62,7 @@
         </div>
     @endif
 
-    @if ($scope === 'canton_top3' || $scope === 'group_top')
+    @if ($scope === 'canton_top3' || $scope === 'group_top' || $scope === 'article_top')
         <form method="get" action="{{ route('admin.rankings.edit-group') }}" class="rk-context card">
             <input type="hidden" name="scope" value="{{ $scope }}">
             @if ($scope === 'canton_top3')
@@ -87,6 +87,17 @@
                     </select>
                 </label>
             @endif
+            @if ($scope === 'article_top')
+                <label>
+                    <span>Fachbereich-Gruppe (Top 3)</span>
+                    <select class="form-control" name="article_category_id" onchange="this.form.submit()">
+                        <option value="" @selected(empty($articleCategoryId))>Global (Startseite)</option>
+                        @foreach (($articleCategories ?? []) as $cat)
+                            <option value="{{ $cat->id }}" @selected((int) ($articleCategoryId ?? 0) === (int) $cat->id)>{{ $cat->name_de }}</option>
+                        @endforeach
+                    </select>
+                </label>
+            @endif
         </form>
     @endif
 
@@ -98,6 +109,9 @@
         @endif
         @if ($scope === 'group_top')
             <input type="hidden" name="professional_group" value="{{ $professionalGroup }}">
+        @endif
+        @if ($scope === 'article_top' && ! empty($articleCategoryId))
+            <input type="hidden" name="article_category_id" value="{{ $articleCategoryId }}">
         @endif
 
         <p class="rk-editor__hint">Jedes Ranking-Slot hat eigene Gültigkeit (Von / Bis). Leere Slots werden nicht gespeichert.</p>

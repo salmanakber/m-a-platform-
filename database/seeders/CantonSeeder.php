@@ -10,6 +10,8 @@ class CantonSeeder extends Seeder
     public function run(): void
     {
         $cantons = [
+            // Nationwide option for Marktplätze / schweizweite Experten
+            ['code' => 'CH', 'name_de' => 'Ganze Schweiz', 'name_fr' => 'Toute la Suisse', 'latitude' => 46.8182, 'longitude' => 8.2275],
             ['code' => 'AG', 'name_de' => 'Aargau', 'name_fr' => 'Argovie', 'latitude' => 47.3876664, 'longitude' => 8.2554295],
             ['code' => 'AI', 'name_de' => 'Appenzell Innerrhoden', 'name_fr' => 'Appenzell Rhodes-Intérieures', 'latitude' => 47.3161925, 'longitude' => 9.4316572],
             ['code' => 'AR', 'name_de' => 'Appenzell Ausserrhoden', 'name_fr' => 'Appenzell Rhodes-Extérieures', 'latitude' => 47.3664810, 'longitude' => 9.3000918],

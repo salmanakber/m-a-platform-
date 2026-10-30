@@ -16,6 +16,8 @@ class Expert extends Model
         'company_name',
         'slug',
         'logo_path',
+        'contact_photo_path',
+        'video_url',
         'website',
         'email',
         'phone',

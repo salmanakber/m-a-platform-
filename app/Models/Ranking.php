@@ -12,6 +12,7 @@ class Ranking extends Model
         'scope',
         'professional_group',
         'canton_id',
+        'article_category_id',
         'expert_id',
         'article_id',
         'event_id',
@@ -47,6 +48,11 @@ class Ranking extends Model
     public function canton(): BelongsTo
     {
         return $this->belongsTo(Canton::class);
+    }
+
+    public function articleCategory(): BelongsTo
+    {
+        return $this->belongsTo(ArticleCategory::class, 'article_category_id');
     }
 
     public function scopeCurrentlyActive(Builder $query): Builder

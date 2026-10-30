@@ -41,6 +41,10 @@ class ExpertController extends Controller
         $status = $request->query('status');
         $q = trim((string) $request->query('q', ''));
         $cantonId = $request->query('canton_id');
+        $group = trim((string) $request->query('gruppe', ''));
+        if ($group !== '' && ! in_array($group, ProfessionalGroup::all(), true)) {
+            $group = '';
+        }
 
         $experts = Expert::query()
             ->when($status !== null && $status !== '', fn ($query) => $query->where('status', $status))
@@ -55,7 +59,9 @@ class ExpertController extends Controller
             ->when($cantonId, function ($query) use ($cantonId) {
                 $query->whereHas('offices', fn ($o) => $o->where('canton_id', $cantonId));
             })
+            ->when($group !== '', fn ($query) => $query->where('professional_group', $group))
             ->with(['user', 'offices.canton'])
+            ->withCount('leads')
             ->orderByDesc('created_at')
             ->paginate(20)
             ->withQueryString();
@@ -65,7 +71,9 @@ class ExpertController extends Controller
             'status' => $status,
             'q' => $q,
             'cantonId' => $cantonId,
+            'group' => $group,
             'cantons' => Canton::query()->orderBy('name_de')->get(),
+            'professionalGroups' => ProfessionalGroup::labels(),
             'statuses' => ExpertStatus::all(),
         ]);
     }
@@ -84,7 +92,7 @@ class ExpertController extends Controller
     {
         $validated = $request->validate([
             'company_name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'email', 'max:255', 'unique:experts,email', 'unique:users,email'],
+            'email' => ['required', 'email', 'max:255'],
             'password' => ['nullable', 'string', 'min:8', 'confirmed'],
             'phone' => ['nullable', 'string', 'max:50'],
             'website' => ['nullable', 'url', 'max:500'],
@@ -100,8 +108,6 @@ class ExpertController extends Controller
             'postal_code' => ['required', 'string', 'max:20'],
             'city' => ['required', 'string', 'max:120'],
             'canton_id' => ['required', 'exists:cantons,id'],
-        ], [
-            'email.unique' => 'Diese E-Mail wird bereits verwendet.',
         ]);
 
         try {
@@ -121,23 +127,37 @@ class ExpertController extends Controller
                     $displayName = $validated['company_name'];
                 }
 
-                $password = ! empty($validated['password'])
-                    ? $validated['password']
-                    : Str::random(32);
+                $email = mb_strtolower(trim($validated['email']));
+                $existingUser = User::query()->whereRaw('LOWER(email) = ?', [$email])->first();
 
-                $user = User::query()->create([
-                    'name' => $displayName,
-                    'email' => $validated['email'],
-                    'password' => Hash::make($password),
-                    'role' => Role::EXPERT,
-                    'is_active' => true,
-                ]);
+                if ($existingUser && $existingUser->role !== Role::EXPERT) {
+                    throw new RuntimeException('Diese E-Mail gehört zu einem Nicht-Experten-Konto.');
+                }
+
+                if ($existingUser) {
+                    $user = $existingUser;
+                    if (! empty($validated['password'])) {
+                        $user->forceFill(['password' => Hash::make($validated['password']), 'is_active' => true])->save();
+                    }
+                } else {
+                    $password = ! empty($validated['password'])
+                        ? $validated['password']
+                        : Str::random(32);
+
+                    $user = User::query()->create([
+                        'name' => $displayName,
+                        'email' => $email,
+                        'password' => Hash::make($password),
+                        'role' => Role::EXPERT,
+                        'is_active' => true,
+                    ]);
+                }
 
                 $expert = Expert::query()->create([
                     'user_id' => $user->id,
                     'company_name' => $validated['company_name'],
                     'slug' => $slug,
-                    'email' => $validated['email'],
+                    'email' => $email,
                     'phone' => $validated['phone'] ?? null,
                     'website' => $validated['website'] ?? null,
                     'contact_person_name' => $validated['contact_person_name'] ?? null,
@@ -203,6 +223,7 @@ class ExpertController extends Controller
             'articles.category',
             'events.canton',
             'promotions.canton',
+            'leads' => fn ($q) => $q->orderByDesc('created_at')->limit(100),
             'aiSuggestions' => fn ($q) => $q->where('status', 'pending')->orderByDesc('created_at')->limit(20),
             'crawlJobs' => fn ($q) => $q->orderByDesc('created_at')->limit(8),
         ]);
@@ -212,6 +233,8 @@ class ExpertController extends Controller
             'professionalGroups' => ProfessionalGroup::labels(),
             'articles' => $expert->articles->sortByDesc('created_at')->values(),
             'events' => $expert->events->sortByDesc('starts_on')->values(),
+            'leads' => $expert->leads,
+            'leadsCount' => $expert->leads()->count(),
             'aiSuggestions' => $expert->aiSuggestions,
             'crawlJobs' => $expert->crawlJobs,
         ]);
@@ -249,14 +272,10 @@ class ExpertController extends Controller
     {
         $validated = $request->validate([
             'company_name' => ['required', 'string', 'max:255'],
-            'email' => [
-                'required',
-                'email',
-                'max:255',
-                Rule::unique('experts', 'email')->ignore($expert->id),
-            ],
+            'email' => ['required', 'email', 'max:255'],
             'phone' => ['nullable', 'string', 'max:50'],
             'website' => ['nullable', 'url', 'max:500'],
+            'video_url' => ['nullable', 'url', 'max:500'],
             'description' => ['nullable', 'string'],
             'services_text' => ['nullable', 'string'],
             'offers_buy' => ['nullable', 'boolean'],
@@ -271,14 +290,15 @@ class ExpertController extends Controller
             'public_rating' => ['nullable', 'numeric', 'between:0,5'],
             'public_deals_count' => ['nullable', 'integer', 'min:0', 'max:99999'],
             'logo' => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp,gif', 'max:4096'],
-        ], [
-            'email.unique' => 'Diese E-Mail-Adresse wird bereits verwendet.',
+            'contact_photo' => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp,gif', 'max:4096'],
+            'remove_contact_photo' => ['nullable', 'boolean'],
         ]);
 
         $data = [
             'company_name' => $validated['company_name'],
             'phone' => $validated['phone'] ?? null,
             'website' => $validated['website'] ?? null,
+            'video_url' => $validated['video_url'] ?? null,
             'description' => $validated['description'] ?? null,
             'services_text' => $validated['services_text'] ?? null,
             'offers_buy' => $request->boolean('offers_buy'),
@@ -301,6 +321,19 @@ class ExpertController extends Controller
             Storage::disk('public')->makeDirectory('experts/logos');
             $data['logo_path'] = $request->file('logo')->store('experts/logos', 'public');
             $data['logo_locked'] = true;
+        }
+
+        if ($request->boolean('remove_contact_photo') && $expert->contact_photo_path) {
+            Storage::disk('public')->delete($expert->contact_photo_path);
+            $data['contact_photo_path'] = null;
+        }
+
+        if ($request->hasFile('contact_photo') && $request->file('contact_photo')->isValid()) {
+            if ($expert->contact_photo_path) {
+                Storage::disk('public')->delete($expert->contact_photo_path);
+            }
+            Storage::disk('public')->makeDirectory('experts/contacts');
+            $data['contact_photo_path'] = $request->file('contact_photo')->store('experts/contacts', 'public');
         }
 
         $expert->update($data);

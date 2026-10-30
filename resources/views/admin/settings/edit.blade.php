@@ -7,6 +7,7 @@
 
     <nav class="admin-tabs">
         <a href="{{ route('admin.settings.edit', ['tab' => 'general']) }}" class="{{ $tab === 'general' ? 'is-active' : '' }}">Allgemein</a>
+        <a href="{{ route('admin.settings.edit', ['tab' => 'footer']) }}" class="{{ $tab === 'footer' ? 'is-active' : '' }}">Footer / Kontakt</a>
         <a href="{{ route('admin.settings.edit', ['tab' => 'maps']) }}" class="{{ $tab === 'maps' ? 'is-active' : '' }}">Maps</a>
         <a href="{{ route('admin.settings.edit', ['tab' => 'email']) }}" class="{{ $tab === 'email' ? 'is-active' : '' }}">E-Mail</a>
         <a href="{{ route('admin.settings.edit', ['tab' => 'ai']) }}" class="{{ $tab === 'ai' ? 'is-active' : '' }}">KI</a>
@@ -26,6 +27,18 @@
             <div class="form-group">
                 <label for="admin_notification_email">Admin-Benachrichtigung E-Mail</label>
                 <input class="form-control" type="email" name="admin_notification_email" id="admin_notification_email" value="{{ old('admin_notification_email', $adminNotificationEmail) }}">
+            </div>
+        @endif
+
+        @if ($tab === 'footer')
+            <p class="field-hint" style="margin-top:0;">Öffentlicher Footer-Kontakt (Adresse und E-Mail). Events pflegen Experten bzw. Admins unter dem jeweiligen Expertenprofil.</p>
+            <div class="form-group">
+                <label for="footer_contact_lines">Kontaktadresse (mehrzeilig)</label>
+                <textarea class="form-control" name="footer_contact_lines" id="footer_contact_lines" rows="4">{{ old('footer_contact_lines', $footerContactLines) }}</textarea>
+            </div>
+            <div class="form-group">
+                <label for="footer_contact_email">Kontakt-E-Mail</label>
+                <input class="form-control" type="email" name="footer_contact_email" id="footer_contact_email" value="{{ old('footer_contact_email', $footerContactEmail) }}">
             </div>
         @endif
 

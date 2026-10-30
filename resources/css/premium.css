@@ -52,10 +52,31 @@
 
 .xp-stage__grid {
     display: grid;
-    grid-template-columns: auto 1fr;
+    grid-template-columns: auto 1fr auto;
     gap: 2rem 2.5rem;
     align-items: end;
 }
+.xp-stage__person {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.65rem;
+}
+.xp-stage__photo {
+    width: 112px;
+    height: 112px;
+    border-radius: 999px;
+    object-fit: cover;
+    border: 2px solid rgba(255,255,255,0.35);
+    box-shadow: 0 12px 28px rgba(0,0,0,0.28);
+}
+.xp-stage__video {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: #009DE1;
+    text-decoration: none;
+}
+.xp-stage__video:hover { text-decoration: underline; }
 
 .xp-mark {
     width: 132px;
@@ -6784,11 +6805,72 @@ body.is-public-redesign .site-header {
 }
 body.is-public-redesign .site-header .site-logo__text,
 body.is-public-redesign .site-nav a { color: #f5f1ea; }
-body.is-public-redesign .site-nav a.is-active { color: var(--nh-gold-2); }
+body.is-public-redesign .site-nav a.is-active,
+body.is-public-redesign .site-nav .nav-drop.is-active > .nav-drop__trigger { color: var(--nh-gold-2); }
 body.is-public-redesign .site-nav .nav-cta {
     background: var(--nh-gold);
     color: var(--nh-navy);
     border: 0;
+}
+/* Login / Anmelden / Abmelden — logo blue */
+body.is-public-redesign .site-nav .nav-auth-link,
+body.is-public-redesign .site-nav .nav-auth-btn {
+    color: #009DE1 !important;
+    border-color: rgba(0, 157, 225, 0.45) !important;
+}
+body.is-public-redesign .site-nav .nav-auth-link:hover,
+body.is-public-redesign .site-nav .nav-auth-btn:hover {
+    color: #5ec8f5 !important;
+    border-color: rgba(0, 157, 225, 0.8) !important;
+}
+body.is-public-redesign .site-nav .nav-drop {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+}
+body.is-public-redesign .site-nav .nav-drop__menu {
+    display: none;
+    position: absolute;
+    top: calc(100% + 0.55rem);
+    left: 0;
+    min-width: 15rem;
+    padding: 0.55rem;
+    background: #0f1c2e;
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 10px;
+    box-shadow: 0 16px 40px rgba(0,0,0,0.35);
+    z-index: 40;
+}
+body.is-public-redesign .site-nav .nav-drop__menu a {
+    display: block;
+    padding: 0.45rem 0.65rem;
+    border-radius: 6px;
+    color: #f5f1ea;
+    white-space: nowrap;
+    font-size: 0.9rem;
+}
+body.is-public-redesign .site-nav .nav-drop__menu a:hover {
+    background: rgba(0, 157, 225, 0.15);
+    color: #fff;
+}
+body.is-public-redesign .site-nav .nav-drop:hover .nav-drop__menu,
+body.is-public-redesign .site-nav .nav-drop:focus-within .nav-drop__menu {
+    display: block;
+}
+@media (max-width: 900px) {
+    body.is-public-redesign .site-nav .nav-drop {
+        display: block;
+        width: 100%;
+    }
+    body.is-public-redesign .site-nav .nav-drop__menu {
+        position: static;
+        display: block;
+        box-shadow: none;
+        border: 0;
+        background: transparent;
+        padding: 0.15rem 0 0.35rem 0.75rem;
+        min-width: 0;
+    }
 }
 
 .nh-hero {
@@ -7495,6 +7577,44 @@ body.is-public-redesign .site-nav button.btn--ghost {
 
 /* Blog page */
 .nh-blog-page { background: #0b1626; color: #fff; min-height: 70vh; }
+.nh-blog-cats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin: 0 0 1.5rem;
+}
+.nh-blog-cats a {
+    padding: 0.4rem 0.85rem;
+    border-radius: 999px;
+    border: 1px solid rgba(255,255,255,0.16);
+    color: rgba(245,241,234,0.78);
+    font-size: 0.82rem;
+    text-decoration: none;
+}
+.nh-blog-cats a.is-on,
+.nh-blog-cats a:hover {
+    background: rgba(0, 157, 225, 0.18);
+    border-color: rgba(0, 157, 225, 0.55);
+    color: #fff;
+}
+.nh-blog-top {
+    margin: 0 0 2rem;
+}
+.nh-blog-top > header {
+    margin-bottom: 1rem;
+}
+.nh-blog-top > header h2 {
+    margin: 0 0 0.35rem;
+    font-family: var(--font-display);
+    font-size: 1.45rem;
+}
+.nh-blog-top > header p {
+    margin: 0;
+    color: rgba(245,241,234,0.65);
+}
+.nh-blog-grid--top {
+    margin-bottom: 0.5rem;
+}
 .nh-blog-grid {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));

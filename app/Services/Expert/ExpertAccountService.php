@@ -51,17 +51,7 @@ class ExpertAccountService
                 ->first();
 
             if ($existing && ! $this->isSharedImportUser($existing)) {
-                $linkedElsewhere = Expert::query()
-                    ->where('user_id', $existing->id)
-                    ->where('id', '!=', $expert->id)
-                    ->exists();
-
-                if ($linkedElsewhere) {
-                    throw new RuntimeException(
-                        'Die E-Mail «'.$email.'» ist bereits mit einem anderen Login verknüpft.'
-                    );
-                }
-
+                // Same login may own several profiles (e.g. M&A-Spezialist + Marktplatz).
                 $expert->forceFill(['user_id' => $existing->id])->save();
 
                 return $existing->fresh();
@@ -242,25 +232,24 @@ class ExpertAccountService
 
     private function assertEmailAvailable(Expert $expert, string $email): void
     {
-        $expertClash = Expert::query()
-            ->whereRaw('LOWER(email) = ?', [$email])
-            ->where('id', '!=', $expert->id)
-            ->exists();
-
-        if ($expertClash) {
-            throw new RuntimeException('Diese E-Mail wird bereits von einem anderen Experten verwendet.');
-        }
-
-        $userQuery = User::query()->whereRaw('LOWER(email) = ?', [$email]);
+        // Duplicate contact e-mails across expert profiles are allowed (M&A + Marktplatz).
+        // Login users may be shared; only block if the address belongs to a non-expert account.
         $expert->loadMissing('user');
 
-        if ($expert->user && ! $this->isSharedImportUser($expert->user)) {
-            $userQuery->where('id', '!=', $expert->user_id);
+        $user = User::query()->whereRaw('LOWER(email) = ?', [$email])->first();
+        if ($user === null) {
+            return;
         }
 
-        if ($userQuery->exists()) {
-            throw new RuntimeException('Diese E-Mail ist bereits als Login vergeben.');
+        if ($expert->user && (int) $expert->user_id === (int) $user->id) {
+            return;
         }
+
+        if ($user->role === Role::EXPERT || $this->isSharedImportUser($user)) {
+            return;
+        }
+
+        throw new RuntimeException('Diese E-Mail ist bereits als Login vergeben.');
     }
 
     private function displayName(Expert $expert): string

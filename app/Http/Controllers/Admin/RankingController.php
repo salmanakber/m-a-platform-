@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Article;
+use App\Models\ArticleCategory;
 use App\Models\Canton;
 use App\Models\Event;
 use App\Models\Expert;
@@ -28,11 +29,12 @@ class RankingController extends Controller
         $scope = (string) $request->query('scope', '');
 
         $rankings = Ranking::query()
-            ->with(['expert', 'article', 'event', 'canton'])
+            ->with(['expert', 'article', 'event', 'canton', 'articleCategory'])
             ->when($scope !== '', fn ($q) => $q->where('scope', $scope))
             ->orderBy('scope')
             ->orderBy('professional_group')
             ->orderBy('canton_id')
+            ->orderBy('article_category_id')
             ->orderBy('position')
             ->get();
 
@@ -44,6 +46,7 @@ class RankingController extends Controller
             'scopes' => RankingScope::labels(),
             'professionalGroups' => ProfessionalGroup::labels(),
             'cantons' => Canton::query()->orderBy('name_de')->get(),
+            'articleCategories' => ArticleCategory::query()->orderBy('sort_order')->get(),
         ]);
     }
 
@@ -56,6 +59,7 @@ class RankingController extends Controller
 
         $cantonId = $request->query('canton_id');
         $groupKey = $request->query('professional_group');
+        $categoryId = $request->query('article_category_id');
 
         if ($scope === RankingScope::CANTON_TOP3 && ! $cantonId) {
             // Default ZH if present
@@ -67,8 +71,21 @@ class RankingController extends Controller
             $groupKey = ProfessionalGroup::MA_SPECIALIST;
         }
 
-        $slots = $this->loadSlots($scope, $cantonId ? (int) $cantonId : null, $groupKey ?: null);
+        $slots = $this->loadSlots(
+            $scope,
+            $cantonId ? (int) $cantonId : null,
+            $groupKey ?: null,
+            $categoryId !== null && $categoryId !== '' ? (int) $categoryId : null
+        );
         $meta = $this->groupMeta($slots);
+
+        $articlesQuery = Article::query()
+            ->where('status', ArticleStatus::PUBLISHED)
+            ->orderByDesc('published_at')
+            ->limit(300);
+        if ($scope === RankingScope::ARTICLE_TOP && $categoryId) {
+            $articlesQuery->where('category_id', (int) $categoryId);
+        }
 
         return view('admin.rankings.group', [
             'scope' => $scope,
@@ -77,16 +94,14 @@ class RankingController extends Controller
             'slotKind' => $this->slotKind($scope),
             'cantonId' => $cantonId ? (int) $cantonId : null,
             'professionalGroup' => $groupKey ?: null,
+            'articleCategoryId' => $categoryId !== null && $categoryId !== '' ? (int) $categoryId : null,
             'professionalGroups' => ProfessionalGroup::labels(),
             'cantons' => Canton::query()->orderBy('name_de')->get(),
+            'articleCategories' => ArticleCategory::query()->orderBy('sort_order')->get(),
             'slots' => $slots,
             'meta' => $meta,
             'experts' => $this->expertOptions(),
-            'articles' => Article::query()
-                ->where('status', ArticleStatus::PUBLISHED)
-                ->orderByDesc('published_at')
-                ->limit(300)
-                ->get(['id', 'title']),
+            'articles' => $articlesQuery->get(['id', 'title', 'category_id']),
             'events' => Event::query()
                 ->where('status', EventStatus::PUBLISHED)
                 ->orderByDesc('starts_on')
@@ -115,6 +130,7 @@ class RankingController extends Controller
             'scope' => ['required', Rule::in(RankingScope::all())],
             'professional_group' => ['nullable', Rule::in(ProfessionalGroup::all())],
             'canton_id' => ['nullable', 'exists:cantons,id'],
+            'article_category_id' => ['nullable', 'exists:article_categories,id'],
             'slots' => ['required', 'array', 'max:'.$max],
             'slots.*.position' => ['required', 'integer', 'min:1', 'max:'.$max],
             'slots.*.label' => ['nullable', 'string', 'max:120'],
@@ -134,6 +150,7 @@ class RankingController extends Controller
         $data = $request->validate($rules);
         $cantonId = ! empty($data['canton_id']) ? (int) $data['canton_id'] : null;
         $groupKey = $data['professional_group'] ?? null;
+        $categoryId = ! empty($data['article_category_id']) ? (int) $data['article_category_id'] : null;
 
         if ($scope === RankingScope::CANTON_TOP3 && ! $cantonId) {
             throw ValidationException::withMessages(['canton_id' => 'Bitte einen Kanton wählen.']);
@@ -183,14 +200,15 @@ class RankingController extends Controller
             ]);
         }
 
-        DB::transaction(function () use ($scope, $cantonId, $groupKey, $filled, $slotKind) {
-            $this->groupQuery($scope, $cantonId, $groupKey)->delete();
+        DB::transaction(function () use ($scope, $cantonId, $groupKey, $categoryId, $filled, $slotKind) {
+            $this->groupQuery($scope, $cantonId, $groupKey, $categoryId)->delete();
 
             foreach ($filled as $slot) {
                 Ranking::query()->create([
                     'scope' => $scope,
                     'professional_group' => $scope === RankingScope::GROUP_TOP ? $groupKey : ($groupKey ?: null),
                     'canton_id' => $scope === RankingScope::CANTON_TOP3 ? $cantonId : null,
+                    'article_category_id' => $scope === RankingScope::ARTICLE_TOP ? $categoryId : null,
                     'expert_id' => $slotKind === 'expert' ? $slot['target_id'] : null,
                     'article_id' => $slotKind === 'article' ? $slot['target_id'] : null,
                     'event_id' => $slotKind === 'event' ? $slot['target_id'] : null,
@@ -208,6 +226,7 @@ class RankingController extends Controller
                 'scope' => $scope,
                 'canton_id' => $cantonId,
                 'professional_group' => $groupKey,
+                'article_category_id' => $categoryId,
             ]))
             ->with('success', RankingScope::label($scope).' gespeichert ('.$filled->count().' Platzierungen).');
     }
@@ -217,6 +236,7 @@ class RankingController extends Controller
         $scope = $ranking->scope;
         $cantonId = $ranking->canton_id;
         $groupKey = $ranking->professional_group;
+        $categoryId = $ranking->article_category_id;
         $ranking->delete();
 
         return redirect()
@@ -224,6 +244,7 @@ class RankingController extends Controller
                 'scope' => $scope,
                 'canton_id' => $cantonId,
                 'professional_group' => $groupKey,
+                'article_category_id' => $categoryId,
             ]))
             ->with('success', 'Platzierung entfernt.');
     }
@@ -236,7 +257,7 @@ class RankingController extends Controller
     {
         return $rankings
             ->groupBy(function (Ranking $row) {
-                return $row->scope.'|'.($row->professional_group ?? '').'|'.($row->canton_id ?? '');
+                return $row->scope.'|'.($row->professional_group ?? '').'|'.($row->canton_id ?? '').'|'.($row->article_category_id ?? '');
             })
             ->map(function (Collection $rows) {
                 /** @var Ranking $first */
@@ -248,6 +269,8 @@ class RankingController extends Controller
                     'professional_group' => $first->professional_group,
                     'canton_id' => $first->canton_id,
                     'canton' => $first->canton,
+                    'article_category_id' => $first->article_category_id,
+                    'article_category' => $first->articleCategory,
                     'label' => $first->label,
                     'starts_on' => $first->starts_on,
                     'ends_on' => $first->ends_on,
@@ -257,21 +280,22 @@ class RankingController extends Controller
                         'scope' => $first->scope,
                         'canton_id' => $first->canton_id,
                         'professional_group' => $first->professional_group,
+                        'article_category_id' => $first->article_category_id,
                     ])),
                 ];
             })
-            ->sortBy(fn (array $g) => $g['scope_label'].($g['canton']->code ?? '').($g['professional_group'] ?? ''))
+            ->sortBy(fn (array $g) => $g['scope_label'].($g['canton']->code ?? '').($g['professional_group'] ?? '').($g['article_category']->name_de ?? ''))
             ->values();
     }
 
     /**
      * @return Collection<int, Ranking|null>
      */
-    private function loadSlots(string $scope, ?int $cantonId, ?string $groupKey): Collection
+    private function loadSlots(string $scope, ?int $cantonId, ?string $groupKey, ?int $categoryId = null): Collection
     {
         $max = RankingScope::maxPosition($scope);
-        $existing = $this->groupQuery($scope, $cantonId, $groupKey)
-            ->with(['expert.offices.canton', 'article', 'event'])
+        $existing = $this->groupQuery($scope, $cantonId, $groupKey, $categoryId)
+            ->with(['expert.offices.canton', 'article', 'event', 'articleCategory'])
             ->get()
             ->keyBy('position');
 
@@ -299,7 +323,7 @@ class RankingController extends Controller
         ];
     }
 
-    private function groupQuery(string $scope, ?int $cantonId, ?string $groupKey)
+    private function groupQuery(string $scope, ?int $cantonId, ?string $groupKey, ?int $categoryId = null)
     {
         return Ranking::query()
             ->where('scope', $scope)
@@ -307,6 +331,17 @@ class RankingController extends Controller
                 $scope === RankingScope::CANTON_TOP3,
                 fn ($q) => $q->where('canton_id', $cantonId),
                 fn ($q) => $q->whereNull('canton_id')
+            )
+            ->when(
+                $scope === RankingScope::ARTICLE_TOP,
+                function ($q) use ($categoryId) {
+                    if ($categoryId) {
+                        return $q->where('article_category_id', $categoryId);
+                    }
+
+                    return $q->whereNull('article_category_id');
+                },
+                fn ($q) => $q->whereNull('article_category_id')
             )
             ->when(
                 $scope === RankingScope::GROUP_TOP,

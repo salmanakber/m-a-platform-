@@ -41,8 +41,7 @@ class MapController extends Controller
         $direction = $request->query('richtung');
         $cantonCode = strtoupper(trim((string) $request->query('kanton', '')));
         $group = trim((string) $request->query('gruppe', ''));
-        if ($group === ProfessionalGroup::MARKTPLATZ
-            || ($group !== '' && ! array_key_exists($group, ProfessionalGroup::mapLabels()))) {
+        if ($group !== '' && ! array_key_exists($group, ProfessionalGroup::mapLabels())) {
             $group = '';
         }
 
@@ -54,9 +53,7 @@ class MapController extends Controller
         $offices = ExpertOffice::query()
             ->whereHas('expert', function ($query) use ($direction, $group) {
                 $query->where('status', ExpertStatus::APPROVED)
-                    ->where('is_public', true)
-                    // Marktplätze are listed like Top cards — not on the map.
-                    ->where('professional_group', '!=', ProfessionalGroup::MARKTPLATZ);
+                    ->where('is_public', true);
 
                 if ($direction === 'kaufen') {
                     $query->where('offers_buy', true);

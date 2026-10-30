@@ -35,17 +35,13 @@ final class ProfessionalGroup
     }
 
     /**
-     * Groups shown on the Switzerland map (Marktplätze are card/ranking only).
+     * Groups shown on the Switzerland map (incl. Marktplätze with own pin colour).
      *
      * @return array<string, string>
      */
     public static function mapLabels(): array
     {
-        return array_filter(
-            self::labels(),
-            fn (string $key) => $key !== self::MARKTPLATZ,
-            ARRAY_FILTER_USE_KEY
-        );
+        return self::labels();
     }
 
     /**

@@ -17,20 +17,36 @@
             </a>
             <button class="nav-toggle" type="button" aria-label="Menü" id="navToggle" aria-expanded="false">☰</button>
             <nav class="site-nav" id="siteNav" aria-label="Hauptnavigation">
-                <a href="{{ route('home') }}#top5" class="{{ request()->routeIs('home') ? 'is-active' : '' }}">Experten</a>
-                <a href="{{ route('home') }}#marktplaetze">Marktplätze</a>
-                <a href="{{ route('home') }}#juristen">Juristen</a>
-                <a href="{{ route('directory.index') }}" class="{{ request()->routeIs('directory.*', 'experts.*') ? 'is-active' : '' }}">Verzeichnis</a>
+                <div class="nav-drop {{ request()->routeIs('home', 'directory.*', 'experts.*') ? 'is-active' : '' }}">
+                    <a href="{{ route('home') }}#top5" class="nav-drop__trigger">Experten</a>
+                    <div class="nav-drop__menu" role="menu">
+                        <a href="{{ route('home') }}#top5" role="menuitem">Top Experten</a>
+                        <a href="{{ route('directory.index') }}" role="menuitem">Verzeichnis</a>
+                        <a href="{{ route('directory.index', ['gruppe' => 'jurist']) }}" role="menuitem">Juristen</a>
+                        <a href="{{ route('home') }}#marktplaetze" role="menuitem">Marktplätze</a>
+                        <a href="{{ route('map.index') }}" role="menuitem">Schweiz-Karte</a>
+                    </div>
+                </div>
+                <div class="nav-drop {{ request()->routeIs('blog.*') ? 'is-active' : '' }}">
+                    <a href="{{ route('blog.index') }}" class="nav-drop__trigger">Fachbeiträge</a>
+                    <div class="nav-drop__menu" role="menu">
+                        <a href="{{ route('blog.index') }}" role="menuitem">Alle Fachbeiträge</a>
+                        @foreach (($navArticleCategories ?? collect()) as $cat)
+                            <a href="{{ route('blog.index', ['gruppe' => $cat->slug]) }}" role="menuitem">{{ $cat->name_de }}</a>
+                        @endforeach
+                    </div>
+                </div>
+                <a href="{{ route('events.index') }}" class="{{ request()->routeIs('events.*') ? 'is-active' : '' }}">Events</a>
                 @auth
                     @if (auth()->user()->isExpert())
                         <a href="{{ route('expert.dashboard') }}">Mein Bereich</a>
                     @endif
                     <form action="{{ route('logout') }}" method="post" style="display:inline;margin:0;">
                         @csrf
-                        <button type="submit" class="btn btn--ghost btn--small">Abmelden</button>
+                        <button type="submit" class="btn btn--ghost btn--small nav-auth-btn">Abmelden</button>
                     </form>
                 @else
-                    <a href="{{ route('login') }}">Login</a>
+                    <a href="{{ route('login') }}" class="nav-auth-link">Login</a>
                     <a class="nav-cta" href="{{ route('registration.create') }}">Als Experte anmelden ↗</a>
                 @endauth
             </nav>
@@ -61,16 +77,20 @@
             </div>
             <div>
                 <h4>Kontakt</h4>
-                <span style="display:block;color:inherit;opacity:0.85;font-size:0.9rem;line-height:1.55;">nachfolge-experten.ch<br>Brünigstrasse 144<br>6060 Sarnen</span>
-                <a href="mailto:kontakt@nachfolge-experten.ch">kontakt@nachfolge-experten.ch</a>
+                <span style="display:block;color:inherit;opacity:0.85;font-size:0.9rem;line-height:1.55;">{!! nl2br(e($footerContactLines ?? "nachfolge-experten.ch\nBrünigstrasse 144\n6060 Sarnen")) !!}</span>
+                @php $footerMail = $footerContactEmail ?? 'kontakt@nachfolge-experten.ch'; @endphp
+                <a href="mailto:{{ $footerMail }}">{{ $footerMail }}</a>
             </div>
             <div>
                 <h4>Entdecken</h4>
                 <a href="{{ route('home') }}#top5">Experten</a>
-                <a href="{{ route('home') }}#marktplaetze">Marktplätze</a>
-                <a href="{{ route('home') }}#juristen">Juristen</a>
                 <a href="{{ route('directory.index') }}">Verzeichnis</a>
+                <a href="{{ route('directory.index', ['gruppe' => 'jurist']) }}">Juristen</a>
+                <a href="{{ route('home') }}#marktplaetze">Marktplätze</a>
                 <a href="{{ route('blog.index') }}">Fachbeiträge</a>
+                @foreach (($navArticleCategories ?? collect()) as $cat)
+                    <a href="{{ route('blog.index', ['gruppe' => $cat->slug]) }}">{{ $cat->name_de }}</a>
+                @endforeach
                 <a href="{{ route('events.index') }}">Events</a>
                 <a href="{{ route('map.index') }}">Schweiz-Karte</a>
                 <a href="{{ route('cantons.index') }}">Kantone</a>
