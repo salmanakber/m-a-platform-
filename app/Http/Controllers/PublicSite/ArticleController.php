@@ -38,6 +38,16 @@ class ArticleController extends Controller
                 ->filter(fn ($row) => $row->article !== null)
                 ->map(fn ($row) => $row->article)
                 ->values();
+
+            // Fallback: latest 3 published in this Fachbereich when no curated Top 3 yet.
+            if ($topCards->isEmpty()) {
+                $topCards = Article::query()
+                    ->where('status', ArticleStatus::PUBLISHED)
+                    ->where('category_id', $activeCategory->id)
+                    ->orderByDesc('published_at')
+                    ->limit(3)
+                    ->get();
+            }
         }
 
         return view('public.blog.index', [

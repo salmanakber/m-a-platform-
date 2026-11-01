@@ -447,12 +447,7 @@ class ExpertController extends Controller
 
     public function deactivate(Expert $expert): RedirectResponse
     {
-        $expert->update([
-            'status' => ExpertStatus::DISABLED,
-            'is_public' => false,
-        ]);
-
-        return back()->with('success', 'Experte deaktiviert.');
+        return back()->with('error', 'Deaktivieren ist nicht mehr verfügbar. Bitte ablehnen oder löschen.');
     }
 
     public function activate(Expert $expert): RedirectResponse
@@ -463,7 +458,7 @@ class ExpertController extends Controller
             'rejection_reason' => null,
         ]);
 
-        return back()->with('success', 'Experte wieder aktiviert / freigegeben.');
+        return back()->with('success', 'Experte wieder freigegeben.');
     }
 
     public function bulk(Request $request): RedirectResponse
@@ -471,7 +466,7 @@ class ExpertController extends Controller
         $validated = $request->validate([
             'ids' => ['required', 'array', 'min:1'],
             'ids.*' => ['integer', 'exists:experts,id'],
-            'action' => ['required', 'in:approve,reject,deactivate,delete,set_password,send_password_reset'],
+            'action' => ['required', 'in:approve,reject,delete,set_password,send_password_reset'],
             'rejection_reason' => ['nullable', 'string', 'max:2000'],
             'bulk_password' => ['nullable', 'string', 'min:8'],
             'bulk_password_confirmation' => ['nullable', 'same:bulk_password'],
@@ -540,11 +535,6 @@ class ExpertController extends Controller
                 ]);
             } elseif ($action === 'delete') {
                 $expert->delete();
-            } else {
-                $expert->update([
-                    'status' => ExpertStatus::DISABLED,
-                    'is_public' => false,
-                ]);
             }
             $count++;
         }
@@ -552,7 +542,6 @@ class ExpertController extends Controller
         $labels = [
             'approve' => 'freigegeben',
             'reject' => 'abgelehnt',
-            'deactivate' => 'deaktiviert',
             'delete' => 'gelöscht',
         ];
 

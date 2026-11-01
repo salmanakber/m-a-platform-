@@ -331,19 +331,45 @@
         </div>
     </section>
 
-    {{-- Fachbeiträge --}}
+    {{-- Fachbeiträge — Top 3 je Fachbereich --}}
     <section class="nh-band nh-band--dark" id="fachbeitraege">
         <div class="nh-section nh-section--flush">
             <div class="nh-section__head nh-section__head--light">
                 <div>
                     <p class="nh-kicker">Wissen</p>
                     <h2>Fachbeiträge zur Nachfolge</h2>
-                    <p>Aktuelle Beiträge von Experten zu Verkauf, Bewertung und Nachfolge.</p>
+                    <p>Top 3 Beiträge in jedem Fachbereich — plus weitere aktuelle Artikel.</p>
                 </div>
                 <a class="nh-link nh-link--light" href="{{ route('blog.index') }}">Alle Beiträge →</a>
             </div>
 
-            @if ($articleTopCards->isNotEmpty())
+            @if (($fachGroupTops ?? collect())->isNotEmpty())
+                <div class="nh-fach-groups">
+                    @foreach ($fachGroupTops as $group)
+                        <article class="nh-fach-group">
+                            <header class="nh-fach-group__head">
+                                <div>
+                                    <h3>{{ $group['category']->name_de }}</h3>
+                                    @if ($group['category']->description_de)
+                                        <p>{{ \Illuminate\Support\Str::limit($group['category']->description_de, 110) }}</p>
+                                    @endif
+                                </div>
+                                <a class="nh-link nh-link--light" href="{{ $group['url'] }}">Gruppe →</a>
+                            </header>
+                            <div class="nh-articles-top nh-articles-top--compact">
+                                @foreach ($group['cards'] as $article)
+                                    <a class="nh-article-card" href="{{ $article['url'] }}">
+                                        <span class="nh-article-card__n">{{ $article['n'] }}</span>
+                                        <h3>{{ $article['title'] }}</h3>
+                                        <p>{{ $article['excerpt'] }}</p>
+                                        <em>Lesen →</em>
+                                    </a>
+                                @endforeach
+                            </div>
+                        </article>
+                    @endforeach
+                </div>
+            @elseif ($articleTopCards->isNotEmpty())
                 <div class="nh-articles-top">
                     @foreach ($articleTopCards as $article)
                         <a class="nh-article-card" href="{{ $article['url'] }}">
@@ -370,7 +396,7 @@
                     </div>
                     <button type="button" class="nh-carousel__btn" data-carousel-next aria-label="Weiter">›</button>
                 </div>
-            @elseif ($articleTopCards->isEmpty())
+            @elseif (($fachGroupTops ?? collect())->isEmpty() && $articleTopCards->isEmpty())
                 <div class="nh-empty nh-empty--dark">Noch keine Fachbeiträge veröffentlicht.</div>
             @endif
         </div>

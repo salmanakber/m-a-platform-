@@ -77,6 +77,46 @@
     text-decoration: none;
 }
 .xp-stage__video:hover { text-decoration: underline; }
+.xp-consultant {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+.xp-consultant__photo {
+    width: 88px;
+    height: 88px;
+    border-radius: 999px;
+    object-fit: cover;
+    border: 2px solid rgba(0, 157, 225, 0.35);
+}
+.xp-consultant__meta {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+.xp-consultant__meta strong {
+    font-size: 1.05rem;
+}
+.xp-consultant__meta span {
+    color: var(--stone);
+    font-size: 0.88rem;
+}
+.xp-consultant__video {
+    position: relative;
+    width: 100%;
+    padding-top: 56.25%;
+    border-radius: 12px;
+    overflow: hidden;
+    background: #0b1626;
+}
+.xp-consultant__video iframe {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    border: 0;
+}
 
 .xp-mark {
     width: 132px;
@@ -6802,6 +6842,13 @@ body.is-public-redesign .site-header {
     background: rgba(11, 22, 38, 0.94);
     border-bottom: 1px solid rgba(197, 160, 89, 0.18);
     backdrop-filter: blur(12px);
+    overflow: visible;
+    height: auto;
+    min-height: var(--header-h);
+}
+body.is-public-redesign .site-header__inner {
+    min-height: var(--header-h);
+    height: auto;
 }
 body.is-public-redesign .site-header .site-logo__text,
 body.is-public-redesign .site-nav a { color: #f5f1ea; }
@@ -6828,33 +6875,57 @@ body.is-public-redesign .site-nav .nav-drop {
     display: inline-flex;
     align-items: center;
 }
+body.is-public-redesign .site-nav .nav-drop__trigger {
+    appearance: none;
+    background: transparent;
+    border: 0;
+    padding: 0.35rem 0;
+    margin: 0;
+    color: #f5f1ea;
+    font: inherit;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    cursor: pointer;
+}
+body.is-public-redesign .site-nav .nav-drop.is-active > .nav-drop__trigger,
+body.is-public-redesign .site-nav .nav-drop__trigger:hover {
+    color: var(--nh-gold-2);
+}
 body.is-public-redesign .site-nav .nav-drop__menu {
     display: none;
     position: absolute;
-    top: calc(100% + 0.55rem);
+    top: 100%;
     left: 0;
     min-width: 15rem;
-    padding: 0.55rem;
+    padding: 0.75rem 0.55rem 0.55rem;
+    margin: 0;
     background: #0f1c2e;
     border: 1px solid rgba(255,255,255,0.12);
     border-radius: 10px;
     box-shadow: 0 16px 40px rgba(0,0,0,0.35);
-    z-index: 40;
+    z-index: 120;
+    pointer-events: auto;
 }
 body.is-public-redesign .site-nav .nav-drop__menu a {
     display: block;
-    padding: 0.45rem 0.65rem;
+    padding: 0.5rem 0.65rem;
     border-radius: 6px;
-    color: #f5f1ea;
+    color: #f5f1ea !important;
     white-space: nowrap;
     font-size: 0.9rem;
+    position: relative;
+    z-index: 1;
+}
+body.is-public-redesign .site-nav .nav-drop__menu a::after {
+    display: none !important;
 }
 body.is-public-redesign .site-nav .nav-drop__menu a:hover {
     background: rgba(0, 157, 225, 0.15);
-    color: #fff;
+    color: #fff !important;
 }
 body.is-public-redesign .site-nav .nav-drop:hover .nav-drop__menu,
-body.is-public-redesign .site-nav .nav-drop:focus-within .nav-drop__menu {
+body.is-public-redesign .site-nav .nav-drop:focus-within .nav-drop__menu,
+body.is-public-redesign .site-nav .nav-drop.is-open .nav-drop__menu {
     display: block;
 }
 @media (max-width: 900px) {
@@ -7576,6 +7647,37 @@ body.is-public-redesign .site-nav button.btn--ghost {
 .nh-event-row__price { font-weight: 750; color: var(--nh-navy); white-space: nowrap; }
 
 /* Blog page */
+.nh-fach-groups {
+    display: grid;
+    gap: 1.75rem;
+    margin: 0 0 1.75rem;
+}
+.nh-fach-group {
+    padding: 1.15rem 0 0.25rem;
+    border-top: 1px solid rgba(255,255,255,0.1);
+}
+.nh-fach-group__head {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    align-items: flex-start;
+    margin-bottom: 0.9rem;
+}
+.nh-fach-group__head h3 {
+    margin: 0 0 0.3rem;
+    font-family: var(--font-display);
+    font-size: 1.35rem;
+    font-weight: 500;
+}
+.nh-fach-group__head p {
+    margin: 0;
+    color: rgba(245,241,234,0.62);
+    font-size: 0.9rem;
+    max-width: 40rem;
+}
+.nh-articles-top--compact {
+    gap: 0.85rem;
+}
 .nh-blog-page { background: #0b1626; color: #fff; min-height: 70vh; }
 .nh-blog-cats {
     display: flex;

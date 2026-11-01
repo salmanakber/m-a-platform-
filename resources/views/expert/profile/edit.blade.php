@@ -150,6 +150,32 @@
                     @endif
                 </div>
 
+                <div class="xp-panel__head" style="margin-top:0.5rem;">
+                    <div>
+                        <h2>Berater-Foto &amp; Video</h2>
+                        <p>Wird auf Ihrem öffentlichen Profil angezeigt.</p>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="contact_photo">Foto der Kontaktperson / Berater</label>
+                        <input class="form-control" type="file" name="contact_photo" id="contact_photo" accept="image/png,image/jpeg,image/webp,image/gif">
+                        @error('contact_photo')<p class="field-error">{{ $message }}</p>@enderror
+                        @if ($expert->contact_photo_path)
+                            <p style="margin:0.5rem 0 0;"><img src="{{ asset('storage/'.$expert->contact_photo_path) }}" alt="" style="max-height:96px;border-radius:8px;"></p>
+                            <label style="display:inline-flex;gap:0.35rem;align-items:center;margin-top:0.35rem;">
+                                <input type="checkbox" name="remove_contact_photo" value="1"> Foto entfernen
+                            </label>
+                        @endif
+                    </div>
+                    <div class="form-group">
+                        <label for="video_url">Video-Link (YouTube / Vimeo / Website)</label>
+                        <input class="form-control" type="url" name="video_url" id="video_url" value="{{ old('video_url', $expert->video_url) }}" placeholder="https://…">
+                        @error('video_url')<p class="field-error">{{ $message }}</p>@enderror
+                        <p class="field-hint">Link zu Ihrem Vorstellungs- oder Firmenvideo.</p>
+                    </div>
+                </div>
+
                 <div class="form-group">
                     <label for="gallery">Weitere Bilder für Ihr Listing <em style="font-style:normal;color:var(--stone);font-weight:400;">(optional)</em></label>
                     <p class="field-hint" style="margin-top:0;">Bis zu 6 Bilder für Ihr öffentliches Profil — Team, Büro oder Projekte.</p>

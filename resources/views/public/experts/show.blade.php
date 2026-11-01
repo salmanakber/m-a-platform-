@@ -100,6 +100,42 @@
                         </div>
                     @endunless
 
+                    @if ($expert->contact_photo_path || $expert->video_url)
+                        @php
+                            $contactName = trim(($expert->contact_person_name ?? '').' '.($expert->contact_person_last_name ?? ''));
+                            $videoUrl = trim((string) ($expert->video_url ?? ''));
+                            $embedUrl = null;
+                            if (preg_match('~(?:youtube\.com/watch\?v=|youtu\.be/|youtube\.com/embed/)([A-Za-z0-9_-]{6,})~', $videoUrl, $m)) {
+                                $embedUrl = 'https://www.youtube.com/embed/'.$m[1];
+                            } elseif (preg_match('~vimeo\.com/(?:video/)?(\d+)~', $videoUrl, $m)) {
+                                $embedUrl = 'https://player.vimeo.com/video/'.$m[1];
+                            }
+                        @endphp
+                        <section class="xp-card reveal-on-scroll" style="margin-top:1.15rem;">
+                            <h2 class="xp-card__title">Berater &amp; Video</h2>
+                            <p class="xp-card__sub">Persönlicher Ansprechpartner und weiterführende Inhalte.</p>
+                            <div class="xp-consultant">
+                                @if ($expert->contact_photo_path)
+                                    <img class="xp-consultant__photo" src="{{ asset('storage/'.$expert->contact_photo_path) }}" alt="{{ $contactName !== '' ? $contactName : $expert->company_name }}">
+                                @endif
+                                <div class="xp-consultant__meta">
+                                    @if ($contactName !== '')
+                                        <strong>{{ $contactName }}</strong>
+                                    @endif
+                                    <span>{{ \App\Support\ProfessionalGroup::label($expert->professional_group ?? 'ma_specialist') }}</span>
+                                    @if ($videoUrl && ! $embedUrl)
+                                        <a class="xp-stage__video" href="{{ $videoUrl }}" target="_blank" rel="noopener">Video ansehen ↗</a>
+                                    @endif
+                                </div>
+                            </div>
+                            @if ($embedUrl)
+                                <div class="xp-consultant__video">
+                                    <iframe src="{{ $embedUrl }}" title="Video {{ $expert->company_name }}" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen loading="lazy"></iframe>
+                                </div>
+                            @endif
+                        </section>
+                    @endif
+
                     @if ($isMarketplace)
                         <section class="xp-card reveal-on-scroll">
                             <h2 class="xp-card__title">Digitaler Marktplatz</h2>

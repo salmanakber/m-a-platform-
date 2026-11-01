@@ -47,7 +47,10 @@ class ProfileController extends Controller
             'contact_person_last_name' => ['nullable', 'string', 'max:120'],
             'website_crawl_url' => ['nullable', 'url', 'max:500'],
             'crawl_enabled' => ['nullable', 'boolean'],
+            'video_url' => ['nullable', 'url', 'max:500'],
             'logo' => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp,gif', 'max:4096'],
+            'contact_photo' => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp,gif', 'max:4096'],
+            'remove_contact_photo' => ['nullable', 'boolean'],
             'gallery' => ['nullable', 'array', 'max:6'],
             'gallery.*' => ['file', 'mimes:jpg,jpeg,png,webp,gif', 'max:4096'],
             'remove_media' => ['nullable', 'array'],
@@ -59,6 +62,7 @@ class ProfileController extends Controller
             'email' => $validated['email'],
             'phone' => $validated['phone'] ?? null,
             'website' => $validated['website'] ?? null,
+            'video_url' => $validated['video_url'] ?? null,
             'description' => $validated['description'] ?? null,
             'services_text' => $validated['services_text'] ?? null,
             'offers_buy' => $request->boolean('offers_buy'),
@@ -86,6 +90,23 @@ class ProfileController extends Controller
             return back()
                 ->withInput()
                 ->with('error', 'Logo-Upload fehlgeschlagen. Bitte eine gültige Bilddatei (JPG, PNG, WebP, max. 4 MB) wählen.');
+        }
+
+        if ($request->boolean('remove_contact_photo') && $expert->contact_photo_path) {
+            Storage::disk('public')->delete($expert->contact_photo_path);
+            $data['contact_photo_path'] = null;
+        }
+
+        if ($request->hasFile('contact_photo') && $request->file('contact_photo')->isValid()) {
+            if ($expert->contact_photo_path) {
+                Storage::disk('public')->delete($expert->contact_photo_path);
+            }
+            Storage::disk('public')->makeDirectory('experts/contacts');
+            $data['contact_photo_path'] = $request->file('contact_photo')->store('experts/contacts', 'public');
+        } elseif ($request->hasFile('contact_photo')) {
+            return back()
+                ->withInput()
+                ->with('error', 'Foto-Upload fehlgeschlagen. Bitte eine gültige Bilddatei (JPG, PNG, WebP, max. 4 MB) wählen.');
         }
 
         $expert->update($data);

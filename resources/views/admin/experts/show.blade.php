@@ -63,9 +63,6 @@
                     <button type="submit" class="btn btn--ghost btn--small">Ablehnen</button>
                 </form>
             @endif
-            @if ($expert->status === 'approved')
-                <form action="{{ route('admin.experts.deactivate', $expert) }}" method="post">@csrf<button type="submit" class="btn btn--ghost btn--small">Deaktivieren</button></form>
-            @endif
             @if ($expert->is_public && $expert->status === 'approved')
                 <a href="{{ route('experts.show', $expert->slug) }}" class="btn btn--ghost btn--small" target="_blank" rel="noopener">Öffentliches Profil ↗</a>
             @endif

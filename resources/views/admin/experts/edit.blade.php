@@ -155,6 +155,7 @@
                 <p class="field-hint">Manuelles Logo — wird bei Crawls nicht überschrieben.</p>
             @endif
         </div>
+        <h2 style="margin:1.25rem 0 0.75rem;font-size:1.05rem;">Berater-Foto &amp; Video</h2>
         <div class="form-row">
             <div class="form-group">
                 <label for="contact_photo">Foto Berater / Kontaktperson</label>

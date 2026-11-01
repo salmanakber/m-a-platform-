@@ -64,7 +64,7 @@
             <b>Ausstehend</b> = neu, noch nicht geprüft ·
             <b>Freigegeben</b> = öffentlich (wenn «öffentlich sichtbar») ·
             <b>Abgelehnt</b> = abgewiesen, kann jederzeit wieder freigegeben werden ·
-            <b>Deaktiviert</b> = früher freigegeben, vorübergehend ausgeschaltet — ebenfalls wieder aktivierbar.
+            <b>Abgelehnt</b> = Registrierung nicht freigegeben.
             Profile können gelöscht werden (Soft-Delete).
         </span>
     </div>
@@ -74,7 +74,6 @@
         <a class="admin-status-chip {{ ($status ?? '') === 'pending' ? 'is-on' : '' }}" href="{{ route('admin.experts.index', array_filter(['status' => 'pending', 'q' => $q ?: null, 'canton_id' => $cantonId ?: null])) }}">Ausstehend</a>
         <a class="admin-status-chip {{ ($status ?? '') === 'approved' ? 'is-on' : '' }}" href="{{ route('admin.experts.index', array_filter(['status' => 'approved', 'q' => $q ?: null, 'canton_id' => $cantonId ?: null])) }}">Freigegeben</a>
         <a class="admin-status-chip {{ ($status ?? '') === 'rejected' ? 'is-on' : '' }}" href="{{ route('admin.experts.index', array_filter(['status' => 'rejected', 'q' => $q ?: null, 'canton_id' => $cantonId ?: null])) }}">Abgelehnt</a>
-        <a class="admin-status-chip {{ ($status ?? '') === 'disabled' ? 'is-on' : '' }}" href="{{ route('admin.experts.index', array_filter(['status' => 'disabled', 'q' => $q ?: null, 'canton_id' => $cantonId ?: null])) }}">Deaktiviert</a>
     </div>
 
     <form method="get" class="admin-filterbar" novalidate>
@@ -90,7 +89,6 @@
                     <option value="pending" @selected(($status ?? '') === 'pending')>Ausstehend</option>
                     <option value="approved" @selected(($status ?? '') === 'approved')>Freigegeben</option>
                     <option value="rejected" @selected(($status ?? '') === 'rejected')>Abgelehnt</option>
-                    <option value="disabled" @selected(($status ?? '') === 'disabled')>Deaktiviert</option>
                 </select>
             </div>
             <div class="form-group">
@@ -140,7 +138,6 @@
                         <option value="">Bulk-Aktion…</option>
                         <option value="approve">Freigeben / wiederherstellen</option>
                         <option value="reject">Ablehnen</option>
-                        <option value="deactivate">Deaktivieren</option>
                         <option value="delete">Löschen</option>
                         <option value="set_password">Passwort setzen</option>
                         <option value="send_password_reset">Passwort-Reset-Link senden</option>
@@ -297,7 +294,6 @@
     var labels = {
         approve: 'freigeben',
         reject: 'ablehnen',
-        deactivate: 'deaktivieren',
         delete: 'löschen',
         set_password: 'Passwort setzen',
         send_password_reset: 'Passwort-Reset-Links senden'

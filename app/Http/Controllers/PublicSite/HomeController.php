@@ -4,6 +4,7 @@ namespace App\Http\Controllers\PublicSite;
 
 use App\Http\Controllers\Controller;
 use App\Models\Article;
+use App\Models\ArticleCategory;
 use App\Models\Canton;
 use App\Models\Event;
 use App\Models\Expert;
@@ -114,6 +115,36 @@ class HomeController extends Controller
         }
 
         $articleTopIds = $articleTopRankings->pluck('article_id')->filter()->all();
+
+        $fachGroups = ArticleCategory::query()->orderBy('sort_order')->orderBy('name_de')->get();
+        $fachGroupTops = $fachGroups->map(function (ArticleCategory $category) {
+            $ranked = $this->rankings->articleTop3((int) $category->id);
+            $cards = $this->articleCardsFromRankings($ranked);
+            if ($cards->isEmpty()) {
+                $fallback = Article::query()
+                    ->where('status', ArticleStatus::PUBLISHED)
+                    ->where('category_id', $category->id)
+                    ->orderByDesc('published_at')
+                    ->limit(3)
+                    ->get();
+                $cards = $fallback->values()->map(function (Article $article, int $index) {
+                    return [
+                        'n' => str_pad((string) ($index + 1), 2, '0', STR_PAD_LEFT),
+                        'title' => $article->title,
+                        'url' => route('blog.show', $article->slug),
+                        'excerpt' => Str::limit(strip_tags((string) ($article->excerpt ?: $article->body)), 120),
+                        'date' => optional($article->published_at)->format('d.m.Y'),
+                    ];
+                });
+            }
+
+            return [
+                'category' => $category,
+                'cards' => $cards,
+                'url' => route('blog.index', ['gruppe' => $category->slug]),
+            ];
+        })->filter(fn (array $group) => $group['cards']->isNotEmpty())->values();
+
         $articleCarousel = Article::query()
             ->where('status', ArticleStatus::PUBLISHED)
             ->when($articleTopIds !== [], fn ($q) => $q->whereNotIn('id', $articleTopIds))
@@ -181,6 +212,7 @@ class HomeController extends Controller
             'juristCards' => $this->expertCardsFromRankings($juristRankings),
             'cantonCards' => $this->expertCardsFromRankings($cantonTop),
             'articleTopCards' => $this->articleCardsFromRankings($articleTopRankings),
+            'fachGroupTops' => $fachGroupTops,
             'articleCarouselCards' => $articleCarousel->values()->map(function (Article $article, int $i) {
                 return [
                     'n' => str_pad((string) ($i + 1), 2, '0', STR_PAD_LEFT),

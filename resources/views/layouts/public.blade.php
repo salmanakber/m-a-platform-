@@ -17,8 +17,8 @@
             </a>
             <button class="nav-toggle" type="button" aria-label="Menü" id="navToggle" aria-expanded="false">☰</button>
             <nav class="site-nav" id="siteNav" aria-label="Hauptnavigation">
-                <div class="nav-drop {{ request()->routeIs('home', 'directory.*', 'experts.*') ? 'is-active' : '' }}">
-                    <a href="{{ route('home') }}#top5" class="nav-drop__trigger">Experten</a>
+                <div class="nav-drop {{ request()->routeIs('home', 'directory.*', 'experts.*') ? 'is-active' : '' }}" data-nav-drop>
+                    <button type="button" class="nav-drop__trigger" aria-expanded="false" aria-haspopup="true">Experten</button>
                     <div class="nav-drop__menu" role="menu">
                         <a href="{{ route('home') }}#top5" role="menuitem">Top Experten</a>
                         <a href="{{ route('directory.index') }}" role="menuitem">Verzeichnis</a>
@@ -27,8 +27,8 @@
                         <a href="{{ route('map.index') }}" role="menuitem">Schweiz-Karte</a>
                     </div>
                 </div>
-                <div class="nav-drop {{ request()->routeIs('blog.*') ? 'is-active' : '' }}">
-                    <a href="{{ route('blog.index') }}" class="nav-drop__trigger">Fachbeiträge</a>
+                <div class="nav-drop {{ request()->routeIs('blog.*') ? 'is-active' : '' }}" data-nav-drop>
+                    <button type="button" class="nav-drop__trigger" aria-expanded="false" aria-haspopup="true">Fachbeiträge</button>
                     <div class="nav-drop__menu" role="menu">
                         <a href="{{ route('blog.index') }}" role="menuitem">Alle Fachbeiträge</a>
                         @foreach (($navArticleCategories ?? collect()) as $cat)
@@ -127,6 +127,33 @@
                     toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
                 });
             }
+
+            document.querySelectorAll('[data-nav-drop]').forEach(function (drop) {
+                var btn = drop.querySelector('.nav-drop__trigger');
+                if (!btn) return;
+                btn.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    var willOpen = !drop.classList.contains('is-open');
+                    document.querySelectorAll('[data-nav-drop].is-open').forEach(function (other) {
+                        if (other !== drop) {
+                            other.classList.remove('is-open');
+                            var ob = other.querySelector('.nav-drop__trigger');
+                            if (ob) ob.setAttribute('aria-expanded', 'false');
+                        }
+                    });
+                    drop.classList.toggle('is-open', willOpen);
+                    btn.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+                });
+            });
+            document.addEventListener('click', function (e) {
+                if (e.target.closest('[data-nav-drop]')) return;
+                document.querySelectorAll('[data-nav-drop].is-open').forEach(function (drop) {
+                    drop.classList.remove('is-open');
+                    var btn = drop.querySelector('.nav-drop__trigger');
+                    if (btn) btn.setAttribute('aria-expanded', 'false');
+                });
+            });
 
             if ('IntersectionObserver' in window) {
                 var revealEls = document.querySelectorAll('.reveal-on-scroll');

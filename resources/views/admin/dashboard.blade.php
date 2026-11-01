@@ -41,7 +41,6 @@
         <div class="stat-card"><span>Veröffentlichte Artikel</span><strong>{{ $publishedArticles }}</strong></div>
         <div class="stat-card"><span>Gesperrte Artikel</span><strong>{{ $blockedArticles }}</strong></div>
         <div class="stat-card"><span>Offene Rechnungen</span><strong>{{ $unpaidInvoices }}</strong></div>
-        <div class="stat-card"><span>Deaktivierte Experten</span><strong>{{ $disabledExperts }}</strong></div>
         <div class="stat-card"><span>KI-Vorschläge offen</span><strong>{{ $pendingAiSuggestions }}</strong></div>
         <div class="stat-card"><span>Crawl-Jobs heute</span><strong>{{ $crawlJobsToday }}</strong></div>
     </div>
