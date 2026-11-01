@@ -122,9 +122,17 @@
             onScroll();
 
             if (toggle && nav) {
-                toggle.addEventListener('click', function () {
+                toggle.addEventListener('click', function (e) {
+                    e.stopPropagation();
                     var open = nav.classList.toggle('is-open');
                     toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+                    if (!open) {
+                        document.querySelectorAll('[data-nav-drop].is-open').forEach(function (drop) {
+                            drop.classList.remove('is-open');
+                            var ob = drop.querySelector('.nav-drop__trigger');
+                            if (ob) ob.setAttribute('aria-expanded', 'false');
+                        });
+                    }
                 });
             }
 
@@ -147,7 +155,11 @@
                 });
             });
             document.addEventListener('click', function (e) {
-                if (e.target.closest('[data-nav-drop]')) return;
+                if (e.target.closest('#siteNav') || e.target.closest('#navToggle')) return;
+                if (nav) {
+                    nav.classList.remove('is-open');
+                    if (toggle) toggle.setAttribute('aria-expanded', 'false');
+                }
                 document.querySelectorAll('[data-nav-drop].is-open').forEach(function (drop) {
                     drop.classList.remove('is-open');
                     var btn = drop.querySelector('.nav-drop__trigger');
