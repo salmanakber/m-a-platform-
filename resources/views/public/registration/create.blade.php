@@ -11,7 +11,7 @@
         <div class="register-stage__grid" aria-hidden="true"></div>
 
         <div class="register-stage__brand">
-            <img src="{{ asset('logo-nachfolge-experten/nachfolge-experten-weiss.svg') }}" alt="" width="56" height="50">
+            <img src="{{ asset('logo-nachfolge-experten/logo-nachfolge-experten.svg') }}" alt="" width="56" height="50">
             <p class="register-stage__brand-name">nachfolge-experten.ch</p>
             <h1>Werden Sie sichtbar für Nachfolge-Suchende</h1>
             <p class="register-stage__lead">Kostenloser Basiseintrag im Schweizer M&amp;A-Verzeichnis — manuell geprüft, regional gefunden.</p>
