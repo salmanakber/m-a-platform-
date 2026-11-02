@@ -17,7 +17,7 @@ class DashboardController extends Controller
 {
     public function index(): View
     {
-        $expert = Auth::user()?->expert;
+        $expert = Auth::user()?->resolvePortalExpert();
         $expertId = $expert?->id;
 
         $newLeads = $expertId

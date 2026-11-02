@@ -183,7 +183,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin'])->grou
     Route::get('/import/template', [AdminImportController::class, 'template'])->name('import.template');
 });
 
-Route::prefix('expert')->name('expert.')->middleware(['auth', 'role:expert'])->group(function () {
+Route::prefix('expert')->name('expert.')->middleware(['auth', 'role:expert', 'expert.profile'])->group(function () {
     Route::get('/', [ExpertDashboardController::class, 'index'])->name('dashboard');
 
     Route::get('/profil', [ExpertProfileController::class, 'edit'])->name('profile.edit');

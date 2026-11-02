@@ -125,22 +125,29 @@
         <section class="ax-card">
             <header class="ax-card__head">
                 <h2>Anfragen</h2>
-                <a href="{{ route('admin.leads.index', ['expert_id' => $expert->id]) }}">Alle Anfragen</a>
+                <a href="#anfragen" data-ax-tab="anfragen">Details</a>
             </header>
-            <p style="margin:0 0 0.75rem;color:var(--stone);"><strong>{{ $leadsCount ?? 0 }}</strong> Anfragen insgesamt</p>
+            <div class="ax-lead-summary">
+                <div class="ax-lead-summary__stat">
+                    <b>{{ $leadsCount ?? 0 }}</b>
+                    <span>gesamt</span>
+                </div>
+                <div class="ax-lead-summary__stat">
+                    <b>{{ ($leads ?? collect())->where('status', 'new')->count() }}</b>
+                    <span>neu</span>
+                </div>
+            </div>
             @if (($leads ?? collect())->isEmpty())
                 <p class="ax-empty">Noch keine Anfragen über das Kontaktformular.</p>
             @else
-                <ul class="ax-list">
-                    @foreach (($leads ?? collect())->take(8) as $lead)
+                <ul class="ax-lead-mini">
+                    @foreach (($leads ?? collect())->take(5) as $lead)
                         <li>
-                            <strong>{{ $lead->owner_name }}</strong>
-                            <span>
-                                <a href="mailto:{{ $lead->email }}">{{ $lead->email }}</a>
-                                @if ($lead->phone) · {{ $lead->phone }}@endif
-                                · {{ optional($lead->created_at)->format('d.m.Y H:i') }}
-                                · {{ $lead->status }}
-                            </span>
+                            <div>
+                                <strong>{{ $lead->owner_name }}</strong>
+                                <span>{{ optional($lead->created_at)->format('d.m.Y') }}</span>
+                            </div>
+                            <span class="pill pill--{{ $lead->status === 'new' ? 'warning' : ($lead->status === 'closed' ? 'muted' : 'info') }}">{{ $lead->status }}</span>
                         </li>
                     @endforeach
                 </ul>
@@ -151,42 +158,92 @@
 
     {{-- Inquiries detail --}}
     <div class="ax-panel" data-ax-panel="anfragen" id="anfragen" hidden>
-    <section class="ax-card ax-card--wide">
+    @php
+        $leadStatusLabels = [
+            'new' => 'Neu',
+            'contacted' => 'Kontaktiert',
+            'in_progress' => 'In Bearbeitung',
+            'closed' => 'Geschlossen',
+        ];
+        $leadStatusPill = [
+            'new' => 'warning',
+            'contacted' => 'info',
+            'in_progress' => 'info',
+            'closed' => 'muted',
+        ];
+    @endphp
+    <section class="ax-card ax-card--wide ax-leads">
         <header class="ax-card__head">
             <div>
-                <h2>Anfragen an {{ $expert->company_name }}</h2>
-                <p>{{ $leadsCount ?? 0 }} Personen haben das Kontaktformular ausgefüllt.</p>
+                <h2>Anfragen</h2>
+                <p>{{ $leadsCount ?? 0 }} Personen haben das Kontaktformular für «{{ $expert->company_name }}» ausgefüllt.</p>
             </div>
-            <a class="btn btn--small btn--ghost" href="{{ route('admin.leads.index', ['expert_id' => $expert->id]) }}">Lead-Verwaltung</a>
+            <a class="btn btn--small btn--ghost" href="{{ route('admin.leads.index', ['expert_id' => $expert->id]) }}">Lead-Verwaltung ↗</a>
         </header>
+
+        <div class="ax-leads__stats">
+            <div class="ax-leads__stat">
+                <b>{{ $leadsCount ?? 0 }}</b>
+                <span>Gesamt</span>
+            </div>
+            <div class="ax-leads__stat">
+                <b>{{ ($leads ?? collect())->where('status', 'new')->count() }}</b>
+                <span>Neu</span>
+            </div>
+            <div class="ax-leads__stat">
+                <b>{{ ($leads ?? collect())->whereIn('status', ['contacted', 'in_progress'])->count() }}</b>
+                <span>Aktiv</span>
+            </div>
+            <div class="ax-leads__stat">
+                <b>{{ ($leads ?? collect())->where('status', 'closed')->count() }}</b>
+                <span>Geschlossen</span>
+            </div>
+        </div>
+
         @if (($leads ?? collect())->isEmpty())
-            <p class="ax-empty">Keine Anfragen vorhanden.</p>
+            <div class="ax-leads__empty">
+                <strong>Noch keine Anfragen</strong>
+                <p>Sobald Interessenten das Kontaktformular auf dem öffentlichen Profil ausfüllen, erscheinen sie hier mit Name, E-Mail und Nachricht.</p>
+            </div>
         @else
-            <div class="table-wrap">
-                <table class="table">
-                    <thead>
-                        <tr>
-                            <th>Name</th>
-                            <th>E-Mail</th>
-                            <th>Telefon</th>
-                            <th>Firma</th>
-                            <th>Status</th>
-                            <th>Datum</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach ($leads as $lead)
-                            <tr>
-                                <td>{{ $lead->owner_name }}</td>
-                                <td><a href="mailto:{{ $lead->email }}">{{ $lead->email }}</a></td>
-                                <td>{{ $lead->phone ?: '—' }}</td>
-                                <td>{{ $lead->company_name ?: '—' }}</td>
-                                <td>{{ $lead->status }}</td>
-                                <td>{{ optional($lead->created_at)->format('d.m.Y H:i') }}</td>
-                            </tr>
-                        @endforeach
-                    </tbody>
-                </table>
+            <div class="ax-leads__list">
+                @foreach ($leads as $lead)
+                    <article class="ax-lead">
+                        <div class="ax-lead__top">
+                            <div class="ax-lead__who">
+                                <span class="ax-lead__avatar">{{ mb_strtoupper(mb_substr($lead->owner_name ?: '?', 0, 1)) }}</span>
+                                <div>
+                                    <strong>{{ $lead->owner_name ?: 'Ohne Name' }}</strong>
+                                    <span>{{ optional($lead->created_at)->format('d.m.Y · H:i') }}</span>
+                                </div>
+                            </div>
+                            <span class="pill pill--{{ $leadStatusPill[$lead->status] ?? 'muted' }}">{{ $leadStatusLabels[$lead->status] ?? $lead->status }}</span>
+                        </div>
+                        <dl class="ax-lead__meta">
+                            <div>
+                                <dt>E-Mail</dt>
+                                <dd>@if($lead->email)<a href="mailto:{{ $lead->email }}">{{ $lead->email }}</a>@else — @endif</dd>
+                            </div>
+                            <div>
+                                <dt>Telefon</dt>
+                                <dd>@if($lead->phone)<a href="tel:{{ $lead->phone }}">{{ $lead->phone }}</a>@else — @endif</dd>
+                            </div>
+                            <div>
+                                <dt>Firma</dt>
+                                <dd>{{ $lead->company_name ?: '—' }}</dd>
+                            </div>
+                            @if (!empty($lead->buy_sell_context))
+                                <div>
+                                    <dt>Kontext</dt>
+                                    <dd>{{ $lead->buy_sell_context }}</dd>
+                                </div>
+                            @endif
+                        </dl>
+                        @if (!empty($lead->message))
+                            <p class="ax-lead__msg">{{ $lead->message }}</p>
+                        @endif
+                    </article>
+                @endforeach
             </div>
         @endif
     </section>
@@ -415,10 +472,11 @@
     // Tab panels — show only the active section
     var tabs = document.querySelector('[data-ax-tabs]');
     if (tabs) {
-        var links = Array.prototype.slice.call(tabs.querySelectorAll('[data-ax-tab]'));
+        var navLinks = Array.prototype.slice.call(tabs.querySelectorAll('[data-ax-tab]'));
+        var allTriggers = Array.prototype.slice.call(document.querySelectorAll('[data-ax-tab]'));
         var panels = Array.prototype.slice.call(document.querySelectorAll('[data-ax-panel]'));
         function showTab(id) {
-            links.forEach(function (a) {
+            navLinks.forEach(function (a) {
                 a.classList.toggle('is-active', a.getAttribute('data-ax-tab') === id);
             });
             panels.forEach(function (p) {
@@ -428,7 +486,7 @@
             });
             try { history.replaceState(null, '', '#' + id); } catch (e) {}
         }
-        links.forEach(function (a) {
+        allTriggers.forEach(function (a) {
             a.addEventListener('click', function (e) {
                 e.preventDefault();
                 showTab(a.getAttribute('data-ax-tab'));

@@ -15,7 +15,7 @@ class ProfileController extends Controller
 {
     public function edit(): View
     {
-        $expert = Auth::user()?->expert;
+        $expert = Auth::user()?->resolvePortalExpert();
 
         return view('expert.profile.edit', [
             'expert' => $expert,
@@ -26,7 +26,7 @@ class ProfileController extends Controller
 
     public function update(Request $request): RedirectResponse
     {
-        $expert = Auth::user()?->expert;
+        $expert = Auth::user()?->resolvePortalExpert();
 
         if ($expert === null) {
             abort(403);

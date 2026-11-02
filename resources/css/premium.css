@@ -8589,6 +8589,152 @@ body.is-public-redesign .register-stage__benefit-n { color: var(--nh-gold); }
 .ax-list li:last-child { border-bottom: 0; }
 .ax-list strong { display: block; }
 .ax-list span { color: #6a7380; font-size: 0.88rem; }
+
+.ax-lead-summary {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.65rem;
+    padding: 0.85rem 1.15rem 0.35rem;
+}
+.ax-lead-summary__stat {
+    background: #f7fafc;
+    border: 1px solid #e4edf4;
+    border-radius: 12px;
+    padding: 0.7rem 0.85rem;
+}
+.ax-lead-summary__stat b {
+    display: block;
+    font-family: var(--font-display);
+    font-size: 1.35rem;
+    color: #0b1626;
+}
+.ax-lead-summary__stat span {
+    color: #6a7380;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-weight: 700;
+}
+.ax-lead-mini {
+    list-style: none;
+    margin: 0;
+    padding: 0.35rem 0 0.75rem;
+}
+.ax-lead-mini li {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.65rem 1.15rem;
+    border-top: 1px solid #f2ece3;
+}
+.ax-lead-mini strong { display: block; font-size: 0.92rem; }
+.ax-lead-mini span { color: #6a7380; font-size: 0.8rem; }
+
+.ax-leads__stats {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.65rem;
+    padding: 1rem 1.15rem;
+    border-bottom: 1px solid #f0e9de;
+}
+.ax-leads__stat {
+    background: #f7fafc;
+    border: 1px solid #e4edf4;
+    border-radius: 12px;
+    padding: 0.85rem;
+    text-align: center;
+}
+.ax-leads__stat b {
+    display: block;
+    font-family: var(--font-display);
+    font-size: 1.45rem;
+    color: #0b1626;
+}
+.ax-leads__stat span {
+    color: #6a7380;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-weight: 700;
+}
+.ax-leads__empty {
+    margin: 1.25rem 1.15rem 1.4rem;
+    padding: 1.35rem 1.2rem;
+    border-radius: 14px;
+    background: #f7fafc;
+    border: 1px dashed #c9d9e6;
+}
+.ax-leads__empty strong { display: block; margin-bottom: 0.35rem; color: #0b1626; }
+.ax-leads__empty p { margin: 0; color: #6a7380; line-height: 1.55; font-size: 0.92rem; }
+.ax-leads__list {
+    display: grid;
+    gap: 0.75rem;
+    padding: 1rem 1.15rem 1.25rem;
+}
+.ax-lead {
+    border: 1px solid #e6edf3;
+    border-radius: 14px;
+    background: #fff;
+    padding: 1rem 1.05rem;
+    box-shadow: 0 6px 18px rgba(19,32,51,0.03);
+}
+.ax-lead__top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 0.75rem;
+    margin-bottom: 0.85rem;
+}
+.ax-lead__who {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    min-width: 0;
+}
+.ax-lead__avatar {
+    width: 2.35rem;
+    height: 2.35rem;
+    border-radius: 999px;
+    display: grid;
+    place-items: center;
+    background: #D0E9FF;
+    color: #0E4971;
+    font-weight: 800;
+    flex-shrink: 0;
+}
+.ax-lead__who strong { display: block; color: #0b1626; }
+.ax-lead__who span { color: #6a7380; font-size: 0.8rem; }
+.ax-lead__meta {
+    margin: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 0.55rem 0.85rem;
+}
+.ax-lead__meta dt {
+    margin: 0;
+    color: #7a8490;
+    font-size: 0.7rem;
+    font-weight: 750;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+.ax-lead__meta dd { margin: 0.15rem 0 0; color: #132033; font-size: 0.92rem; }
+.ax-lead__meta a { color: #009DE1; text-decoration: none; font-weight: 650; }
+.ax-lead__msg {
+    margin: 0.85rem 0 0;
+    padding: 0.75rem 0.85rem;
+    border-radius: 10px;
+    background: #f7fafc;
+    border: 1px solid #e4edf4;
+    color: #44505c;
+    font-size: 0.9rem;
+    line-height: 1.55;
+    white-space: pre-wrap;
+}
+@media (max-width: 720px) {
+    .ax-leads__stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
 .ax-crawl, .ax-crawl-run, .ax-access { padding: 1rem 1.15rem; }
 .ax-checks { display: flex; flex-wrap: wrap; gap: 0.75rem 1.1rem; margin: 0.75rem 0; }
 .ax-checks label { font-size: 0.9rem; color: #132033; display: inline-flex; gap: 0.4rem; align-items: center; }
