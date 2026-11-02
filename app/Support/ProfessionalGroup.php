@@ -10,6 +10,10 @@ final class ProfessionalGroup
 
     public const MARKTPLATZ = 'marktplatz';
 
+    public const TREUHAND = 'treuhand';
+
+    public const AD_INTERIM = 'ad_interim';
+
     public const OTHER = 'other';
 
     /** @return array<string, string> */
@@ -19,6 +23,8 @@ final class ProfessionalGroup
             self::MA_SPECIALIST => 'M&A-Spezialisten',
             self::JURIST => 'Juristen',
             self::MARKTPLATZ => 'Marktplätze',
+            self::TREUHAND => 'Treuhand',
+            self::AD_INTERIM => 'Ad Interim Nachfolge',
             self::OTHER => 'Weitere',
         ];
     }
@@ -34,8 +40,13 @@ final class ProfessionalGroup
         return self::labels()[$key] ?? $key;
     }
 
+    public static function isAdInterim(?string $key): bool
+    {
+        return $key === self::AD_INTERIM;
+    }
+
     /**
-     * Groups shown on the Switzerland map (incl. Marktplätze with own pin colour).
+     * Groups shown on the Switzerland map.
      *
      * @return array<string, string>
      */
@@ -55,6 +66,8 @@ final class ProfessionalGroup
             self::MA_SPECIALIST => '#009DE1', // blue
             self::JURIST => '#0B6E4F', // green
             self::MARKTPLATZ => '#C2410C', // terracotta
+            self::TREUHAND => '#6D28D9', // violet
+            self::AD_INTERIM => '#B45309', // amber
             self::OTHER => '#64748B', // slate
         ];
     }

@@ -7,6 +7,8 @@ use App\Support\SettingKey;
 use App\Services\Settings\SettingsService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\Rules\Password;
 use Illuminate\View\View;
 
 class SettingsController extends Controller
@@ -57,7 +59,7 @@ class SettingsController extends Controller
         $tab = $request->input('tab', 'general');
 
         $validated = $request->validate([
-            'tab' => ['nullable', 'string', 'in:general,maps,email,ai,promotion,footer'],
+            'tab' => ['nullable', 'string', 'in:general,maps,email,ai,promotion,footer,password'],
             'app_name' => ['nullable', 'string', 'max:255'],
             'admin_notification_email' => ['nullable', 'email', 'max:255'],
             'footer_contact_lines' => ['nullable', 'string', 'max:2000'],
@@ -160,6 +162,25 @@ class SettingsController extends Controller
         return redirect()
             ->route('admin.settings.edit', ['tab' => $tab])
             ->with('success', 'Einstellungen gespeichert.');
+    }
+
+    public function updatePassword(Request $request): RedirectResponse
+    {
+        $user = $request->user();
+        abort_if($user === null || ! $user->isAdmin(), 403);
+
+        $validated = $request->validate([
+            'current_password' => ['required', 'current_password'],
+            'password' => ['required', 'confirmed', Password::defaults()],
+        ]);
+
+        $user->forceFill([
+            'password' => Hash::make($validated['password']),
+        ])->save();
+
+        return redirect()
+            ->route('admin.settings.edit', ['tab' => 'password'])
+            ->with('success', 'Passwort aktualisiert.');
     }
 
     private function updateEncryptedIfFilled(string $key, ?string $value, string $group): void

@@ -3,7 +3,9 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Expert;
 use App\Models\Invoice;
+use App\Models\InvoiceProduct;
 use App\Services\Invoice\InvoiceService;
 use App\Services\Promotion\PromotionService;
 use App\Support\InvoicePaymentStatus;
@@ -35,13 +37,15 @@ class InvoiceController extends Controller
             ->when($q !== '', function ($query) use ($q) {
                 $query->where(function ($inner) use ($q) {
                     $inner->where('invoice_number', 'like', '%'.$q.'%')
+                        ->orWhere('billing_email', 'like', '%'.$q.'%')
+                        ->orWhere('service_title', 'like', '%'.$q.'%')
                         ->orWhereHas('expert', function ($expert) use ($q) {
                             $expert->where('company_name', 'like', '%'.$q.'%')
                                 ->orWhere('email', 'like', '%'.$q.'%');
                         });
                 });
             })
-            ->with(['expert', 'promotion.canton', 'linkedPromotion.canton'])
+            ->with(['expert', 'product', 'promotion.canton', 'linkedPromotion.canton'])
             ->orderByDesc('created_at')
             ->paginate(20)
             ->withQueryString();
@@ -55,6 +59,84 @@ class InvoiceController extends Controller
             'paymentStatuses' => InvoicePaymentStatus::all(),
             'monthlyPrice' => $this->invoiceService->monthlyPromotionPrice(),
         ]);
+    }
+
+    public function create(): View
+    {
+        return view('admin.invoices.create', [
+            'experts' => Expert::query()->orderBy('company_name')->get(['id', 'company_name', 'email']),
+            'products' => InvoiceProduct::query()->where('is_active', true)->orderBy('sort_order')->orderBy('name')->get(),
+        ]);
+    }
+
+    public function store(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'expert_id' => ['required', 'exists:experts,id'],
+            'invoice_product_id' => ['required', 'exists:invoice_products,id'],
+            'billing_email' => ['nullable', 'email', 'max:255'],
+            'service_title' => ['nullable', 'string', 'max:255'],
+            'service_detail' => ['nullable', 'string', 'max:5000'],
+            'amount' => ['nullable', 'numeric', 'min:0'],
+            'notes' => ['nullable', 'string', 'max:5000'],
+            'admin_notes' => ['nullable', 'string', 'max:5000'],
+        ]);
+
+        $expert = Expert::query()->findOrFail($validated['expert_id']);
+        $product = InvoiceProduct::query()->findOrFail($validated['invoice_product_id']);
+
+        $invoice = $this->invoiceService->createFromProduct($expert, $product, [
+            'billing_email' => $validated['billing_email'] ?? $expert->email,
+            'service_title' => $validated['service_title'] ?? $product->name,
+            'service_detail' => $validated['service_detail'] ?? $product->description,
+            'amount' => array_key_exists('amount', $validated) && $validated['amount'] !== null
+                ? (float) $validated['amount']
+                : null,
+            'notes' => $validated['notes'] ?? null,
+            'admin_notes' => $validated['admin_notes'] ?? null,
+        ]);
+
+        return redirect()
+            ->route('admin.invoices.edit', $invoice)
+            ->with('success', 'Rechnung als Entwurf erstellt. Bitte prüfen, Bestätigung senden, danach Rechnung versenden.');
+    }
+
+    public function edit(Invoice $invoice): View
+    {
+        $invoice->load(['expert', 'product']);
+
+        return view('admin.invoices.edit', [
+            'invoice' => $invoice,
+            'products' => InvoiceProduct::query()->orderBy('sort_order')->orderBy('name')->get(),
+        ]);
+    }
+
+    public function update(Request $request, Invoice $invoice): RedirectResponse
+    {
+        $validated = $request->validate([
+            'invoice_product_id' => ['nullable', 'exists:invoice_products,id'],
+            'billing_email' => ['nullable', 'email', 'max:255'],
+            'service_title' => ['nullable', 'string', 'max:255'],
+            'service_detail' => ['nullable', 'string', 'max:5000'],
+            'amount' => ['required', 'numeric', 'min:0'],
+            'currency' => ['nullable', 'string', 'size:3'],
+            'invoice_date' => ['nullable', 'date'],
+            'notes' => ['nullable', 'string', 'max:5000'],
+            'admin_notes' => ['nullable', 'string', 'max:5000'],
+        ]);
+
+        $this->invoiceService->updateDraft($invoice, $validated);
+
+        return back()->with('success', 'Rechnung gespeichert.');
+    }
+
+    public function sendConfirmation(Invoice $invoice): RedirectResponse
+    {
+        if ($this->invoiceService->sendConfirmation($invoice)) {
+            return back()->with('success', 'Bestätigungs-E-Mail gesendet an '.($invoice->billing_email ?: $invoice->expert?->email).'.');
+        }
+
+        return back()->with('error', 'Bestätigungs-E-Mail fehlgeschlagen. Vorlage invoice_confirmation und Resend prüfen.');
     }
 
     public function updatePaymentStatus(Request $request, Invoice $invoice): RedirectResponse
@@ -118,9 +200,11 @@ class InvoiceController extends Controller
             return back()->with('error', 'E-Mail fehlgeschlagen. Bitte Resend-Einstellungen und Vorlagen prüfen.');
         }
 
+        $to = $invoice->billing_email ?: $invoice->expert?->email;
+
         return back()->with('success', $type === 'paid'
-            ? 'Zahlungsbestätigung an '.$invoice->expert->email.' gesendet.'
-            : 'Rechnung per E-Mail an '.$invoice->expert->email.' gesendet.');
+            ? 'Zahlungsbestätigung an '.$to.' gesendet.'
+            : 'Rechnung per E-Mail an '.$to.' gesendet.');
     }
 
     public function bulk(Request $request): RedirectResponse

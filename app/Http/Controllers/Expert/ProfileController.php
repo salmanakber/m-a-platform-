@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Expert;
 use App\Http\Controllers\Controller;
 use App\Models\ExpertMedia;
 use App\Support\ProfessionalGroup;
+use App\Support\TextLines;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -48,6 +49,10 @@ class ProfileController extends Controller
             'website_crawl_url' => ['nullable', 'url', 'max:500'],
             'crawl_enabled' => ['nullable', 'boolean'],
             'video_url' => ['nullable', 'url', 'max:500'],
+            'experience_areas' => ['nullable', 'string', 'max:5000'],
+            'diplomas' => ['nullable', 'string', 'max:5000'],
+            'interim_criteria' => ['nullable', 'string', 'max:5000'],
+            'equity_capital' => ['nullable', 'string', 'max:120'],
             'logo' => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp,gif', 'max:4096'],
             'contact_photo' => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp,gif', 'max:4096'],
             'remove_contact_photo' => ['nullable', 'boolean'],
@@ -73,6 +78,10 @@ class ProfileController extends Controller
             'contact_person_last_name' => $validated['contact_person_last_name'] ?? null,
             'website_crawl_url' => $validated['website_crawl_url'] ?? null,
             'crawl_enabled' => $request->boolean('crawl_enabled'),
+            'experience_areas' => TextLines::fromInput($validated['experience_areas'] ?? null),
+            'diplomas' => TextLines::fromInput($validated['diplomas'] ?? null),
+            'interim_criteria' => TextLines::fromInput($validated['interim_criteria'] ?? null),
+            'equity_capital' => $validated['equity_capital'] ?? null,
         ];
 
         $logoUpdated = false;

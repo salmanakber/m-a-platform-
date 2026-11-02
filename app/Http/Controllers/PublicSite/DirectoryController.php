@@ -73,6 +73,9 @@ class DirectoryController extends Controller
         if ($q !== '') {
             $base->where(function ($inner) use ($q) {
                 $inner->where('company_name', 'like', '%'.$q.'%')
+                    ->orWhere('contact_person_name', 'like', '%'.$q.'%')
+                    ->orWhere('contact_person_last_name', 'like', '%'.$q.'%')
+                    ->orWhere('equity_capital', 'like', '%'.$q.'%')
                     ->orWhere('description', 'like', '%'.$q.'%')
                     ->orWhere('services_text', 'like', '%'.$q.'%')
                     ->orWhereHas('offices', function ($o) use ($q) {
@@ -166,8 +169,8 @@ class DirectoryController extends Controller
                     'expert_id' => $expert->id,
                     'lat' => $lat,
                     'lng' => $lng,
-                    'name' => $expert->company_name,
-                    'initial' => mb_strtoupper(mb_substr($expert->company_name, 0, 1)),
+                    'name' => $expert->isAdInterim() ? $expert->interimListingLine() : $expert->company_name,
+                    'initial' => mb_strtoupper(mb_substr($expert->publicDisplayName(), 0, 1)),
                     'logo' => $expert->logo_path ? asset('storage/'.$expert->logo_path) : null,
                     'logo_position' => $expert->logo_position ?: 'left',
                     'city' => trim(($office->postal_code ?? '').' '.($office->city ?? '')),

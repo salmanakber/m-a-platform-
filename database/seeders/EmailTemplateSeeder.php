@@ -135,6 +135,27 @@ HTML,
                 'body_text' => "Guten Tag {{name}},\n\nPasswort zurücksetzen: {{reset_url}}\n\nGültig {{expires_minutes}} Minuten.",
             ],
             [
+                'key' => 'invoice_confirmation',
+                'subject' => 'Bestätigung vor Rechnung {{invoice_number}} — nachfolge-experten.ch',
+                'body_html' => <<<'HTML'
+<p style="margin:0 0 16px;font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.6;color:#0a2a42;">
+    Guten Tag <strong style="color:#0E4971;">{{contact_name}}</strong>,
+</p>
+<p style="margin:0 0 18px;font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.6;color:#0a2a42;">
+    bitte prüfen Sie die Angaben zur geplanten Leistung für
+    <strong style="color:#0E4971;">{{company_name}}</strong>.
+    Dies ist noch <strong>keine Rechnung</strong> — die eigentliche Rechnung folgt in einer separaten E-Mail.
+</p>
+
+{{invoice_document}}
+
+<p style="margin:0 0 10px;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.55;color:#5a6b78;">
+    Bei Korrekturen antworten Sie bitte auf diese E-Mail, bevor die Rechnung versendet wird.
+</p>
+HTML,
+                'body_text' => "Bestätigung vor Rechnung {{invoice_number}}\n\nGuten Tag {{contact_name}},\n\nBitte prüfen Sie die geplante Leistung für {{company_name}}.\nBetrag: {{amount}} {{currency}}\nLeistung: {{service_title}} — {{service_detail}}\n\nDies ist noch keine Rechnung.",
+            ],
+            [
                 'key' => 'invoice_created',
                 'subject' => 'Rechnung {{invoice_number}} — Promotion nachfolge-experten.ch',
                 'body_html' => <<<'HTML'

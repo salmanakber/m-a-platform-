@@ -123,6 +123,17 @@ class NotificationService
         );
     }
 
+    public function sendInvoiceConfirmation(Invoice $invoice): void
+    {
+        $this->sendInvoiceEmail($invoice, 'invoice_confirmation', [
+            'headline' => 'Bestätigung vor Rechnung',
+            'preheader' => 'Bitte prüfen Sie die Angaben zu '.$invoice->invoice_number,
+            'ctaUrl' => rtrim(config('app.url'), '/').'/login',
+            'ctaLabel' => 'Zum Expertenbereich',
+            'paymentHint' => 'Dies ist noch keine Rechnung — nur die Bestätigung der gewählten Leistung. Die Rechnung folgt in einer separaten E-Mail.',
+        ]);
+    }
+
     public function sendInvoiceCreated(Invoice $invoice): void
     {
         $this->sendInvoiceEmail($invoice, 'invoice_created', [
@@ -130,7 +141,7 @@ class NotificationService
             'preheader' => 'Rechnung '.$invoice->invoice_number.' — bitte zur Zahlung',
             'ctaUrl' => rtrim(config('app.url'), '/').'/login',
             'ctaLabel' => 'Zum Expertenbereich',
-            'paymentHint' => 'Bitte überweisen Sie den Betrag unter Angabe der Rechnungsnummer. Nach Zahlungseingang aktivieren wir Ihre Promotion.',
+            'paymentHint' => 'Bitte überweisen Sie den Betrag unter Angabe der Rechnungsnummer. Nach Zahlungseingang aktivieren wir Ihre Leistung / Promotion.',
         ]);
     }
 
@@ -150,23 +161,24 @@ class NotificationService
      */
     private function sendInvoiceEmail(Invoice $invoice, string $templateKey, array $layout): void
     {
-        $invoice->loadMissing(['expert', 'promotion.canton', 'linkedPromotion.canton']);
+        $invoice->loadMissing(['expert', 'product', 'promotion.canton', 'linkedPromotion.canton']);
         $expert = $invoice->expert;
+        $to = filled($invoice->billing_email) ? (string) $invoice->billing_email : (string) ($expert->email ?? '');
 
-        if ($expert === null || blank($expert->email)) {
-            throw new \RuntimeException('Invoice has no expert e-mail recipient.');
+        if ($expert === null || $to === '') {
+            throw new \RuntimeException('Invoice has no billing e-mail recipient.');
         }
 
         $placeholders = $this->invoicePlaceholders($invoice, $layout['paymentHint'] ?? null);
         $adminBcc = [];
         $adminEmail = $this->settings->get(SettingKey::ADMIN_NOTIFICATION_EMAIL);
-        if (is_string($adminEmail) && $adminEmail !== '' && strcasecmp($adminEmail, $expert->email) !== 0) {
+        if (is_string($adminEmail) && $adminEmail !== '' && strcasecmp($adminEmail, $to) !== 0) {
             $adminBcc[] = $adminEmail;
         }
 
         $this->sendTemplated(
             $templateKey,
-            [$expert->email],
+            [$to],
             $placeholders,
             [
                 'headline' => $layout['headline'] ?? 'Rechnung',
@@ -184,22 +196,30 @@ class NotificationService
      */
     public function invoicePlaceholders(Invoice $invoice, ?string $paymentHint = null): array
     {
-        $invoice->loadMissing(['expert', 'promotion.canton', 'linkedPromotion.canton']);
+        $invoice->loadMissing(['expert', 'product', 'promotion.canton', 'linkedPromotion.canton']);
         $expert = $invoice->expert;
         $promo = $invoice->linkedPromotion ?? $invoice->promotion;
 
-        $serviceTitle = 'Kantonale Promotion';
-        $serviceDetail = '';
-        if ($promo) {
+        $serviceTitle = filled($invoice->service_title)
+            ? (string) $invoice->service_title
+            : 'Leistung';
+        $serviceDetail = (string) ($invoice->service_detail ?? '');
+
+        if ($promo && blank($invoice->service_title)) {
             $canton = $promo->canton->name_de ?? ($promo->canton->code ?? '');
             $serviceDetail = trim($canton.' · Position '.$promo->position_number);
             $serviceTitle = 'Promotion Platz '.$promo->position_number;
+        } elseif ($invoice->product && blank($invoice->service_title)) {
+            $serviceTitle = $invoice->product->name;
+            $serviceDetail = (string) ($invoice->product->description ?? '');
         }
 
         $contact = trim(($expert->contact_person_name ?? '').' '.($expert->contact_person_last_name ?? ''));
         if ($contact === '') {
             $contact = $expert->company_name ?? 'Experte';
         }
+
+        $billingEmail = filled($invoice->billing_email) ? (string) $invoice->billing_email : (string) ($expert->email ?? '');
 
         $amountFormatted = number_format((float) $invoice->amount, 2, '.', "'");
         $statusLabels = [
@@ -215,7 +235,7 @@ class NotificationService
             'paymentStatus' => $invoice->payment_status,
             'companyName' => $expert->company_name ?? '—',
             'contactName' => $contact,
-            'email' => $expert->email ?? '',
+            'email' => $billingEmail,
             'serviceTitle' => $serviceTitle,
             'serviceDetail' => $serviceDetail,
             'amountFormatted' => $amountFormatted,
@@ -233,7 +253,7 @@ class NotificationService
             'payment_status_label' => $statusLabels[$invoice->payment_status] ?? $invoice->payment_status,
             'company_name' => $expert->company_name ?? '',
             'contact_name' => $contact,
-            'email' => $expert->email ?? '',
+            'email' => $billingEmail,
             'service_title' => $serviceTitle,
             'service_detail' => $serviceDetail,
             'notes' => $invoice->notes,

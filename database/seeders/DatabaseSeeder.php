@@ -14,6 +14,8 @@ class DatabaseSeeder extends Seeder
             AdminUserSeeder::class,
             EmailTemplateSeeder::class,
             PromotionPositionSeeder::class,
+            InvoiceProductSeeder::class,
+            PromotionPriceSeeder::class,
             DemoExpertSeeder::class,
         ]);
     }

@@ -37,7 +37,7 @@ final class RankingScope
             self::HERO_MATCH => 'Bis zu 3 Experten im Startseiten-Banner (rechts, Slider).',
             self::NATIONAL_TOP5 => 'Bis zu 5 Experten für die nationale Rangliste.',
             self::CANTON_TOP3 => 'Bis zu 5 Experten pro Kanton.',
-            self::GROUP_TOP => 'Bis zu 5 Experten für M&A, Juristen oder Marktplätze.',
+            self::GROUP_TOP => 'Bis zu 5 Experten für M&A, Juristen, Treuhand, Ad Interim oder Marktplätze.',
             self::ARTICLE_TOP => 'Bis zu 3 Fachbeiträge global oder je Fachbereich-Gruppe.',
             self::EVENT_TOP => 'Hervorgehobene Events auf der Startseite.',
             default => '',

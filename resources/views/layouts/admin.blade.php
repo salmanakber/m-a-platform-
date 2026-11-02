@@ -28,7 +28,9 @@
             <p class="admin-sidebar__label">Geschäft</p>
             <a href="{{ route('admin.rankings.index') }}" class="{{ request()->routeIs('admin.rankings.*') ? 'is-active' : '' }}">Rankings / Top</a>
             <a href="{{ route('admin.promotions.index') }}" class="{{ request()->routeIs('admin.promotions.*') ? 'is-active' : '' }}">Promotionen</a>
+            <a href="{{ route('admin.promotion-prices.index') }}" class="{{ request()->routeIs('admin.promotion-prices.*') ? 'is-active' : '' }}">Promo-Preise</a>
             <a href="{{ route('admin.invoices.index') }}" class="{{ request()->routeIs('admin.invoices.*') ? 'is-active' : '' }}">Rechnungen</a>
+            <a href="{{ route('admin.invoice-products.index') }}" class="{{ request()->routeIs('admin.invoice-products.*') ? 'is-active' : '' }}">Rechnungsprodukte</a>
             <a href="{{ route('admin.import.index') }}" class="{{ request()->routeIs('admin.import.*') ? 'is-active' : '' }}">Import</a>
 
             <p class="admin-sidebar__label">System</p>

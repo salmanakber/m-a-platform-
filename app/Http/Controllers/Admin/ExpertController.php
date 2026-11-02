@@ -289,6 +289,10 @@ class ExpertController extends Controller
             'contact_person_last_name' => ['nullable', 'string', 'max:120'],
             'public_rating' => ['nullable', 'numeric', 'between:0,5'],
             'public_deals_count' => ['nullable', 'integer', 'min:0', 'max:99999'],
+            'experience_areas' => ['nullable', 'string', 'max:5000'],
+            'diplomas' => ['nullable', 'string', 'max:5000'],
+            'interim_criteria' => ['nullable', 'string', 'max:5000'],
+            'equity_capital' => ['nullable', 'string', 'max:120'],
             'logo' => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp,gif', 'max:4096'],
             'contact_photo' => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp,gif', 'max:4096'],
             'remove_contact_photo' => ['nullable', 'boolean'],
@@ -312,6 +316,10 @@ class ExpertController extends Controller
             'contact_person_last_name' => $validated['contact_person_last_name'] ?? null,
             'public_rating' => $validated['public_rating'] ?? null,
             'public_deals_count' => $validated['public_deals_count'] ?? null,
+            'experience_areas' => \App\Support\TextLines::fromInput($validated['experience_areas'] ?? null),
+            'diplomas' => \App\Support\TextLines::fromInput($validated['diplomas'] ?? null),
+            'interim_criteria' => \App\Support\TextLines::fromInput($validated['interim_criteria'] ?? null),
+            'equity_capital' => $validated['equity_capital'] ?? null,
         ];
 
         if ($request->hasFile('logo') && $request->file('logo')->isValid()) {

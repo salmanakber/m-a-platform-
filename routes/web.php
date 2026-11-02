@@ -9,12 +9,16 @@ use App\Http\Controllers\Admin\ExpertController as AdminExpertController;
 use App\Http\Controllers\Admin\ExpertWorkspaceController as AdminExpertWorkspaceController;
 use App\Http\Controllers\Admin\ExpertOfficeController as AdminExpertOfficeController;
 use App\Http\Controllers\Admin\ImportController as AdminImportController;
+use App\Http\Controllers\Admin\CvController as AdminCvController;
 use App\Http\Controllers\Admin\InvoiceController as AdminInvoiceController;
+use App\Http\Controllers\Admin\InvoiceProductController as AdminInvoiceProductController;
 use App\Http\Controllers\Admin\LeadController as AdminLeadController;
 use App\Http\Controllers\Admin\PageController as AdminPageController;
 use App\Http\Controllers\Admin\PromotionController as AdminPromotionController;
+use App\Http\Controllers\Admin\PromotionPriceController as AdminPromotionPriceController;
 use App\Http\Controllers\Admin\RankingController as AdminRankingController;
 use App\Http\Controllers\Admin\SettingsController as AdminSettingsController;
+use App\Http\Controllers\Expert\CvController as ExpertCvController;
 use App\Http\Controllers\Auth\ForgotPasswordController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\ResetPasswordController;
@@ -154,12 +158,34 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin'])->grou
     })->name('rankings.edit');
 
     Route::get('/rechnungen', [AdminInvoiceController::class, 'index'])->name('invoices.index');
+    Route::get('/rechnungen/neu', [AdminInvoiceController::class, 'create'])->name('invoices.create');
+    Route::post('/rechnungen', [AdminInvoiceController::class, 'store'])->name('invoices.store');
+    Route::get('/rechnungen/{invoice}/bearbeiten', [AdminInvoiceController::class, 'edit'])->name('invoices.edit');
+    Route::put('/rechnungen/{invoice}', [AdminInvoiceController::class, 'update'])->name('invoices.update');
+    Route::post('/rechnungen/{invoice}/bestaetigung', [AdminInvoiceController::class, 'sendConfirmation'])->name('invoices.send-confirmation');
     Route::patch('/rechnungen/bulk', [AdminInvoiceController::class, 'bulk'])->name('invoices.bulk');
     Route::post('/rechnungen/{invoice}/email', [AdminInvoiceController::class, 'sendEmail'])->name('invoices.send-email');
     Route::patch('/rechnungen/{invoice}/zahlungsstatus', [AdminInvoiceController::class, 'updatePaymentStatus'])->name('invoices.update-payment-status');
 
+    Route::get('/rechnungsprodukte', [AdminInvoiceProductController::class, 'index'])->name('invoice-products.index');
+    Route::post('/rechnungsprodukte', [AdminInvoiceProductController::class, 'store'])->name('invoice-products.store');
+    Route::put('/rechnungsprodukte/{invoiceProduct}', [AdminInvoiceProductController::class, 'update'])->name('invoice-products.update');
+
+    Route::get('/promotion-preise', [AdminPromotionPriceController::class, 'index'])->name('promotion-prices.index');
+    Route::put('/promotion-preise', [AdminPromotionPriceController::class, 'update'])->name('promotion-prices.update');
+
+    Route::get('/experten/{expert}/cv', [AdminCvController::class, 'index'])->name('experts.cv.index');
+    Route::post('/experten/{expert}/cv', [AdminCvController::class, 'store'])->name('experts.cv.store');
+    Route::get('/experten/{expert}/cv/{cv}/bearbeiten', [AdminCvController::class, 'edit'])->name('experts.cv.edit');
+    Route::put('/experten/{expert}/cv/{cv}', [AdminCvController::class, 'update'])->name('experts.cv.update');
+    Route::post('/experten/{expert}/cv/{cv}/ki', [AdminCvController::class, 'generateAi'])->name('experts.cv.generate-ai');
+    Route::get('/experten/{expert}/cv/{cv}/vorschau', [AdminCvController::class, 'preview'])->name('experts.cv.preview');
+    Route::post('/experten/{expert}/cv/{cv}/finalisieren', [AdminCvController::class, 'finalize'])->name('experts.cv.finalize');
+    Route::delete('/experten/{expert}/cv/{cv}', [AdminCvController::class, 'destroy'])->name('experts.cv.destroy');
+
     Route::get('/einstellungen', [AdminSettingsController::class, 'edit'])->name('settings.edit');
     Route::put('/einstellungen', [AdminSettingsController::class, 'update'])->name('settings.update');
+    Route::put('/einstellungen/passwort', [AdminSettingsController::class, 'updatePassword'])->name('settings.password');
 
     Route::get('/crawl', [AdminCrawlController::class, 'index'])->name('crawl.index');
     Route::post('/crawl/ausfuehren', [AdminCrawlController::class, 'runDaily'])->name('crawl.run');
@@ -224,4 +250,13 @@ Route::prefix('expert')->name('expert.')->middleware(['auth', 'role:expert', 'ex
     Route::get('/promotionen', [ExpertPromotionController::class, 'index'])->name('promotions.index');
     Route::post('/promotionen/anfragen', [ExpertPromotionController::class, 'requestPromotion'])->name('promotions.request');
     Route::post('/promotionen/warteliste', [ExpertPromotionController::class, 'joinWaitlist'])->name('promotions.waitlist');
+
+    Route::get('/lebenslauf', [ExpertCvController::class, 'index'])->name('cv.index');
+    Route::post('/lebenslauf', [ExpertCvController::class, 'store'])->name('cv.store');
+    Route::get('/lebenslauf/{cv}/bearbeiten', [ExpertCvController::class, 'edit'])->name('cv.edit');
+    Route::put('/lebenslauf/{cv}', [ExpertCvController::class, 'update'])->name('cv.update');
+    Route::post('/lebenslauf/{cv}/ki', [ExpertCvController::class, 'generateAi'])->name('cv.generate-ai');
+    Route::get('/lebenslauf/{cv}/vorschau', [ExpertCvController::class, 'preview'])->name('cv.preview');
+    Route::post('/lebenslauf/{cv}/finalisieren', [ExpertCvController::class, 'finalize'])->name('cv.finalize');
+    Route::delete('/lebenslauf/{cv}', [ExpertCvController::class, 'destroy'])->name('cv.destroy');
 });

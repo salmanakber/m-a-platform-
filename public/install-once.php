@@ -71,7 +71,11 @@ try {
     echo '  events: '.(Schema::hasTable('events') ? 'EXISTS' : 'MISSING')."\n";
     echo '  rankings: '.(Schema::hasTable('rankings') ? 'EXISTS' : 'MISSING')."\n";
     echo '  experts.professional_group: '.(Schema::hasColumn('experts', 'professional_group') ? 'EXISTS' : 'MISSING')."\n";
+    echo '  experts.equity_capital: '.(Schema::hasColumn('experts', 'equity_capital') ? 'EXISTS' : 'MISSING')."\n";
     echo '  experts.crawl_import_articles: '.(Schema::hasColumn('experts', 'crawl_import_articles') ? 'EXISTS' : 'MISSING')."\n";
+    echo '  invoice_products: '.(Schema::hasTable('invoice_products') ? 'EXISTS' : 'MISSING')."\n";
+    echo '  expert_cvs: '.(Schema::hasTable('expert_cvs') ? 'EXISTS' : 'MISSING')."\n";
+    echo '  promotion_prices: '.(Schema::hasTable('promotion_prices') ? 'EXISTS' : 'MISSING')."\n";
     echo '  events.is_top_event: '.(Schema::hasTable('events') && Schema::hasColumn('events', 'is_top_event') ? 'EXISTS' : 'MISSING')."\n";
     echo '  events.canton_id: '.(Schema::hasTable('events') && Schema::hasColumn('events', 'canton_id') ? 'EXISTS' : 'MISSING')."\n\n";
 
@@ -84,6 +88,14 @@ try {
     $mailSeed = Artisan::call('db:seed', ['--class' => 'Database\\Seeders\\EmailTemplateSeeder', '--force' => true]);
     echo Artisan::output();
     echo "email template seed exit: {$mailSeed}\n\n";
+
+    echo "Upserting invoice products + promotion prices (safe)…\n";
+    $prodSeed = Artisan::call('db:seed', ['--class' => 'Database\\Seeders\\InvoiceProductSeeder', '--force' => true]);
+    echo Artisan::output();
+    echo "invoice product seed exit: {$prodSeed}\n";
+    $priceSeed = Artisan::call('db:seed', ['--class' => 'Database\\Seeders\\PromotionPriceSeeder', '--force' => true]);
+    echo Artisan::output();
+    echo "promotion price seed exit: {$priceSeed}\n\n";
 
     if ($withSeed) {
         echo "Running: php artisan db:seed --force\n";
@@ -126,7 +138,11 @@ try {
     echo '  events: '.(Schema::hasTable('events') ? 'EXISTS' : 'MISSING')."\n";
     echo '  rankings: '.(Schema::hasTable('rankings') ? 'EXISTS' : 'MISSING')."\n";
     echo '  experts.professional_group: '.(Schema::hasColumn('experts', 'professional_group') ? 'EXISTS' : 'MISSING')."\n";
+    echo '  experts.equity_capital: '.(Schema::hasColumn('experts', 'equity_capital') ? 'EXISTS' : 'MISSING')."\n";
     echo '  experts.crawl_import_articles: '.(Schema::hasColumn('experts', 'crawl_import_articles') ? 'EXISTS' : 'MISSING')."\n";
+    echo '  invoice_products: '.(Schema::hasTable('invoice_products') ? 'EXISTS' : 'MISSING')."\n";
+    echo '  expert_cvs: '.(Schema::hasTable('expert_cvs') ? 'EXISTS' : 'MISSING')."\n";
+    echo '  promotion_prices: '.(Schema::hasTable('promotion_prices') ? 'EXISTS' : 'MISSING')."\n";
     echo '  events.is_top_event: '.(Schema::hasTable('events') && Schema::hasColumn('events', 'is_top_event') ? 'EXISTS' : 'MISSING')."\n";
     echo '  events.canton_id: '.(Schema::hasTable('events') && Schema::hasColumn('events', 'canton_id') ? 'EXISTS' : 'MISSING')."\n";
 

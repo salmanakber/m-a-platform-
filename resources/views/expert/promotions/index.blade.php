@@ -29,7 +29,7 @@
         <div>
             <p class="xp-hero__kicker">Sichtbarkeit</p>
             <h1>Kantonale Promotionen</h1>
-            <p>Sichern Sie sich Top-Platzierungen (1–3) in einzelnen Kantonen. Monatlich buchbar, klar begrenzt, hohe Sichtbarkeit im Verzeichnis.</p>
+            <p>Sichern Sie sich Top-Platzierungen (1–5) in einzelnen Kantonen. Monatlich buchbar, klar begrenzt, hohe Sichtbarkeit im Verzeichnis.</p>
         </div>
         <div class="xp-promo-price">
             <span>Monatspreis</span>
@@ -37,6 +37,16 @@
             <em>pro Position · pro Kanton</em>
         </div>
     </header>
+
+    @if (($freeSlots ?? 0) <= 0)
+        <div class="status-help" style="margin-bottom:1rem;">
+            <strong>Aktuell keine freien Top-Positionen</strong>
+            <span>
+                Alle sichtbaren Top-Plätze sind belegt. Nutzen Sie die Warteliste bei den Kantonen unten —
+                wir benachrichtigen Sie, sobald ein Platz frei wird. Bei Fragen: kontakt@nachfolge-experten.ch.
+            </span>
+        </div>
+    @endif
 
     <div class="xp-stat-grid xp-stat-grid--4">
         <div class="xp-stat xp-stat--static">

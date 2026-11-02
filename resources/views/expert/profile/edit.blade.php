@@ -152,6 +152,33 @@
 
                 <div class="xp-panel__head" style="margin-top:0.5rem;">
                     <div>
+                        <h2>Ad Interim / Future Owner</h2>
+                        <p>Bei Fachgruppe «Ad Interim Nachfolge» öffentlich als z.&nbsp;B. «Markus Z, Zürich, 200kCHF Eigenkapital».</p>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="equity_capital">Eigenkapital (Ihre Investitionsmöglichkeit)</label>
+                        <input class="form-control" type="text" name="equity_capital" id="equity_capital" value="{{ old('equity_capital', $expert->equity_capital) }}" placeholder="z. B. 200kCHF">
+                    </div>
+                    <div class="form-group">
+                        <label for="experience_areas">Erfahrungsbereiche (eine Zeile pro Eintrag)</label>
+                        <textarea class="form-control" name="experience_areas" id="experience_areas" rows="3">{{ old('experience_areas', \App\Support\TextLines::toTextarea($expert->experience_areas)) }}</textarea>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="diplomas">Diplome / Ausbildungen</label>
+                        <textarea class="form-control" name="diplomas" id="diplomas" rows="3">{{ old('diplomas', \App\Support\TextLines::toTextarea($expert->diplomas)) }}</textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="interim_criteria">Kriterien / Präferenzen</label>
+                        <textarea class="form-control" name="interim_criteria" id="interim_criteria" rows="3">{{ old('interim_criteria', \App\Support\TextLines::toTextarea($expert->interim_criteria)) }}</textarea>
+                    </div>
+                </div>
+
+                <div class="xp-panel__head" style="margin-top:0.5rem;">
+                    <div>
                         <h2>Berater-Foto &amp; Video</h2>
                         <p>Wird auf Ihrem öffentlichen Profil angezeigt.</p>
                     </div>

@@ -53,6 +53,7 @@
         </div>
         <div class="ax-hero__actions">
             <a href="{{ route('admin.experts.edit', $expert) }}" class="btn btn--small">Profil bearbeiten</a>
+            <a href="{{ route('admin.experts.cv.index', $expert) }}" class="btn btn--ghost btn--small">CV Generator</a>
             @if (in_array($expert->status, ['pending', 'rejected', 'disabled'], true))
                 <form action="{{ route('admin.experts.approve', $expert) }}" method="post">@csrf<button type="submit" class="btn btn--small">{{ $expert->status === 'pending' ? 'Freigeben' : 'Wieder freigeben' }}</button></form>
             @endif

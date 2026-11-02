@@ -123,7 +123,7 @@
                         <option value="{{ $groupKey }}" @selected(old('professional_group', $expert->professional_group ?? 'ma_specialist') === $groupKey)>{{ $groupLabel }}</option>
                     @endforeach
                 </select>
-                <p class="field-hint">M&A, Juristen, Marktplätze oder Weitere — steuert Verzeichnis, Ranking und Kartenfarbe. Dieselbe E-Mail darf für ein zweites Profil (z.&nbsp;B. Marktplatz) verwendet werden.</p>
+                <p class="field-hint">M&A, Juristen, Treuhand, Ad Interim, Marktplätze — steuert Verzeichnis, Ranking und Kartenfarbe. Dieselbe E-Mail darf für ein zweites Profil verwendet werden.</p>
             </div>
             <div class="form-group">
                 <label for="logo_position">Logo-Position</label>
@@ -155,6 +155,29 @@
                 <p class="field-hint">Manuelles Logo — wird bei Crawls nicht überschrieben.</p>
             @endif
         </div>
+        <h2 style="margin:1.25rem 0 0.75rem;font-size:1.05rem;">Ad Interim / Future Owner</h2>
+        <p class="field-hint" style="margin-top:0;">Nur relevant bei Fachgruppe «Ad Interim Nachfolge». Öffentliche Liste zeigt z.&nbsp;B. «Markus Z, Zürich, 200kCHF Eigenkapital».</p>
+        <div class="form-row">
+            <div class="form-group">
+                <label for="equity_capital">Eigenkapital (Ihre Investitionsmöglichkeit)</label>
+                <input class="form-control" type="text" name="equity_capital" id="equity_capital" value="{{ old('equity_capital', $expert->equity_capital) }}" placeholder="z. B. 200kCHF">
+            </div>
+            <div class="form-group">
+                <label for="experience_areas">Erfahrungsbereiche (eine Zeile pro Eintrag)</label>
+                <textarea class="form-control" name="experience_areas" id="experience_areas" rows="3" placeholder="z. B. Maschinenbau&#10;Medtech">{{ old('experience_areas', \App\Support\TextLines::toTextarea($expert->experience_areas)) }}</textarea>
+            </div>
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label for="diplomas">Diplome / Ausbildungen (eine Zeile)</label>
+                <textarea class="form-control" name="diplomas" id="diplomas" rows="3">{{ old('diplomas', \App\Support\TextLines::toTextarea($expert->diplomas)) }}</textarea>
+            </div>
+            <div class="form-group">
+                <label for="interim_criteria">Kriterien / Präferenzen (eine Zeile)</label>
+                <textarea class="form-control" name="interim_criteria" id="interim_criteria" rows="3">{{ old('interim_criteria', \App\Support\TextLines::toTextarea($expert->interim_criteria)) }}</textarea>
+            </div>
+        </div>
+
         <h2 style="margin:1.25rem 0 0.75rem;font-size:1.05rem;">Berater-Foto &amp; Video</h2>
         <div class="form-row">
             <div class="form-group">

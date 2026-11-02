@@ -18,6 +18,11 @@ class Expert extends Model
         'logo_path',
         'contact_photo_path',
         'video_url',
+        'experience_areas',
+        'diplomas',
+        'interim_criteria',
+        'equity_capital',
+        'cv_path',
         'website',
         'email',
         'phone',
@@ -55,7 +60,48 @@ class Expert extends Model
         'logo_locked' => 'boolean',
         'public_rating' => 'float',
         'public_deals_count' => 'integer',
+        'experience_areas' => 'array',
+        'diplomas' => 'array',
+        'interim_criteria' => 'array',
     ];
+
+    public function isAdInterim(): bool
+    {
+        return ($this->professional_group ?? '') === \App\Support\ProfessionalGroup::AD_INTERIM;
+    }
+
+    /** Public list label e.g. «Markus Z». */
+    public function publicDisplayName(): string
+    {
+        if ($this->isAdInterim()) {
+            $first = trim((string) ($this->contact_person_name ?: ''));
+            $last = trim((string) ($this->contact_person_last_name ?: ''));
+            $initial = $last !== '' ? mb_strtoupper(mb_substr($last, 0, 1)) : '';
+            if ($first !== '' && $initial !== '') {
+                return $first.' '.$initial;
+            }
+            if ($first !== '') {
+                return $first;
+            }
+        }
+
+        return (string) $this->company_name;
+    }
+
+    /** e.g. «Markus Z, Zürich, 200kCHF Eigenkapital». */
+    public function interimListingLine(): string
+    {
+        $parts = [$this->publicDisplayName()];
+        $office = $this->primaryOffice();
+        if ($office && $office->city) {
+            $parts[] = $office->city;
+        }
+        if (filled($this->equity_capital)) {
+            $parts[] = trim((string) $this->equity_capital).(str_contains(mb_strtolower((string) $this->equity_capital), 'eigenkapital') ? '' : ' Eigenkapital');
+        }
+
+        return implode(', ', array_filter($parts));
+    }
 
     public function user(): BelongsTo
     {
@@ -116,6 +162,11 @@ class Expert extends Model
     public function media(): HasMany
     {
         return $this->hasMany(ExpertMedia::class)->orderBy('sort_order')->orderBy('id');
+    }
+
+    public function cvs(): HasMany
+    {
+        return $this->hasMany(ExpertCv::class)->orderByDesc('updated_at');
     }
 
     /**

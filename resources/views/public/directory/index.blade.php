@@ -118,50 +118,73 @@
                         @php
                             $office = $expert->primaryOffice();
                             $isPromoted = isset($promotedExpertIds) && $promotedExpertIds->has($expert->id);
+                            $isInterim = $expert->isAdInterim();
+                            $displayName = $isInterim ? $expert->publicDisplayName() : $expert->company_name;
                             $markerOffice = $expert->offices->first(function ($o) {
                                 return ($o->latitude && $o->longitude) || ($o->canton && $o->canton->latitude && $o->canton->longitude);
                             }) ?? $office;
                             $idx = ($experts->firstItem() ?? 1) + $loop->index;
                         @endphp
                         <article
-                            class="dx-item @if($isPromoted) is-promoted @endif"
+                            class="dx-item @if($isPromoted) is-promoted @endif @if($isInterim) is-interim @endif"
                             data-expert-id="{{ $expert->id }}"
                             data-office-id="{{ $markerOffice->id ?? '' }}"
                             tabindex="0"
                         >
                             <div class="dx-item__index">{{ str_pad((string) $idx, 2, '0', STR_PAD_LEFT) }}</div>
                             <div class="dx-item__media logo-pos--{{ $expert->logo_position ?? 'left' }}">
-                                @if ($expert->logo_path)
+                                @if ($expert->contact_photo_path && $isInterim)
+                                    <img src="{{ asset('storage/'.$expert->contact_photo_path) }}" alt="">
+                                @elseif ($expert->logo_path)
                                     <img src="{{ asset('storage/'.$expert->logo_path) }}" alt="">
                                 @else
-                                    <span>{{ mb_strtoupper(mb_substr($expert->company_name, 0, 1)) }}</span>
+                                    <span>{{ mb_strtoupper(mb_substr($displayName, 0, 1)) }}</span>
                                 @endif
                             </div>
                             <div class="dx-item__main">
                                 <div class="dx-item__headline">
                                     <h2>
-                                        <a href="{{ route('experts.show', $expert->slug) }}">{{ $expert->company_name }}</a>
+                                        <a href="{{ route('experts.show', $expert->slug) }}">{{ $displayName }}</a>
                                     </h2>
                                     @if ($isPromoted)
                                         <em>Empfohlen</em>
                                     @endif
                                 </div>
 
-                                <p class="dx-item__place">
-                                    @if ($office)
-                                        <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path fill="currentColor" d="M12 2c-3.9 0-7 3-7 7 0 5.2 7 13 7 13s7-7.8 7-13c0-4-3.1-7-7-7zm0 9.5A2.5 2.5 0 1 1 12 6a2.5 2.5 0 0 1 0 5.5z"/></svg>
-                                        @if ($office->canton)<b>{{ $office->canton->code }}</b>@endif
-                                        {{ $office->city }}
-                                        <span>{{ $office->address_line }}</span>
-                                    @else
-                                        Schweiz
+                                @if ($isInterim)
+                                    <p class="dx-item__place">
+                                        {{ $expert->interimListingLine() }}
+                                    </p>
+                                    @if (!empty($expert->experience_areas) || !empty($expert->diplomas) || !empty($expert->interim_criteria))
+                                        <div class="dx-item__meta">
+                                            @foreach (array_slice($expert->experience_areas ?? [], 0, 3) as $area)
+                                                <span>{{ $area }}</span>
+                                            @endforeach
+                                            @foreach (array_slice($expert->diplomas ?? [], 0, 2) as $diploma)
+                                                <span class="is-soft">{{ $diploma }}</span>
+                                            @endforeach
+                                            @foreach (array_slice($expert->interim_criteria ?? [], 0, 2) as $criterion)
+                                                <span class="is-soft">{{ $criterion }}</span>
+                                            @endforeach
+                                        </div>
                                     @endif
-                                </p>
+                                @else
+                                    <p class="dx-item__place">
+                                        @if ($office)
+                                            <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path fill="currentColor" d="M12 2c-3.9 0-7 3-7 7 0 5.2 7 13 7 13s7-7.8 7-13c0-4-3.1-7-7-7zm0 9.5A2.5 2.5 0 1 1 12 6a2.5 2.5 0 0 1 0 5.5z"/></svg>
+                                            @if ($office->canton)<b>{{ $office->canton->code }}</b>@endif
+                                            {{ $office->city }}
+                                            <span>{{ $office->address_line }}</span>
+                                        @else
+                                            Schweiz
+                                        @endif
+                                    </p>
+                                @endif
 
                                 <div class="dx-item__meta">
                                     <span class="is-soft">{{ \App\Support\ProfessionalGroup::label($expert->professional_group ?? 'ma_specialist') }}</span>
-                                    @if ($expert->offers_buy)<span>Kauf</span>@endif
-                                    @if ($expert->offers_sell)<span>Verkauf</span>@endif
+                                    @if (! $isInterim && $expert->offers_buy)<span>Kauf</span>@endif
+                                    @if (! $isInterim && $expert->offers_sell)<span>Verkauf</span>@endif
                                     @if ($expert->offices->count() > 1)
                                         <span class="is-soft">{{ $expert->offices->count() }} Standorte</span>
                                     @endif

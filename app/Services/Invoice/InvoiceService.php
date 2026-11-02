@@ -2,7 +2,9 @@
 
 namespace App\Services\Invoice;
 
+use App\Models\Expert;
 use App\Models\Invoice;
+use App\Models\InvoiceProduct;
 use App\Models\Promotion;
 use App\Services\Email\NotificationService;
 use App\Services\Settings\SettingsService;
@@ -62,10 +64,72 @@ class InvoiceService
         return $invoice;
     }
 
+    /**
+     * Create a draft invoice from a product (no e-mail yet).
+     *
+     * @param  array{amount?: float|null, billing_email?: string|null, service_title?: string|null, service_detail?: string|null, notes?: string|null, admin_notes?: string|null, currency?: string}  $overrides
+     */
+    public function createFromProduct(Expert $expert, InvoiceProduct $product, array $overrides = []): Invoice
+    {
+        $amount = array_key_exists('amount', $overrides) && $overrides['amount'] !== null
+            ? (float) $overrides['amount']
+            : (float) $product->unit_price;
+
+        return Invoice::query()->create([
+            'expert_id' => $expert->id,
+            'invoice_product_id' => $product->id,
+            'invoice_number' => $this->nextInvoiceNumber(),
+            'invoice_date' => now()->toDateString(),
+            'amount' => $amount,
+            'currency' => $overrides['currency'] ?? ($product->currency ?: 'CHF'),
+            'payment_status' => InvoicePaymentStatus::PENDING,
+            'billing_email' => $overrides['billing_email'] ?? $expert->email,
+            'service_title' => $overrides['service_title'] ?? $product->name,
+            'service_detail' => $overrides['service_detail'] ?? $product->description,
+            'notes' => $overrides['notes'] ?? null,
+            'admin_notes' => $overrides['admin_notes'] ?? null,
+        ]);
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    public function updateDraft(Invoice $invoice, array $data): Invoice
+    {
+        $invoice->update([
+            'billing_email' => $data['billing_email'] ?? $invoice->billing_email,
+            'service_title' => $data['service_title'] ?? $invoice->service_title,
+            'service_detail' => $data['service_detail'] ?? $invoice->service_detail,
+            'amount' => array_key_exists('amount', $data) ? $data['amount'] : $invoice->amount,
+            'currency' => $data['currency'] ?? $invoice->currency,
+            'notes' => array_key_exists('notes', $data) ? $data['notes'] : $invoice->notes,
+            'admin_notes' => array_key_exists('admin_notes', $data) ? $data['admin_notes'] : $invoice->admin_notes,
+            'invoice_date' => $data['invoice_date'] ?? $invoice->invoice_date,
+            'invoice_product_id' => $data['invoice_product_id'] ?? $invoice->invoice_product_id,
+        ]);
+
+        return $invoice->fresh(['expert', 'product']);
+    }
+
+    public function sendConfirmation(Invoice $invoice): bool
+    {
+        try {
+            $this->notifications->sendInvoiceConfirmation($invoice->fresh(['expert', 'product', 'promotion.canton', 'linkedPromotion.canton']));
+            $invoice->update(['confirmation_sent_at' => now()]);
+
+            return true;
+        } catch (\Throwable $e) {
+            Log::warning('Invoice confirmation e-mail failed: '.$e->getMessage(), ['invoice_id' => $invoice->id]);
+
+            return false;
+        }
+    }
+
     public function notifyCreated(Invoice $invoice): bool
     {
         try {
-            $this->notifications->sendInvoiceCreated($invoice->fresh(['expert', 'promotion.canton', 'linkedPromotion.canton']));
+            $this->notifications->sendInvoiceCreated($invoice->fresh(['expert', 'product', 'promotion.canton', 'linkedPromotion.canton']));
+            $invoice->update(['invoice_sent_at' => now()]);
 
             return true;
         } catch (\Throwable $e) {

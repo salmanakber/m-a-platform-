@@ -12,8 +12,10 @@
         <a href="{{ route('admin.settings.edit', ['tab' => 'email']) }}" class="{{ $tab === 'email' ? 'is-active' : '' }}">E-Mail</a>
         <a href="{{ route('admin.settings.edit', ['tab' => 'ai']) }}" class="{{ $tab === 'ai' ? 'is-active' : '' }}">KI</a>
         <a href="{{ route('admin.settings.edit', ['tab' => 'promotion']) }}" class="{{ $tab === 'promotion' ? 'is-active' : '' }}">Promotionen</a>
+        <a href="{{ route('admin.settings.edit', ['tab' => 'password']) }}" class="{{ $tab === 'password' ? 'is-active' : '' }}">Passwort</a>
     </nav>
 
+    @if ($tab !== 'password')
     <form method="post" action="{{ route('admin.settings.update') }}" class="card">
         @csrf
         @method('PUT')
@@ -111,11 +113,36 @@
 
         @if ($tab === 'promotion')
             <div class="form-group">
-                <label for="promotion_monthly_price_chf">Monatspreis Promotion (CHF)</label>
+                <label for="promotion_monthly_price_chf">Fallback Monatspreis Promotion (CHF)</label>
                 <input class="form-control" type="number" step="0.01" min="0" name="promotion_monthly_price_chf" id="promotion_monthly_price_chf" value="{{ old('promotion_monthly_price_chf', $promotionMonthlyPrice) }}">
+                <p class="field-hint">Detailpreise je Position: <a href="{{ route('admin.promotion-prices.index') }}">Promo-Preismatrix</a>.</p>
             </div>
         @endif
 
         <button type="submit" class="btn">Speichern</button>
     </form>
+    @else
+        <form method="post" action="{{ route('admin.settings.password') }}" class="card">
+            @csrf
+            @method('PUT')
+            <p class="field-hint" style="margin-top:0;">Eigenes Admin-Passwort ändern (aktuelles Passwort erforderlich).</p>
+            <div class="form-group">
+                <label for="current_password">Aktuelles Passwort</label>
+                <input class="form-control" type="password" name="current_password" id="current_password" required autocomplete="current-password">
+                @error('current_password')<p class="field-error">{{ $message }}</p>@enderror
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="password">Neues Passwort</label>
+                    <input class="form-control" type="password" name="password" id="password" required autocomplete="new-password">
+                    @error('password')<p class="field-error">{{ $message }}</p>@enderror
+                </div>
+                <div class="form-group">
+                    <label for="password_confirmation">Neues Passwort bestätigen</label>
+                    <input class="form-control" type="password" name="password_confirmation" id="password_confirmation" required autocomplete="new-password">
+                </div>
+            </div>
+            <button type="submit" class="btn">Passwort speichern</button>
+        </form>
+    @endif
 @endsection

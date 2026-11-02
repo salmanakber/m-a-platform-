@@ -23,6 +23,8 @@
                         <a href="{{ route('home') }}#top5" role="menuitem">Top Experten</a>
                         <a href="{{ route('directory.index') }}" role="menuitem">Verzeichnis</a>
                         <a href="{{ route('directory.index', ['gruppe' => 'jurist']) }}" role="menuitem">Juristen</a>
+                        <a href="{{ route('directory.index', ['gruppe' => 'treuhand']) }}" role="menuitem">Treuhand</a>
+                        <a href="{{ route('directory.index', ['gruppe' => 'ad_interim']) }}" role="menuitem">Ad Interim</a>
                         <a href="{{ route('home') }}#marktplaetze" role="menuitem">Marktplätze</a>
                         <a href="{{ route('map.index') }}" role="menuitem">Schweiz-Karte</a>
                     </div>

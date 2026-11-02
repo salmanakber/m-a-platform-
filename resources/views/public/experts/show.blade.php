@@ -1,7 +1,7 @@
 @extends('layouts.public')
 
-@section('title', $expert->company_name.' — nachfolge-experten.ch')
-@section('meta_description', $expert->company_name.' auf nachfolge-experten.ch')
+@section('title', ($expert->isAdInterim() ? $expert->publicDisplayName() : $expert->company_name).' — nachfolge-experten.ch')
+@section('meta_description', ($expert->isAdInterim() ? $expert->interimListingLine() : $expert->company_name).' auf nachfolge-experten.ch')
 @section('flush')
 @endsection
 
@@ -9,6 +9,8 @@
 @php
     $offices = $offices ?? collect([$office])->filter();
     $isMarketplace = ($expert->professional_group ?? '') === \App\Support\ProfessionalGroup::MARKTPLATZ;
+    $isInterim = $expert->isAdInterim();
+    $headlineName = $isInterim ? $expert->publicDisplayName() : $expert->company_name;
     $website = trim((string) ($expert->website ?? ''));
     if ($website !== '' && ! preg_match('#^https?://#i', $website)) {
         $website = 'https://'.$website;
@@ -22,21 +24,25 @@
     </div>
     <section class="xp-stage">
         <div class="container">
-            <a class="xp-stage__crumb" href="{{ $isMarketplace ? route('directory.index', ['gruppe' => 'marktplatz']) : route('directory.index') }}">
-                ← {{ $isMarketplace ? 'Marktplätze' : 'Expertenverzeichnis' }}
+            <a class="xp-stage__crumb" href="{{ $isMarketplace ? route('directory.index', ['gruppe' => 'marktplatz']) : ($isInterim ? route('directory.index', ['gruppe' => 'ad_interim']) : route('directory.index')) }}">
+                ← {{ $isMarketplace ? 'Marktplätze' : ($isInterim ? 'Ad Interim' : 'Expertenverzeichnis') }}
             </a>
             <div class="xp-stage__grid reveal-on-scroll">
                 <div class="xp-mark logo-pos--{{ $expert->logo_position ?? 'left' }}" aria-hidden="true">
-                    @if ($expert->logo_path)
+                    @if ($isInterim && $expert->contact_photo_path)
+                        <img src="{{ asset('storage/'.$expert->contact_photo_path) }}" alt="">
+                    @elseif ($expert->logo_path)
                         <img src="{{ asset('storage/'.$expert->logo_path) }}" alt="">
                     @else
-                        <span class="xp-mark__letter">{{ mb_strtoupper(mb_substr($expert->company_name, 0, 1)) }}</span>
+                        <span class="xp-mark__letter">{{ mb_strtoupper(mb_substr($headlineName, 0, 1)) }}</span>
                     @endif
                 </div>
                 <div class="xp-stage__meta">
                     <p class="xp-stage__eyebrow">{{ \App\Support\ProfessionalGroup::label($expert->professional_group ?? 'ma_specialist') }} · Schweiz</p>
-                    <h1 class="xp-stage__name">{{ $expert->company_name }}</h1>
-                    @if ($isMarketplace)
+                    <h1 class="xp-stage__name">{{ $headlineName }}</h1>
+                    @if ($isInterim)
+                        <p class="xp-stage__place">{{ $expert->interimListingLine() }}</p>
+                    @elseif ($isMarketplace)
                         <p class="xp-stage__place">Schweizweit · Digitaler Marktplatz</p>
                         @if ($websiteHost)
                             <p class="xp-stage__web">
@@ -54,6 +60,9 @@
                     @endif
                     <div class="xp-stage__chips">
                         <span class="xp-chip">{{ \App\Support\ProfessionalGroup::label($expert->professional_group ?? 'ma_specialist') }}</span>
+                        @if ($isInterim && filled($expert->equity_capital))
+                            <span class="xp-chip">{{ $expert->equity_capital }} Eigenkapital</span>
+                        @endif
                         @if ($isMarketplace)
                             <span class="xp-chip">CH</span>
                         @else
@@ -136,7 +145,52 @@
                         </section>
                     @endif
 
-                    @if ($isMarketplace)
+                    @if ($isInterim)
+                        <section class="xp-card reveal-on-scroll">
+                            <h2 class="xp-card__title">Profil Ad Interim</h2>
+                            <p class="xp-card__sub">Future Owner / Ad Interim Nachfolge — diskret und prüfbar.</p>
+                            @if (filled($expert->equity_capital))
+                                <p style="margin:0 0 0.75rem;"><strong>Eigenkapital:</strong> {{ $expert->equity_capital }}</p>
+                            @endif
+                            @if (!empty($expert->experience_areas))
+                                <p style="margin:0 0 0.35rem;"><strong>Erfahrungsbereiche</strong></p>
+                                <ul style="margin:0 0 0.85rem;padding-left:1.1rem;">
+                                    @foreach ($expert->experience_areas as $area)<li>{{ $area }}</li>@endforeach
+                                </ul>
+                            @endif
+                            @if (!empty($expert->diplomas))
+                                <p style="margin:0 0 0.35rem;"><strong>Diplome</strong></p>
+                                <ul style="margin:0 0 0.85rem;padding-left:1.1rem;">
+                                    @foreach ($expert->diplomas as $diploma)<li>{{ $diploma }}</li>@endforeach
+                                </ul>
+                            @endif
+                            @if (!empty($expert->interim_criteria))
+                                <p style="margin:0 0 0.35rem;"><strong>Kriterien</strong></p>
+                                <ul style="margin:0 0 0.85rem;padding-left:1.1rem;">
+                                    @foreach ($expert->interim_criteria as $criterion)<li>{{ $criterion }}</li>@endforeach
+                                </ul>
+                            @endif
+                            @if ($expert->description)
+                                <div class="xp-prose" style="margin-top:0.5rem;">
+                                    <p>{{ $expert->description }}</p>
+                                </div>
+                            @endif
+                        </section>
+                        @if ($office)
+                            <section class="xp-card reveal-on-scroll" style="margin-top:1.15rem;">
+                                <h2 class="xp-card__title">Standort</h2>
+                                <div class="xp-office">
+                                    <div class="xp-office__pin">{{ $office->canton->code ?? 'CH' }}</div>
+                                    <div>
+                                        <p class="xp-office__text">
+                                            {{ $office->city }}
+                                            @if ($office->canton) · {{ $office->canton->name_de }}@endif
+                                        </p>
+                                    </div>
+                                </div>
+                            </section>
+                        @endif
+                    @elseif ($isMarketplace)
                         <section class="xp-card reveal-on-scroll">
                             <h2 class="xp-card__title">Digitaler Marktplatz</h2>
                             <p class="xp-card__sub">Diese Plattform ist schweizweit tätig — nicht an einen einzelnen Kanton gebunden.</p>

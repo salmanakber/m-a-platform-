@@ -34,10 +34,12 @@
         <div>
             <p class="page-kicker">Manuelle Abrechnung</p>
             <h1>Rechnungen</h1>
-            <p>Promotion-Rechnungen erfassen und Zahlungsstatus pflegen — ohne Online-Zahlung.</p>
+            <p>Produkt wählen, Rechnung bearbeiten, Bestätigung vor dem Versand — ohne Online-Zahlung.</p>
         </div>
         <div class="admin-page-hero__actions">
             <span class="admin-price-chip">Monatspreis <strong>{{ number_format((float) ($monthlyPrice ?? 0), 2, '.', "'") }} CHF</strong></span>
+            <a class="btn btn--small" href="{{ route('admin.invoices.create') }}">Neue Rechnung</a>
+            <a class="btn btn--ghost btn--small" href="{{ route('admin.invoice-products.index') }}">Produkte</a>
             <a class="btn btn--ghost btn--small" href="{{ route('admin.promotions.index', ['status' => 'pending']) }}">Offene Promotionen</a>
         </div>
     </header>
@@ -47,9 +49,9 @@
     <div class="status-help">
         <strong>So funktioniert’s</strong>
         <span>
-            1) Experte fragt Promotion an → 2) unter <a href="{{ route('admin.promotions.index') }}">Promotionen</a> «Rechnung» (sendet Rechnungs-E-Mail) →
-            3) Zahlung erhalten → 4) hier <em>Bezahlt</em> + Mail → Experte erhält Zahlungsbestätigung.
-            Vorlagen: <a href="{{ route('admin.email-templates.index') }}">invoice_created / invoice_paid</a>.
+            Neu: <a href="{{ route('admin.invoices.create') }}">Rechnung erstellen</a> (Produkt wählen) → bearbeiten →
+            Bestätigungs-E-Mail → Rechnungs-E-Mail. Oder weiterhin über <a href="{{ route('admin.promotions.index') }}">Promotionen</a>.
+            Vorlagen: invoice_confirmation / invoice_created / invoice_paid.
         </span>
     </div>
 
@@ -97,7 +99,7 @@
         <div class="admin-card">
             <div class="empty-state empty-state--soft">
                 <p><strong>Keine Rechnungen.</strong></p>
-                <p>Erstellen Sie Rechnungen über «Rechnung» bei einer ausstehenden Promotion.</p>
+                <p><a href="{{ route('admin.invoices.create') }}">Neue Rechnung</a> oder über eine ausstehende Promotion.</p>
             </div>
         </div>
     @else
@@ -155,7 +157,9 @@
                                     <input type="checkbox" name="ids[]" value="{{ $invoice->id }}" class="row-check" form="invoicesBulkForm">
                                 </td>
                                 <td>
-                                    <p class="entity-name">{{ $invoice->invoice_number ?? '#'.$invoice->id }}</p>
+                                    <p class="entity-name">
+                                        <a href="{{ route('admin.invoices.edit', $invoice) }}">{{ $invoice->invoice_number ?? '#'.$invoice->id }}</a>
+                                    </p>
                                     <p class="entity-sub">{{ optional($invoice->invoice_date)->format('d.m.Y') ?: '—' }}</p>
                                 </td>
                                 <td>{{ $invoice->expert->company_name ?? '—' }}</td>
@@ -163,6 +167,9 @@
                                     @if ($promo)
                                         <strong>{{ $promo->canton->code ?? '—' }}</strong>
                                         <div class="entity-sub">Pos. {{ $promo->position_number }} · {{ $promo->status }}</div>
+                                    @elseif ($invoice->service_title)
+                                        <strong>{{ $invoice->service_title }}</strong>
+                                        <div class="entity-sub">{{ \Illuminate\Support\Str::limit($invoice->service_detail, 48) }}</div>
                                     @else
                                         <span class="entity-sub">—</span>
                                     @endif

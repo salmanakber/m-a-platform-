@@ -17,11 +17,20 @@ class Invoice extends Model
         'payment_status',
         'notes',
         'promotion_id',
+        'invoice_product_id',
+        'billing_email',
+        'service_title',
+        'service_detail',
+        'admin_notes',
+        'confirmation_sent_at',
+        'invoice_sent_at',
     ];
 
     protected $casts = [
         'invoice_date' => 'date',
         'amount' => 'decimal:2',
+        'confirmation_sent_at' => 'datetime',
+        'invoice_sent_at' => 'datetime',
     ];
 
     public function expert(): BelongsTo
@@ -32,6 +41,11 @@ class Invoice extends Model
     public function promotion(): BelongsTo
     {
         return $this->belongsTo(Promotion::class);
+    }
+
+    public function product(): BelongsTo
+    {
+        return $this->belongsTo(InvoiceProduct::class, 'invoice_product_id');
     }
 
     public function linkedPromotion(): HasOne
