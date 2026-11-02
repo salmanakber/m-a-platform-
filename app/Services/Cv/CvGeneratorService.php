@@ -6,6 +6,7 @@ use App\Models\Expert;
 use App\Models\ExpertCv;
 use App\Services\AI\AIManager;
 use App\Support\ProfessionalGroup;
+use App\Support\TextLines;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 
@@ -13,11 +14,29 @@ class CvGeneratorService
 {
     public const TEMPLATES = [
         'classic' => 'Klassisch',
-        'modern' => 'Modern',
+        'modern' => 'Modern Sidebar',
         'executive' => 'Executive',
+        'swiss' => 'Swiss Clean',
+        'compact' => 'Kompakt',
+        'timeline' => 'Timeline',
+        'bold' => 'Bold Header',
+        'elegant' => 'Elegant',
+        'ai_design' => 'KI-Design',
     ];
 
-    /** Accent colors for live design control room. */
+    public const TEMPLATE_HINTS = [
+        'classic' => 'Einspaltig, printfreundlich',
+        'modern' => 'Farbige Sidebar links',
+        'executive' => 'Editorial, seriös',
+        'swiss' => 'Klar, helle Typografie',
+        'compact' => 'Dicht, eine Seite',
+        'timeline' => 'Erfahrung als Zeitstrahl',
+        'bold' => 'Starker Farbkopf',
+        'elegant' => 'Fein, luftig',
+        'ai_design' => 'Layout von der KI gewählt',
+    ];
+
+    /** Accent colors for live design. */
     public const COLORS = [
         '#0E4971' => 'Nachtblau',
         '#0B6E4F' => 'Smaragd',
@@ -25,9 +44,11 @@ class CvGeneratorService
         '#7C2D12' => 'Terrakotta',
         '#1E3A5F' => 'Navy',
         '#334155' => 'Schiefer',
-        '#6D28D9' => 'Violett',
         '#0F766E' => 'Petrol',
+        '#9F1239' => 'Weinrot',
     ];
+
+    public const LAYOUT_STYLES = ['sidebar_left', 'sidebar_right', 'banner', 'centered', 'split'];
 
     public function __construct(private AIManager $ai)
     {
@@ -65,6 +86,17 @@ class CvGeneratorService
             'languages' => ['Deutsch'],
             'photo_path' => $expert->contact_photo_path,
             'accent_color' => '#0E4971',
+            'layout' => $this->defaultLayout(),
+        ];
+    }
+
+    /** @return array<string, string> */
+    public function defaultLayout(): array
+    {
+        return [
+            'style' => 'centered',
+            'density' => 'normal',
+            'type_mood' => 'sans',
         ];
     }
 
@@ -102,15 +134,11 @@ class CvGeneratorService
         return $cv->fresh();
     }
 
-    /** Ordered AI steps for the studio progress UI. */
+    /** Kept for UI labels / optional single-field regen. */
     public static function generationSteps(): array
     {
         return [
-            ['id' => 'summary', 'label' => 'Professionelle Zusammenfassung', 'kind' => 'text'],
-            ['id' => 'services', 'label' => 'Leistungsprofil', 'kind' => 'text'],
-            ['id' => 'experience', 'label' => 'Berufserfahrung', 'kind' => 'list'],
-            ['id' => 'education', 'label' => 'Ausbildung', 'kind' => 'list'],
-            ['id' => 'skills', 'label' => 'Kompetenzen', 'kind' => 'list'],
+            ['id' => 'full', 'label' => 'Gesamter Lebenslauf', 'kind' => 'full'],
         ];
     }
 
@@ -148,8 +176,112 @@ class CvGeneratorService
     }
 
     /**
-     * Merge AI output into payload for a given field.
+     * One AI call for the whole CV (like ChatGPT) — typically under a minute.
      *
+     * @param  array<string, mixed>  $context
+     * @return array{payload: array<string, mixed>, template_key: string, title: ?string}
+     */
+    public function generateFullCv(Expert $expert, array $context = []): array
+    {
+        $seed = array_merge($this->seedFromExpert($expert), $context['payload'] ?? []);
+        $preferred = (string) ($context['template_key'] ?? $seed['template_key'] ?? 'classic');
+        $inventDesign = (bool) ($context['invent_design'] ?? ($preferred === 'ai_design'));
+        $templateKeys = implode(', ', array_keys(self::TEMPLATES));
+
+        $areas = $seed['experience_areas'] ?? [];
+        if (is_array($areas)) {
+            $areas = implode(', ', $areas);
+        }
+        $diplomas = $seed['diplomas'] ?? [];
+        if (is_array($diplomas)) {
+            $diplomas = implode(', ', $diplomas);
+        }
+
+        $prompt = "Du bist ein Schweizer Karriere-Texter für Nachfolge, M&A, Treuhand und Ad Interim.\n"
+            ."Erzeuge in EINEM Durchgang einen vollständigen professionellen Lebenslauf.\n"
+            ."Antworte NUR mit gültigem JSON (kein Markdown, keine Erklärung) in genau diesem Schema:\n"
+            ."{\n"
+            ."  \"headline\": \"string\",\n"
+            ."  \"summary\": \"3-5 Sätze Deutsch CH\",\n"
+            ."  \"services\": \"Leistungsprofil als Text\",\n"
+            ."  \"experience\": [\"Rolle · Firma · Zeitraum — Kurztext\", \"...\"],\n"
+            ."  \"education\": [\"Abschluss · Institution · Jahr\", \"...\"],\n"
+            ."  \"skills\": [\"Kompetenz\", \"...\"],\n"
+            ."  \"languages\": [\"Deutsch\", \"Englisch\"],\n"
+            ."  \"template_key\": \"einer von: {$templateKeys}\",\n"
+            ."  \"accent_color\": \"#RRGGBB\",\n"
+            ."  \"title\": \"Kurztitel für den CV\",\n"
+            ."  \"layout\": {\"style\":\"sidebar_left|sidebar_right|banner|centered|split\",\"density\":\"airy|normal|compact\",\"type_mood\":\"sans|serif|mixed\"}\n"
+            ."}\n\n"
+            .'Name: '.($seed['full_name'] ?? '')."\n"
+            .'Unternehmen: '.($seed['company'] ?? '')."\n"
+            .'Aktuelle Headline: '.($seed['headline'] ?? '')."\n"
+            .'Standort: '.($seed['location'] ?? '')."\n"
+            .'E-Mail: '.($seed['email'] ?? '')."\n"
+            .'Telefon: '.($seed['phone'] ?? '')."\n"
+            .'Website: '.($seed['website'] ?? '')."\n"
+            .'Eigenkapital: '.($seed['equity_capital'] ?? '')."\n"
+            .'Bestehende Beschreibung: '.mb_substr((string) ($seed['summary'] ?? ''), 0, 900)."\n"
+            .'Leistungen: '.mb_substr((string) ($seed['services'] ?? ''), 0, 600)."\n"
+            .'Erfahrungsbereiche: '.$areas."\n"
+            .'Diplome: '.$diplomas."\n"
+            .'Zusatzhinweise: '.mb_substr((string) ($context['notes'] ?? ''), 0, 600)."\n"
+            .'Bevorzugte Vorlage: '.$preferred."\n"
+            .($inventDesign
+                ? "Wähle template_key = \"ai_design\" und setze layout sinnvoll (professionell, schweizerisch, nicht verspielt).\n"
+                : "Behalte template_key möglichst bei «{$preferred}», es sei denn eine andere Vorlage passt klar besser.\n")
+            ."Nutze realistische, glaubwürdige Formulierungen auf Basis der Angaben. Erfinde keine falschen Arbeitgeber-Namen, wenn keine Erfahrung vorliegt — formuliere dann allgemeine Stationen/Schwerpunkte aus den Erfahrungsbereichen.\n"
+            .'Arrays: 3–8 Einträge wo sinnvoll. Keine leeren Strings.';
+
+        $raw = trim($this->ai->complete($prompt, 'cv_full'));
+        $parsed = $this->parseJsonObject($raw);
+        if ($parsed === null) {
+            throw new \RuntimeException('KI-Antwort war kein gültiges JSON. Bitte erneut versuchen.');
+        }
+
+        $payload = $seed;
+        foreach (['headline', 'summary', 'services', 'title'] as $key) {
+            if (! empty($parsed[$key]) && is_string($parsed[$key])) {
+                if ($key === 'title') {
+                    continue;
+                }
+                $payload[$key] = trim($parsed[$key]);
+            }
+        }
+        foreach (['experience', 'education', 'skills', 'languages'] as $key) {
+            if (isset($parsed[$key])) {
+                $payload[$key] = $this->normalizeList($parsed[$key]);
+            }
+        }
+
+        $accent = (string) ($parsed['accent_color'] ?? $seed['accent_color'] ?? '#0E4971');
+        if (preg_match('/^#[0-9A-Fa-f]{6}$/', $accent)) {
+            $payload['accent_color'] = strtoupper($accent);
+        }
+
+        $templateKey = (string) ($parsed['template_key'] ?? $preferred);
+        if (! array_key_exists($templateKey, self::TEMPLATES)) {
+            $templateKey = $inventDesign ? 'ai_design' : (array_key_exists($preferred, self::TEMPLATES) ? $preferred : 'classic');
+        }
+        if ($inventDesign) {
+            $templateKey = 'ai_design';
+        }
+
+        $payload['layout'] = $this->normalizeLayout($parsed['layout'] ?? ($seed['layout'] ?? null));
+
+        $title = null;
+        if (! empty($parsed['title']) && is_string($parsed['title'])) {
+            $title = trim($parsed['title']);
+        }
+
+        return [
+            'payload' => $payload,
+            'template_key' => $templateKey,
+            'title' => $title,
+        ];
+    }
+
+    /**
      * @param  array<string, mixed>  $payload
      * @return array<string, mixed>
      */
@@ -158,7 +290,7 @@ class CvGeneratorService
         $listFields = ['experience', 'education', 'skills', 'experience_areas', 'diplomas', 'criteria', 'languages'];
         if (in_array($field, $listFields, true)) {
             $normalized = str_replace([', ', ' • ', ' · '], "\n", $text);
-            $payload[$field] = \App\Support\TextLines::fromInput($normalized);
+            $payload[$field] = TextLines::fromInput($normalized);
         } else {
             $payload[$field] = $text;
         }
@@ -184,17 +316,19 @@ class CvGeneratorService
     public function suggestTemplate(Expert $expert, array $payload = []): string
     {
         $group = $expert->professional_group ?? ProfessionalGroup::MA_SPECIALIST;
-        if ($group === ProfessionalGroup::AD_INTERIM) {
-            return 'modern';
-        }
-        if ($group === ProfessionalGroup::JURIST) {
-            return 'classic';
-        }
+        $fallback = match ($group) {
+            ProfessionalGroup::AD_INTERIM => 'modern',
+            ProfessionalGroup::JURIST => 'classic',
+            ProfessionalGroup::TREUHAND => 'swiss',
+            default => 'executive',
+        };
 
         try {
-            $prompt = 'Wähle genau eines dieser CV-Templates für den Experten: classic, modern, executive. '
+            $keys = implode(', ', array_keys(self::TEMPLATES));
+            $prompt = "Wähle genau eines dieser CV-Templates: {$keys}. "
                 .'Antworte nur mit dem Schlüssel. Fachgruppe: '.ProfessionalGroup::label($group)
-                .'. Name: '.($payload['full_name'] ?? $expert->publicDisplayName());
+                .'. Name: '.($payload['full_name'] ?? $expert->publicDisplayName())
+                .'. Kurz: '.mb_substr((string) ($payload['summary'] ?? $expert->description ?? ''), 0, 280);
             $raw = strtolower(trim($this->ai->complete($prompt, 'cv_template')));
             foreach (array_keys(self::TEMPLATES) as $key) {
                 if (str_contains($raw, $key)) {
@@ -205,7 +339,39 @@ class CvGeneratorService
             // fallback below
         }
 
-        return 'classic';
+        return $fallback;
+    }
+
+    /**
+     * AI invents layout primitives for the flexible ai_design template (fast, no content rewrite).
+     *
+     * @param  array<string, mixed>  $payload
+     * @return array{template_key: string, accent_color: string, layout: array<string, string>}
+     */
+    public function inventDesign(Expert $expert, array $payload = []): array
+    {
+        $prompt = "Entwirf ein CV-Layout für einen Schweizer Experten. Antworte NUR mit JSON:\n"
+            ."{\"accent_color\":\"#RRGGBB\",\"layout\":{\"style\":\"sidebar_left|sidebar_right|banner|centered|split\",\"density\":\"airy|normal|compact\",\"type_mood\":\"sans|serif|mixed\"}}\n"
+            .'Fachgruppe: '.ProfessionalGroup::label($expert->professional_group ?? ProfessionalGroup::MA_SPECIALIST)."\n"
+            .'Name: '.($payload['full_name'] ?? $expert->publicDisplayName())."\n"
+            .'Headline: '.($payload['headline'] ?? '');
+
+        try {
+            $parsed = $this->parseJsonObject(trim($this->ai->complete($prompt, 'cv_invent_design'))) ?? [];
+        } catch (\Throwable) {
+            $parsed = [];
+        }
+
+        $accent = (string) ($parsed['accent_color'] ?? '#0E4971');
+        if (! preg_match('/^#[0-9A-Fa-f]{6}$/', $accent)) {
+            $accent = '#0E4971';
+        }
+
+        return [
+            'template_key' => 'ai_design',
+            'accent_color' => strtoupper($accent),
+            'layout' => $this->normalizeLayout($parsed['layout'] ?? null),
+        ];
     }
 
     public function renderHtml(ExpertCv $cv): string
@@ -216,18 +382,20 @@ class CvGeneratorService
         if (empty($payload['accent_color'])) {
             $payload['accent_color'] = '#0E4971';
         }
+        if (empty($payload['layout']) || ! is_array($payload['layout'])) {
+            $payload['layout'] = $this->defaultLayout();
+        }
 
         return view('cv.templates.'.$template, [
             'cv' => $cv,
             'expert' => $cv->expert,
             'payload' => $payload,
             'accent' => $payload['accent_color'],
+            'layout' => $payload['layout'],
         ])->render();
     }
 
     /**
-     * Live preview without persisting (control room).
-     *
      * @param  array<string, mixed>  $payload
      */
     public function renderPreviewHtml(Expert $expert, string $templateKey, array $payload): string
@@ -239,12 +407,16 @@ class CvGeneratorService
         if (empty($payload['photo_path']) && $expert->contact_photo_path) {
             $payload['photo_path'] = $expert->contact_photo_path;
         }
+        if (empty($payload['layout']) || ! is_array($payload['layout'])) {
+            $payload['layout'] = $this->defaultLayout();
+        }
 
         return view('cv.templates.'.$template, [
             'cv' => null,
             'expert' => $expert,
             'payload' => $payload,
             'accent' => $payload['accent_color'],
+            'layout' => $payload['layout'],
         ])->render();
     }
 
@@ -263,5 +435,60 @@ class CvGeneratorService
         $cv->expert?->update(['cv_path' => $path]);
 
         return $cv->fresh();
+    }
+
+    /** @return array<string, mixed>|null */
+    private function parseJsonObject(string $raw): ?array
+    {
+        $raw = trim($raw);
+        if (preg_match('/```(?:json)?\s*(\{.*?\})\s*```/is', $raw, $m)) {
+            $raw = $m[1];
+        } elseif (preg_match('/\{.*\}/s', $raw, $m)) {
+            $raw = $m[0];
+        }
+
+        $decoded = json_decode($raw, true);
+
+        return is_array($decoded) ? $decoded : null;
+    }
+
+    /** @return list<string> */
+    private function normalizeList(mixed $value): array
+    {
+        if (is_array($value)) {
+            return array_values(array_filter(array_map(static fn ($v) => trim((string) $v), $value)));
+        }
+        if (is_string($value)) {
+            return TextLines::fromInput(str_replace([', ', ' • ', ' · '], "\n", $value));
+        }
+
+        return [];
+    }
+
+    /** @return array<string, string> */
+    private function normalizeLayout(mixed $layout): array
+    {
+        $base = $this->defaultLayout();
+        if (! is_array($layout)) {
+            return $base;
+        }
+        $style = (string) ($layout['style'] ?? $base['style']);
+        if (! in_array($style, self::LAYOUT_STYLES, true)) {
+            $style = $base['style'];
+        }
+        $density = (string) ($layout['density'] ?? $base['density']);
+        if (! in_array($density, ['airy', 'normal', 'compact'], true)) {
+            $density = $base['density'];
+        }
+        $mood = (string) ($layout['type_mood'] ?? $base['type_mood']);
+        if (! in_array($mood, ['sans', 'serif', 'mixed'], true)) {
+            $mood = $base['type_mood'];
+        }
+
+        return [
+            'style' => $style,
+            'density' => $density,
+            'type_mood' => $mood,
+        ];
     }
 }

@@ -1,5 +1,5 @@
 /**
- * CV Control Room — AJAX wizard with live design/color + library
+ * CV Studio — 3-step flow, single-shot AI (~under 1 min)
  */
 (function () {
     'use strict';
@@ -13,36 +13,34 @@
 
     var csrf = (document.querySelector('meta[name="csrf-token"]') || {}).content || '';
     var urls = boot.urls || {};
-    var steps = boot.steps || [];
     var templates = boot.templates || {};
+    var templateHints = boot.template_hints || {};
     var colors = boot.colors || { '#0E4971': 'Nachtblau' };
-    var EST_TOTAL_SEC = 150; // ~2.5 minutes for 5 AI sections
-    var LEAVE_MSG = 'Die KI-Generierung läuft noch (ca. 2–3 Minuten). Wenn Sie die Seite aktualisieren oder verlassen, geht der aktuelle Fortschritt verloren.';
+    var EST_TOTAL_SEC = 45;
+    var LEAVE_MSG = 'Die KI-Generierung läuft noch. Wenn Sie die Seite aktualisieren oder verlassen, geht der aktuelle Fortschritt verloren.';
 
     var state = {
         step: 1,
         cv: null,
         template: 'classic',
         color: '#0E4971',
+        layout: { style: 'centered', density: 'normal', type_mood: 'sans' },
         notes: '',
         generating: false,
         saveTimer: null,
         liveTimer: null,
         etaTimer: null,
         genStartedAt: 0,
-        genStepIndex: 0,
-        genStepTotal: 5,
     };
 
     var profileForm = root.querySelector('[data-cvs-form-profile]');
     var reviewForm = root.querySelector('[data-cvs-form-review]');
     var toastEl = root.querySelector('[data-cvs-toast]');
-    var feedEl = root.querySelector('[data-cvs-feed]');
-    var genStepsEl = root.querySelector('[data-cvs-gen-steps]');
     var barEl = root.querySelector('[data-cvs-bar]');
     var pctEl = root.querySelector('[data-cvs-pct]');
     var preview = root.querySelector('[data-cvs-preview]');
     var livePreview = root.querySelector('[data-cvs-live-preview]');
+    var overlay = root.querySelector('[data-cvs-gen-overlay]');
 
     function url(key, id) {
         return String(urls[key] || '').replace('__ID__', id != null ? id : (state.cv && state.cv.id) || '');
@@ -103,6 +101,7 @@
         });
         if (boot.seed && boot.seed.photo_path) p.photo_path = boot.seed.photo_path;
         p.accent_color = state.color || '#0E4971';
+        p.layout = state.layout || { style: 'centered', density: 'normal', type_mood: 'sans' };
         return p;
     }
 
@@ -122,8 +121,12 @@
             }
         });
         if (n === 2) scheduleLivePreview(true);
-        if (n === 4) refreshPreview();
+        if (n === 3) refreshPreview();
         if (n === 'library') renderLibrary();
+    }
+
+    function templateHint(key) {
+        return templateHints[key] || '';
     }
 
     function renderTemplates() {
@@ -133,8 +136,8 @@
         Object.keys(templates).forEach(function (key) {
             var btn = document.createElement('button');
             btn.type = 'button';
-            btn.className = 'cvs__tpl' + (state.template === key ? ' is-on' : '');
-            btn.innerHTML = '<strong>' + escapeHtml(templates[key]) + '</strong><span>' + templateHint(key) + '</span>';
+            btn.className = 'cvs__tpl' + (state.template === key ? ' is-on' : '') + (key === 'ai_design' ? ' cvs__tpl--ai' : '');
+            btn.innerHTML = '<strong>' + escapeHtml(templates[key]) + '</strong><span>' + escapeHtml(templateHint(key)) + '</span>';
             btn.addEventListener('click', function () {
                 state.template = key;
                 renderTemplates();
@@ -143,12 +146,6 @@
             });
             box.appendChild(btn);
         });
-    }
-
-    function templateHint(key) {
-        if (key === 'modern') return 'Zweispaltig, klar';
-        if (key === 'executive') return 'Editorial, seriös';
-        return 'Klassisch, printfreundlich';
     }
 
     function renderColors() {
@@ -166,7 +163,7 @@
                     state.color = hex;
                     renderColors();
                     scheduleLivePreview(true);
-                    if (state.step === 4 && state.cv) {
+                    if (state.step === 3 && state.cv) {
                         saveReview().catch(function () {});
                     } else if (state.cv) {
                         saveDesignQuiet();
@@ -193,7 +190,7 @@
         if (!box) return;
         var list = boot.cvs || [];
         if (!list.length) {
-            box.innerHTML = '<div class="cvs__library-empty"><strong>Noch keine CVs</strong><p>Erzeugen Sie Ihren ersten Lebenslauf über die Schritte links.</p></div>';
+            box.innerHTML = '<div class="cvs__library-empty"><strong>Noch keine CVs</strong><p>Erzeugen Sie Ihren ersten Lebenslauf in 3 Schritten.</p></div>';
             return;
         }
         box.innerHTML = list.map(function (cv) {
@@ -245,7 +242,7 @@
     async function livePreviewHtml() {
         if (!livePreview || !urls.live_preview) return;
         var payload = payloadFromForms();
-        var body = Object.assign({}, payload, { template_key: state.template, accent_color: state.color });
+        var body = Object.assign({}, payload, { template_key: state.template, accent_color: state.color, layout: state.layout });
         var res = await fetch(urls.live_preview, {
             method: 'POST',
             headers: {
@@ -258,8 +255,7 @@
             body: JSON.stringify(body),
         });
         if (!res.ok) throw new Error('Live-Vorschau fehlgeschlagen');
-        var html = await res.text();
-        livePreview.srcdoc = html;
+        livePreview.srcdoc = await res.text();
     }
 
     function scheduleLivePreview(immediate) {
@@ -267,15 +263,6 @@
         state.liveTimer = setTimeout(function () {
             livePreviewHtml().catch(function () {});
         }, immediate ? 80 : 450);
-    }
-
-    function logFeed(text, kind) {
-        if (!feedEl) return;
-        var row = document.createElement('div');
-        row.className = 'cvs__feed-row' + (kind ? ' is-' + kind : '');
-        row.innerHTML = '<time>' + new Date().toLocaleTimeString('de-CH', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) + '</time><span>' + escapeHtml(text) + '</span>';
-        feedEl.appendChild(row);
-        feedEl.scrollTop = feedEl.scrollHeight;
     }
 
     function setProgress(pct, title, sub) {
@@ -299,29 +286,24 @@
         var text = root.querySelector('[data-cvs-eta-text]');
         if (!state.generating) {
             if (badge) badge.textContent = 'Fertig';
-            if (text) text.textContent = 'Generierung abgeschlossen. Sie können fortfahren.';
+            if (text) text.textContent = 'Generierung abgeschlossen.';
             return;
         }
         var elapsed = (Date.now() - state.genStartedAt) / 1000;
-        var perStep = EST_TOTAL_SEC / Math.max(1, state.genStepTotal);
-        var doneSteps = state.genStepIndex;
-        var remaining = Math.max(15, (state.genStepTotal - doneSteps) * perStep - (elapsed % perStep));
-        // Blend wall-clock estimate with step-based estimate
-        var wallRemain = Math.max(10, EST_TOTAL_SEC - elapsed);
-        remaining = Math.round((remaining + wallRemain) / 2);
+        var remaining = Math.max(5, EST_TOTAL_SEC - elapsed);
         if (badge) badge.textContent = '~' + formatEta(remaining);
         if (text) {
-            text.textContent = 'Geschätzte Restzeit: ca. ' + formatEta(remaining) +
-                ' · Schritt ' + Math.min(doneSteps + 1, state.genStepTotal) + ' von ' + state.genStepTotal +
-                ' · Seite nicht aktualisieren oder schliessen.';
+            text.textContent = 'Noch ca. ' + formatEta(remaining) + ' · Seite nicht aktualisieren oder schliessen.';
         }
+        var pct = Math.min(92, 8 + (elapsed / EST_TOTAL_SEC) * 84);
+        setProgress(pct, 'KI schreibt Ihren Lebenslauf…', 'Ein Durchgang · bitte warten');
     }
 
     function startEtaTicker() {
         stopEtaTicker();
         state.genStartedAt = Date.now();
         updateEtaUi();
-        state.etaTimer = setInterval(updateEtaUi, 1000);
+        state.etaTimer = setInterval(updateEtaUi, 500);
     }
 
     function stopEtaTicker() {
@@ -331,9 +313,7 @@
 
     function confirmLeaveIfGenerating() {
         if (!state.generating) return true;
-        return window.confirm(
-            LEAVE_MSG + '\n\nTrotzdem fortfahren? Die laufende KI-Generierung wird abgebrochen.'
-        );
+        return window.confirm(LEAVE_MSG + '\n\nTrotzdem fortfahren? Die laufende KI-Generierung wird abgebrochen.');
     }
 
     function bindLeaveGuard() {
@@ -345,29 +325,13 @@
         });
     }
 
-    function buildGenStepsUi() {
-        if (!genStepsEl) return;
-        genStepsEl.innerHTML = steps.map(function (st) {
-            return '<li data-gen="' + st.id + '"><i></i><div><strong>' + escapeHtml(st.label) + '</strong><em>—</em></div></li>';
-        }).join('');
-    }
-
-    function markGen(id, status, detail) {
-        var li = genStepsEl && genStepsEl.querySelector('[data-gen="' + id + '"]');
-        if (!li) return;
-        li.classList.remove('is-active', 'is-done', 'is-error');
-        if (status) li.classList.add('is-' + status);
-        var em = li.querySelector('em');
-        if (em && detail) em.textContent = detail;
-    }
-
     async function ensureDraft() {
         var payload = payloadFromForms();
         var body = Object.assign({}, payload, {
             template_key: state.template,
             accent_color: state.color,
+            layout: state.layout,
             title: (readForm(reviewForm).title) || ('Lebenslauf — ' + ((boot.expert && boot.expert.display_name) || '')),
-            notes: state.notes,
         });
         if (state.cv && state.cv.id) {
             var updated = await api('PUT', url('update', state.cv.id), body);
@@ -381,74 +345,51 @@
         return state.cv;
     }
 
-    async function saveDesignQuiet() {
-        try { await ensureDraft(); } catch (e) {}
+    function saveDesignQuiet() {
+        ensureDraft().catch(function () {});
     }
 
     async function runGeneration() {
         if (state.generating) return;
-        var okStart = window.confirm(
-            'KI-Generierung starten?\n\n' +
-            'Dauer: ca. 2–3 Minuten (5 Abschnitte nacheinander).\n' +
-            'Bitte Seite nicht aktualisieren und Tab nicht schliessen.\n\n' +
-            'Warum so lange? Jeder Abschnitt braucht einen eigenen KI-Aufruf — so bleibt die Qualität hoch.'
-        );
-        if (!okStart) return;
 
         state.generating = true;
-        state.genStepTotal = steps.length || 5;
-        state.genStepIndex = 0;
         root.classList.add('is-generating');
-        setStep(3);
-        feedEl.innerHTML = '';
-        buildGenStepsUi();
-        root.querySelector('[data-cvs-gen-actions]').hidden = true;
+        if (overlay) overlay.hidden = false;
+        setStep(2);
         startEtaTicker();
-        setProgress(4, 'Entwurf wird vorbereitet…', 'Profil, Design & Farbe speichern · Gesamt ca. 2,5 Min.');
-        logFeed('Hinweis: Gesamtdauer ca. 2–3 Minuten. Bitte warten.', 'working');
-        logFeed('Profil und Design werden gespeichert…', 'working');
+        setProgress(6, 'Entwurf wird vorbereitet…', 'Profil & Design speichern');
+
         try {
             await ensureDraft();
-            logFeed('Entwurf #' + state.cv.id + ' bereit (' + (templates[state.template] || state.template) + ').', 'ok');
-            var total = steps.length;
-            for (var i = 0; i < total; i++) {
-                state.genStepIndex = i;
-                updateEtaUi();
-                var st = steps[i];
-                setProgress(
-                    8 + ((i / total) * 82),
-                    st.label + ' wird geschrieben…',
-                    'Schritt ' + (i + 1) + ' von ' + total + ' · Restzeit ca. ' + formatEta(((total - i) / total) * EST_TOTAL_SEC)
-                );
-                markGen(st.id, 'active', 'KI arbeitet… bitte warten');
-                logFeed('Erzeuge: ' + st.label + ' (Abschnitt ' + (i + 1) + '/' + total + ')', 'working');
-                var res = await api('POST', url('generate', state.cv.id), { field: st.id, notes: state.notes || '' });
-                state.cv = res.cv;
-                upsertCvInList(state.cv);
-                state.genStepIndex = i + 1;
-                updateEtaUi();
-                markGen(st.id, 'done', (res.preview || 'Fertig').slice(0, 90) + (res.preview && res.preview.length > 90 ? '…' : ''));
-                logFeed(st.label + ' fertig.', 'ok');
-                fillForm(reviewForm, Object.assign({}, state.cv.payload || {}, { title: state.cv.title }));
-            }
-            setProgress(100, 'Alles generiert', 'Weiter zum Feinschliff');
-            logFeed('Alle Abschnitte erzeugt. Danke fürs Warten.', 'ok');
-            root.querySelector('[data-cvs-gen-actions]').hidden = false;
-            toast('CV-Inhalt erzeugt', 'ok');
+            setProgress(18, 'KI erzeugt den gesamten Lebenslauf…', 'Ein Aufruf · typisch unter 1 Minute');
+            var invent = state.template === 'ai_design';
+            var res = await api('POST', url('generate', state.cv.id), {
+                mode: 'full',
+                notes: state.notes || '',
+                template_key: state.template,
+                invent_design: invent,
+                payload: payloadFromForms(),
+            });
+            state.cv = res.cv;
+            state.template = state.cv.template_key || state.template;
+            if (state.cv.payload && state.cv.payload.accent_color) state.color = state.cv.payload.accent_color;
+            if (state.cv.payload && state.cv.payload.layout) state.layout = state.cv.payload.layout;
+            upsertCvInList(state.cv);
+            fillForm(reviewForm, Object.assign({}, state.cv.payload || {}, { title: state.cv.title }));
+            renderTemplates();
+            renderColors();
+            setProgress(100, 'Fertig', 'Weiter zum Feinschliff');
+            toast(res.message || 'Lebenslauf erzeugt', 'ok');
+            setStep(3);
+            refreshPreview();
         } catch (err) {
-            logFeed(err.message || 'Fehler', 'error');
             setProgress(100, 'Unterbrochen', err.message || 'Bitte erneut versuchen');
             toast(err.message || 'Generierung fehlgeschlagen', 'error');
-            root.querySelector('[data-cvs-gen-actions]').hidden = false;
         } finally {
             state.generating = false;
             root.classList.remove('is-generating');
             stopEtaTicker();
-            updateEtaUi();
-            var badge = root.querySelector('[data-cvs-eta-badge]');
-            var text = root.querySelector('[data-cvs-eta-text]');
-            if (badge) badge.textContent = 'Fertig';
-            if (text) text.textContent = 'Generierung beendet. Seite darf wieder gewechselt werden.';
+            if (overlay) overlay.hidden = true;
         }
     }
 
@@ -458,24 +399,15 @@
             state.generating = false;
             stopEtaTicker();
             root.classList.remove('is-generating');
+            if (overlay) overlay.hidden = true;
         }
-        var ok = window.confirm(
-            'KI überspringen?\n\n' +
-            'Es wird nur ein Entwurf aus Ihren Profilangaben erstellt — ohne KI-Texte für Zusammenfassung, Erfahrung usw.\n' +
-            'Sie können die Felder danach manuell ausfüllen.'
-        );
-        if (!ok) return;
         try {
             await ensureDraft();
             fillForm(reviewForm, Object.assign({}, state.cv.payload || {}, { title: state.cv.title }));
-            setStep(4);
+            setStep(3);
+            refreshPreview();
             toast('Entwurf ohne KI erstellt', 'ok');
         } catch (err) { toast(err.message || 'Fehler', 'error'); }
-    }
-
-    function refreshPreview() {
-        if (!preview || !state.cv) return;
-        preview.src = url('preview', state.cv.id) + '?t=' + Date.now();
     }
 
     async function saveReview() {
@@ -484,53 +416,63 @@
         var body = Object.assign({}, payload, {
             template_key: state.template,
             accent_color: state.color,
+            layout: state.layout,
             title: readForm(reviewForm).title || state.cv.title,
         });
         var res = await api('PUT', url('update', state.cv.id), body);
         state.cv = res.cv;
         upsertCvInList(state.cv);
         refreshPreview();
-        toast('Gespeichert', 'ok');
+        return state.cv;
+    }
+
+    function scheduleSaveReview() {
+        clearTimeout(state.saveTimer);
+        state.saveTimer = setTimeout(function () {
+            saveReview().catch(function () {});
+        }, 700);
+    }
+
+    function refreshPreview() {
+        if (!preview || !state.cv) return;
+        preview.src = url('preview', state.cv.id) + '?t=' + Date.now();
     }
 
     async function finalize() {
         try {
             await saveReview();
-            var res = await api('POST', url('finalize', state.cv.id), {});
+            var res = await api('POST', url('finalize', state.cv.id));
             state.cv = res.cv;
             upsertCvInList(state.cv);
+            var block = root.querySelector('[data-cvs-done-block]');
             var open = root.querySelector('[data-cvs-open-final]');
+            if (block) block.hidden = false;
             if (open) open.href = state.cv.pdf_url || url('preview', state.cv.id);
-            var msg = root.querySelector('[data-cvs-done-msg]');
-            if (msg) msg.textContent = res.message || 'Finalisierte Version steht bereit.';
-            setStep(5);
-            toast('Finalisiert', 'ok');
+            toast(res.message || 'Finalisiert', 'ok');
+            refreshPreview();
         } catch (err) { toast(err.message || 'Finalisieren fehlgeschlagen', 'error'); }
     }
 
     async function loadCv(id) {
+        if (!confirmLeaveIfGenerating()) return;
         try {
             var res = await api('GET', url('show', id));
             state.cv = res.cv;
             state.template = state.cv.template_key || 'classic';
             state.color = (state.cv.payload && state.cv.payload.accent_color) || '#0E4971';
+            state.layout = (state.cv.payload && state.cv.payload.layout) || state.layout;
             fillForm(profileForm, state.cv.payload || {});
             fillForm(reviewForm, Object.assign({}, state.cv.payload || {}, { title: state.cv.title }));
             renderTemplates();
             renderColors();
-            renderLibrary();
-            setStep(state.cv.status === 'ready' ? 5 : 4);
-            if (state.cv.status === 'ready') {
-                var open = root.querySelector('[data-cvs-open-final]');
-                if (open) open.href = state.cv.pdf_url || url('preview', state.cv.id);
-            }
+            setStep(3);
             refreshPreview();
             toast('CV geladen', 'ok');
         } catch (err) { toast(err.message || 'Laden fehlgeschlagen', 'error'); }
     }
 
     async function deleteCv(id) {
-        if (!confirm('Diesen CV wirklich löschen?')) return;
+        if (!window.confirm('Diesen Lebenslauf löschen?')) return;
         try {
             await api('DELETE', url('destroy', id));
             boot.cvs = (boot.cvs || []).filter(function (c) { return c.id !== id; });
@@ -544,8 +486,7 @@
         var btn = root.querySelector('[data-cvs-suggest-template]');
         var label = root.querySelector('[data-cvs-suggest-label]');
         if (btn) btn.disabled = true;
-        if (label) label.textContent = 'KI wählt… (~30 Sek.)';
-        toast('KI analysiert Ihr Profil für die passende Vorlage… bitte kurz warten.', 'ok');
+        if (label) label.textContent = 'Wählt…';
         try {
             var res = await api('POST', urls.suggest_template, { payload: payloadFromForms() });
             state.template = res.template_key;
@@ -556,7 +497,30 @@
             toast(err.message || 'Vorlage-Vorschlag fehlgeschlagen', 'error');
         } finally {
             if (btn) btn.disabled = false;
-            if (label) label.textContent = 'KI-Vorlage';
+            if (label) label.textContent = 'KI wählt Vorlage';
+        }
+    }
+
+    async function inventDesign() {
+        var btn = root.querySelector('[data-cvs-invent-design]');
+        var label = root.querySelector('[data-cvs-invent-label]');
+        if (btn) btn.disabled = true;
+        if (label) label.textContent = 'Entwirft…';
+        try {
+            var res = await api('POST', urls.invent_design, { payload: payloadFromForms() });
+            state.template = res.template_key || 'ai_design';
+            if (res.accent_color) state.color = res.accent_color;
+            if (res.layout) state.layout = res.layout;
+            renderTemplates();
+            renderColors();
+            scheduleLivePreview(true);
+            if (state.cv) saveDesignQuiet();
+            toast('KI-Design bereit — jetzt mit KI erzeugen', 'ok');
+        } catch (err) {
+            toast(err.message || 'KI-Design fehlgeschlagen', 'error');
+        } finally {
+            if (btn) btn.disabled = false;
+            if (label) label.textContent = 'KI erstellt Design';
         }
     }
 
@@ -565,12 +529,16 @@
         state.generating = false;
         stopEtaTicker();
         root.classList.remove('is-generating');
+        if (overlay) overlay.hidden = true;
         state.cv = null;
         state.template = 'classic';
         state.color = '#0E4971';
+        state.layout = { style: 'centered', density: 'normal', type_mood: 'sans' };
         state.notes = '';
         fillForm(profileForm, boot.seed || {});
         if (reviewForm) reviewForm.reset();
+        var done = root.querySelector('[data-cvs-done-block]');
+        if (done) done.hidden = true;
         renderTemplates();
         renderColors();
         renderLibrary();
@@ -582,7 +550,7 @@
         btn.addEventListener('click', function () {
             if (!confirmLeaveIfGenerating()) return;
             if (btn.getAttribute('data-cvs-next') === '2') state.notes = (readForm(profileForm).notes || '');
-            setStep(btn.getAttribute('data-cvs-next') === 'library' ? 'library' : parseInt(btn.getAttribute('data-cvs-next'), 10));
+            setStep(parseInt(btn.getAttribute('data-cvs-next'), 10));
         });
     });
     root.querySelectorAll('[data-cvs-prev]').forEach(function (btn) {
@@ -597,8 +565,7 @@
             var id = li.getAttribute('data-step-nav');
             if (id === 'library') { setStep('library'); return; }
             var n = parseInt(id, 10);
-            if (n === 3 && !state.cv && !state.generating) return;
-            if (n >= 4 && !state.cv) return;
+            if (n === 3 && !state.cv) return;
             setStep(n);
         });
     });
@@ -611,7 +578,6 @@
     root.querySelectorAll('[data-cvs-restart]').forEach(function (btn) {
         btn.addEventListener('click', restart);
     });
-    bindLeaveGuard();
 
     var startBtn = root.querySelector('[data-cvs-start-generate]');
     if (startBtn) startBtn.addEventListener('click', runGeneration);
@@ -619,34 +585,35 @@
     if (skipBtn) skipBtn.addEventListener('click', skipAi);
     var suggestBtn = root.querySelector('[data-cvs-suggest-template]');
     if (suggestBtn) suggestBtn.addEventListener('click', suggestTemplate);
+    var inventBtn = root.querySelector('[data-cvs-invent-design]');
+    if (inventBtn) inventBtn.addEventListener('click', inventDesign);
+    var liveRefresh = root.querySelector('[data-cvs-live-refresh]');
+    if (liveRefresh) liveRefresh.addEventListener('click', function () { scheduleLivePreview(true); });
+    root.querySelectorAll('[data-cvs-refresh-preview]').forEach(function (btn) {
+        btn.addEventListener('click', function () { refreshPreview(); });
+    });
     root.querySelectorAll('[data-cvs-finalize]').forEach(function (btn) {
         btn.addEventListener('click', finalize);
     });
     var saveBtn = root.querySelector('[data-cvs-save-review]');
-    if (saveBtn) saveBtn.addEventListener('click', function () { saveReview().catch(function (err) { toast(err.message, 'error'); }); });
-    var refreshBtn = root.querySelector('[data-cvs-refresh-preview]');
-    if (refreshBtn) refreshBtn.addEventListener('click', function () { saveReview().catch(function (err) { toast(err.message, 'error'); }); });
-    var liveRefresh = root.querySelector('[data-cvs-live-refresh]');
-    if (liveRefresh) liveRefresh.addEventListener('click', function () { scheduleLivePreview(true); });
-
-    if (profileForm) profileForm.addEventListener('input', function () { if (state.step === 2) scheduleLivePreview(false); });
-    if (reviewForm) {
-        reviewForm.addEventListener('input', function () {
-            clearTimeout(state.saveTimer);
-            state.saveTimer = setTimeout(function () {
-                if (!state.cv || state.step !== 4) return;
-                saveReview().catch(function () {});
-            }, 1400);
+    if (saveBtn) saveBtn.addEventListener('click', function () {
+        saveReview().then(function () { toast('Gespeichert', 'ok'); }).catch(function (err) {
+            toast(err.message || 'Speichern fehlgeschlagen', 'error');
         });
+    });
+    if (reviewForm) {
+        reviewForm.addEventListener('input', scheduleSaveReview);
     }
 
+    bindLeaveGuard();
     fillForm(profileForm, boot.seed || {});
-    if (boot.seed && boot.seed.accent_color) state.color = boot.seed.accent_color;
     renderTemplates();
     renderColors();
     renderLibrary();
-    buildGenStepsUi();
 
-    if (boot.initial_cv_id) loadCv(boot.initial_cv_id);
-    else setStep(1);
+    if (boot.initial_cv_id) {
+        loadCv(boot.initial_cv_id);
+    } else {
+        setStep(1);
+    }
 })();

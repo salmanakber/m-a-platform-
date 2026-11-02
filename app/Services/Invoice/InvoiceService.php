@@ -192,6 +192,7 @@ class InvoiceService
             'invoice_product_id' => $invoice->invoice_product_id,
             'expert_id' => $invoice->expert_id,
             'expert_name' => $invoice->expert->company_name ?? '—',
+            'expert_email' => $invoice->expert->email ?? null,
             'product_name' => $invoice->product->name ?? null,
             'confirmation_sent_at' => optional($invoice->confirmation_sent_at)->format('d.m.Y H:i'),
             'invoice_sent_at' => optional($invoice->invoice_sent_at)->format('d.m.Y H:i'),

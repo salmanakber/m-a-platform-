@@ -42,6 +42,7 @@ class CvController extends Controller
             'destroy' => route('expert.cv.destroy', ['cv' => '__ID__']),
             'show' => route('expert.cv.show', ['cv' => '__ID__']),
             'suggest_template' => route('expert.cv.suggest-template'),
+            'invent_design' => route('expert.cv.invent-design'),
             'live_preview' => route('expert.cv.live-preview'),
         ];
         $boot['initial_cv_id'] = $request->integer('cv') ?: null;
@@ -112,6 +113,31 @@ class CvController extends Controller
         ]);
     }
 
+    public function inventDesign(Request $request): JsonResponse
+    {
+        $expert = Auth::user()?->resolvePortalExpert();
+        abort_if($expert === null, 403);
+
+        $payload = $request->input('payload', []);
+        if (! is_array($payload)) {
+            $payload = [];
+        }
+
+        try {
+            $design = $this->cvs->inventDesign($expert, $payload);
+        } catch (\Throwable $e) {
+            return response()->json(['ok' => false, 'message' => $e->getMessage()], 422);
+        }
+
+        return response()->json([
+            'ok' => true,
+            'template_key' => $design['template_key'],
+            'template_label' => CvGeneratorService::TEMPLATES[$design['template_key']] ?? $design['template_key'],
+            'accent_color' => $design['accent_color'],
+            'layout' => $design['layout'],
+        ]);
+    }
+
     public function livePreview(Request $request): Response
     {
         $expert = Auth::user()?->resolvePortalExpert();
@@ -155,20 +181,51 @@ class CvController extends Controller
         abort_if($expert === null || (int) $cv->expert_id !== (int) $expert->id, 403);
 
         $validated = $request->validate([
-            'field' => ['required', 'in:summary,services,experience,education,skills'],
+            'mode' => ['nullable', 'in:full,field'],
+            'field' => ['nullable', 'in:summary,services,experience,education,skills'],
             'notes' => ['nullable', 'string', 'max:2000'],
+            'template_key' => ['nullable', 'in:'.implode(',', array_keys(CvGeneratorService::TEMPLATES))],
+            'invent_design' => ['nullable', 'boolean'],
+            'payload' => ['nullable', 'array'],
         ]);
 
+        $mode = $validated['mode'] ?? (($validated['field'] ?? null) ? 'field' : 'full');
+
         try {
-            $text = $this->cvs->generateField($expert, $validated['field'], [
-                'notes' => $validated['notes'] ?? '',
-                'payload' => $cv->payload ?? [],
-            ]);
-            $payload = $this->cvs->mergeGeneratedField($cv->payload ?? [], $validated['field'], $text);
-            $cv = $this->cvs->updateDraft($cv, $payload);
+            if ($mode === 'full') {
+                $basePayload = is_array($validated['payload'] ?? null)
+                    ? array_merge($cv->payload ?? [], $validated['payload'])
+                    : ($cv->payload ?? []);
+                $result = $this->cvs->generateFullCv($expert, [
+                    'notes' => $validated['notes'] ?? '',
+                    'payload' => $basePayload,
+                    'template_key' => $validated['template_key'] ?? $cv->template_key,
+                    'invent_design' => (bool) ($validated['invent_design'] ?? false),
+                ]);
+                $cv = $this->cvs->updateDraft(
+                    $cv,
+                    $result['payload'],
+                    $result['template_key'],
+                    $result['title']
+                );
+                $preview = mb_substr((string) ($result['payload']['summary'] ?? ''), 0, 280);
+                $field = 'full';
+            } else {
+                if (empty($validated['field'])) {
+                    throw new \InvalidArgumentException('Feld fehlt.');
+                }
+                $text = $this->cvs->generateField($expert, $validated['field'], [
+                    'notes' => $validated['notes'] ?? '',
+                    'payload' => $cv->payload ?? [],
+                ]);
+                $payload = $this->cvs->mergeGeneratedField($cv->payload ?? [], $validated['field'], $text);
+                $cv = $this->cvs->updateDraft($cv, $payload);
+                $preview = mb_substr($text, 0, 280);
+                $field = $validated['field'];
+            }
         } catch (\Throwable $e) {
             if ($request->expectsJson() || $request->ajax()) {
-                return response()->json(['ok' => false, 'message' => $e->getMessage(), 'field' => $validated['field']], 422);
+                return response()->json(['ok' => false, 'message' => $e->getMessage(), 'field' => $validated['field'] ?? 'full'], 422);
             }
 
             return back()->with('error', 'KI-Generierung fehlgeschlagen: '.$e->getMessage());
@@ -177,9 +234,9 @@ class CvController extends Controller
         if ($request->expectsJson() || $request->ajax()) {
             return response()->json([
                 'ok' => true,
-                'message' => 'Abschnitt erzeugt.',
-                'field' => $validated['field'],
-                'preview' => mb_substr($text, 0, 280),
+                'message' => $mode === 'full' ? 'Lebenslauf erzeugt.' : 'Abschnitt erzeugt.',
+                'field' => $field,
+                'preview' => $preview,
                 'cv' => $this->cvs->toStudioArray($cv),
             ]);
         }

@@ -9,11 +9,13 @@ use App\Models\InvoiceProduct;
 use App\Services\Invoice\InvoiceService;
 use App\Services\Promotion\PromotionService;
 use App\Support\InvoicePaymentStatus;
+use App\Support\ProfessionalGroup;
 use App\Support\PromotionStatus;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
 class InvoiceController extends Controller
@@ -35,13 +37,26 @@ class InvoiceController extends Controller
             ->values()
             ->all();
 
+        $recentExpertIds = collect($recent)
+            ->pluck('expert_id')
+            ->filter()
+            ->unique()
+            ->take(8)
+            ->values();
+
+        $recentExperts = $recentExpertIds->isEmpty()
+            ? []
+            : Expert::query()
+                ->whereIn('id', $recentExpertIds)
+                ->get(['id', 'company_name', 'email', 'professional_group', 'contact_person_name', 'contact_person_last_name'])
+                ->sortBy(fn (Expert $e) => $recentExpertIds->search($e->id))
+                ->values()
+                ->map(fn (Expert $e) => $this->expertPickArray($e))
+                ->all();
+
         $boot = [
-            'experts' => Expert::query()->orderBy('company_name')->get(['id', 'company_name', 'email'])
-                ->map(fn (Expert $e) => [
-                    'id' => $e->id,
-                    'company_name' => $e->company_name,
-                    'email' => $e->email,
-                ])->values()->all(),
+            'recent_experts' => $recentExperts,
+            'expert_count' => Expert::query()->count(),
             'products' => InvoiceProduct::query()->where('is_active', true)->orderBy('sort_order')->orderBy('name')->get()
                 ->map(fn (InvoiceProduct $p) => [
                     'id' => $p->id,
@@ -62,11 +77,68 @@ class InvoiceController extends Controller
                 'update' => route('admin.invoices.update', ['invoice' => '__ID__']),
                 'confirm' => route('admin.invoices.send-confirmation', ['invoice' => '__ID__']),
                 'send' => route('admin.invoices.send-email', ['invoice' => '__ID__']),
+                'search_experts' => route('admin.invoices.search-experts'),
                 'products' => route('admin.invoice-products.index'),
             ],
         ];
 
         return view('admin.invoices.index', ['boot' => $boot]);
+    }
+
+    public function searchExperts(Request $request): JsonResponse
+    {
+        $q = trim((string) $request->input('q', ''));
+        $limit = min(25, max(5, (int) $request->input('limit', 12)));
+
+        if (mb_strlen($q) < 2) {
+            return response()->json([
+                'ok' => true,
+                'q' => $q,
+                'experts' => [],
+                'message' => 'Mindestens 2 Zeichen eingeben.',
+            ]);
+        }
+
+        $like = '%'.$q.'%';
+        $experts = Expert::query()
+            ->select(['id', 'company_name', 'email', 'professional_group', 'contact_person_name', 'contact_person_last_name'])
+            ->where(function ($query) use ($like, $q) {
+                $query->where('company_name', 'like', $like)
+                    ->orWhere('email', 'like', $like)
+                    ->orWhere('contact_person_name', 'like', $like)
+                    ->orWhere('contact_person_last_name', 'like', $like)
+                    ->orWhere(DB::raw("CONCAT(COALESCE(contact_person_name,''),' ',COALESCE(contact_person_last_name,''))"), 'like', $like);
+                if (ctype_digit($q)) {
+                    $query->orWhere('id', (int) $q);
+                }
+            })
+            ->orderBy('company_name')
+            ->limit($limit)
+            ->get()
+            ->map(fn (Expert $e) => $this->expertPickArray($e))
+            ->values()
+            ->all();
+
+        return response()->json([
+            'ok' => true,
+            'q' => $q,
+            'experts' => $experts,
+            'count' => count($experts),
+        ]);
+    }
+
+    /** @return array<string, mixed> */
+    private function expertPickArray(Expert $expert): array
+    {
+        $contact = trim(($expert->contact_person_name ?? '').' '.($expert->contact_person_last_name ?? ''));
+
+        return [
+            'id' => $expert->id,
+            'company_name' => $expert->company_name,
+            'email' => $expert->email,
+            'contact_name' => $contact !== '' ? $contact : null,
+            'group_label' => ProfessionalGroup::label($expert->professional_group ?? ProfessionalGroup::MA_SPECIALIST),
+        ];
     }
 
     public function create(): RedirectResponse

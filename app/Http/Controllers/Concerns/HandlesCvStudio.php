@@ -32,6 +32,7 @@ trait HandlesCvStudio
             ],
             'seed' => $seed,
             'templates' => CvGeneratorService::TEMPLATES,
+            'template_hints' => CvGeneratorService::TEMPLATE_HINTS,
             'colors' => CvGeneratorService::COLORS,
             'steps' => CvGeneratorService::generationSteps(),
             'cvs' => $existingCvs->map(fn (ExpertCv $cv) => $this->cvService()->toStudioArray($cv))->values()->all(),
@@ -64,6 +65,10 @@ trait HandlesCvStudio
             'photo_path' => ['nullable', 'string', 'max:500'],
             'accent_color' => ['nullable', 'string', 'max:20'],
             'notes' => ['nullable', 'string', 'max:2000'],
+            'layout' => ['nullable', 'array'],
+            'layout.style' => ['nullable', 'string', 'max:40'],
+            'layout.density' => ['nullable', 'string', 'max:20'],
+            'layout.type_mood' => ['nullable', 'string', 'max:20'],
         ]);
 
         $list = static function ($value): array {
@@ -94,6 +99,9 @@ trait HandlesCvStudio
             'languages' => $list($validated['languages'] ?? null),
             'photo_path' => $validated['photo_path'] ?? $expert->contact_photo_path,
             'accent_color' => $validated['accent_color'] ?? '#0E4971',
+            'layout' => is_array($validated['layout'] ?? null)
+                ? $validated['layout']
+                : ['style' => 'centered', 'density' => 'normal', 'type_mood' => 'sans'],
             '_notes' => $validated['notes'] ?? '',
         ];
     }

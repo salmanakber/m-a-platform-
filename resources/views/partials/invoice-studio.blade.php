@@ -2,9 +2,9 @@
 <div class="ins" id="invoiceStudio" data-boot='@json($boot)'>
     <header class="ins__hero">
         <div>
-            <p class="ins__kicker">Invoice Control Room</p>
-            <h1>Rechnungen ohne Reload</h1>
-            <p>Produkt wählen → Angaben prüfen → Bestätigung → Rechnung senden. Kein Payment-Gateway — nur Generierung &amp; E-Mail.</p>
+            <p class="ins__kicker">Rechnungen</p>
+            <h1>Rechnung erstellen</h1>
+            <p>Experte suchen → Produkt → prüfen → Bestätigung &amp; Versand. Kein Payment-Gateway.</p>
         </div>
         <div class="ins__hero-meta">
             <span>Fallback Monatspreis</span>
@@ -16,25 +16,65 @@
     <div class="ins__layout">
         <aside class="ins__rail">
             <ol class="ins__steps" data-ins-nav>
-                <li data-ins-step="1" class="is-active"><em>01</em><span>Experte</span></li>
-                <li data-ins-step="2"><em>02</em><span>Produkt</span></li>
-                <li data-ins-step="3"><em>03</em><span>Bearbeiten</span></li>
-                <li data-ins-step="4"><em>04</em><span>Versand</span></li>
-                <li data-ins-step="5"><em>05</em><span>Fertig</span></li>
-                <li data-ins-step="library"><em>▦</em><span>Bibliothek</span></li>
+                <li data-ins-step="1" class="is-active"><em>1</em><span>Experte</span></li>
+                <li data-ins-step="2"><em>2</em><span>Produkt</span></li>
+                <li data-ins-step="3"><em>3</em><span>Bearbeiten</span></li>
+                <li data-ins-step="4"><em>4</em><span>Versand</span></li>
+                <li data-ins-step="5"><em>5</em><span>Fertig</span></li>
+                <li data-ins-step="library"><em>·</em><span>Bibliothek</span></li>
             </ol>
             <button type="button" class="btn btn--ghost btn--small" style="width:100%;margin-top:.75rem;" data-ins-restart>Neue Rechnung</button>
         </aside>
 
         <div class="ins__stage">
             <section class="ins__panel is-active" data-ins-panel="1">
-                <div class="ins__head"><h2>Experte wählen</h2><p>An wen geht die Rechnung?</p></div>
-                <input class="form-control" type="search" data-ins-expert-q placeholder="Suche Firma oder E-Mail…">
-                <div class="ins__pick-list" data-ins-experts></div>
+                <div class="ins__head">
+                    <h2>1. Experte wählen</h2>
+                    <p>Suche unter {{ number_format((int) ($boot['expert_count'] ?? 0), 0, '.', "'") }} Experten — tippen, nicht scrollen.</p>
+                </div>
+
+                <div class="ins__expert-picker" data-ins-expert-picker>
+                    <div class="ins__selected" data-ins-selected hidden>
+                        <div class="ins__selected-body">
+                            <span class="ins__selected-kicker">Ausgewählt</span>
+                            <strong data-ins-selected-name>—</strong>
+                            <span data-ins-selected-meta>—</span>
+                        </div>
+                        <div class="ins__selected-actions">
+                            <button type="button" class="btn" data-ins-goto="2">Weiter</button>
+                            <button type="button" class="btn btn--ghost btn--small" data-ins-clear-expert>Ändern</button>
+                        </div>
+                    </div>
+
+                    <div class="ins__search" data-ins-search-wrap>
+                        <label class="ins__search-label" for="insExpertSearch">Experte suchen</label>
+                        <div class="ins__search-row">
+                            <input id="insExpertSearch" class="ins__search-input" type="search" data-ins-expert-q
+                                   placeholder="Firma, E-Mail, Kontaktperson oder ID…"
+                                   autocomplete="off" spellcheck="false">
+                            <span class="ins__search-status" data-ins-search-status hidden></span>
+                        </div>
+                        <p class="ins__search-hint" data-ins-search-hint>Mindestens 2 Zeichen — max. 12 Treffer live.</p>
+                        <div class="ins__suggest" data-ins-experts role="listbox" hidden></div>
+                    </div>
+
+                    <div class="ins__recent" data-ins-recent-wrap>
+                        <p class="ins__mini-label">Zuletzt verrechnet</p>
+                        <div class="ins__recent-list" data-ins-recent></div>
+                    </div>
+                </div>
             </section>
 
             <section class="ins__panel" data-ins-panel="2" hidden>
-                <div class="ins__head"><h2>Produkt wählen</h2><p>Preise aus dem Katalog — Betrag später noch änderbar.</p></div>
+                <div class="ins__head">
+                    <h2>2. Produkt wählen</h2>
+                    <p>Preise aus dem Katalog — Betrag später noch änderbar.</p>
+                </div>
+                <div class="ins__chosen" data-ins-chosen-expert hidden>
+                    <span>Für</span>
+                    <strong data-ins-chosen-name>—</strong>
+                    <button type="button" class="btn btn--ghost btn--small" data-ins-goto="1">Experte ändern</button>
+                </div>
                 <div class="ins__products" data-ins-products></div>
                 <div class="ins__actions">
                     <button type="button" class="btn btn--ghost" data-ins-goto="1">Zurück</button>
@@ -43,7 +83,7 @@
             </section>
 
             <section class="ins__panel" data-ins-panel="3" hidden>
-                <div class="ins__head"><h2>Rechnung bearbeiten</h2><p>Alle Felder vor dem Versand anpassbar — inkl. abweichende Rechnungs-E-Mail.</p></div>
+                <div class="ins__head"><h2>3. Rechnung bearbeiten</h2><p>Alle Felder vor dem Versand anpassbar — inkl. abweichende Rechnungs-E-Mail.</p></div>
                 <form class="ins__form" data-ins-form>
                     <div class="ins__grid2">
                         <label class="ins__field"><span>Rechnungsnr.</span><input name="invoice_number" type="text" readonly></label>
@@ -64,7 +104,7 @@
             </section>
 
             <section class="ins__panel" data-ins-panel="4" hidden>
-                <div class="ins__head"><h2>Bestätigung &amp; Versand</h2><p>Zuerst Bestätigungs-E-Mail, danach die eigentliche Rechnung — wie besprochen.</p></div>
+                <div class="ins__head"><h2>4. Bestätigung &amp; Versand</h2><p>Zuerst Bestätigungs-E-Mail, danach die eigentliche Rechnung.</p></div>
                 <div class="ins__progress">
                     <div class="ins__progress-top">
                         <div class="cvs__pulse" aria-hidden="true"><span></span><span></span><span></span></div>
@@ -77,7 +117,7 @@
                     <div class="ins__bar"><i data-ins-bar></i></div>
                     <ol class="ins__gen-steps">
                         <li data-ins-mail="confirm"><i></i><div><strong>1) Bestätigungs-E-Mail</strong><em>Vor der Rechnung — Angaben prüfen lassen</em></div></li>
-                        <li data-ins-mail="invoice"><i></i><div><strong>2) Rechnung senden</strong><em>Offizielle Rechnung an billing e-mail</em></div></li>
+                        <li data-ins-mail="invoice"><i></i><div><strong>2) Rechnung senden</strong><em>Offizielle Rechnung an Billing-E-Mail</em></div></li>
                     </ol>
                     <div class="ins__feed" data-ins-feed aria-live="polite"></div>
                 </div>

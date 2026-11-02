@@ -1,5 +1,5 @@
 /**
- * Invoice Control Room — AJAX wizard
+ * Invoice studio — async expert typeahead (safe for 10k+ experts)
  */
 (function () {
     'use strict';
@@ -15,9 +15,12 @@
     var state = {
         step: 1,
         expertId: null,
+        expert: null,
         productId: null,
         invoice: null,
         busy: false,
+        searchTimer: null,
+        searchSeq: 0,
     };
 
     var form = root.querySelector('[data-ins-form]');
@@ -25,12 +28,19 @@
     var feedEl = root.querySelector('[data-ins-feed]');
     var barEl = root.querySelector('[data-ins-bar]');
     var pctEl = root.querySelector('[data-ins-pct]');
+    var qInput = root.querySelector('[data-ins-expert-q]');
+    var suggestBox = root.querySelector('[data-ins-experts]');
+    var searchStatus = root.querySelector('[data-ins-search-status]');
+    var searchHint = root.querySelector('[data-ins-search-hint]');
+    var selectedWrap = root.querySelector('[data-ins-selected]');
+    var searchWrap = root.querySelector('[data-ins-search-wrap]');
+    var recentWrap = root.querySelector('[data-ins-recent-wrap]');
 
     function url(key, id) {
         return String(urls[key] || '').replace('__ID__', id != null ? id : (state.invoice && state.invoice.id) || '');
     }
     function escapeHtml(s) {
-        return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+        return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
     }
     function toast(msg, kind) {
         if (!toastEl) return;
@@ -92,8 +102,12 @@
         root.querySelectorAll('[data-ins-step]').forEach(function (li) {
             var id = li.getAttribute('data-ins-step');
             li.classList.toggle('is-active', String(id) === String(n));
+            if (id !== 'library' && !isNaN(parseInt(id, 10)) && !isNaN(parseInt(n, 10))) {
+                li.classList.toggle('is-done', parseInt(id, 10) < parseInt(n, 10));
+            }
         });
         if (n === 'library') renderLibrary();
+        if (n === 2) updateChosenExpertBanner();
         if (n === 4 && state.invoice) {
             setProgress(state.invoice.confirmation_sent_at ? 50 : 0, 'Bereit zum Versand', state.invoice.invoice_number || '');
             if (state.invoice.confirmation_sent_at) markMail('confirm', 'done');
@@ -101,23 +115,161 @@
         }
     }
 
-    function renderExperts(q) {
-        var box = root.querySelector('[data-ins-experts]');
-        if (!box) return;
-        q = (q || '').toLowerCase();
-        var list = (boot.experts || []).filter(function (e) {
-            if (!q) return true;
-            return (e.company_name || '').toLowerCase().indexOf(q) !== -1 || (e.email || '').toLowerCase().indexOf(q) !== -1;
-        });
-        box.innerHTML = list.map(function (e) {
-            var on = state.expertId === e.id ? ' is-on' : '';
-            return '<button type="button" class="ins__pick' + on + '" data-expert="' + e.id + '"><strong>' + escapeHtml(e.company_name) + '</strong><span>' + escapeHtml(e.email || '') + '</span></button>';
-        }).join('') || '<p class="ins__empty">Keine Treffer</p>';
-        box.querySelectorAll('[data-expert]').forEach(function (btn) {
+    function expertMeta(e) {
+        if (!e) return '';
+        var bits = [];
+        if (e.group_label) bits.push(e.group_label);
+        if (e.contact_name) bits.push(e.contact_name);
+        if (e.email) bits.push(e.email);
+        return bits.join(' · ');
+    }
+
+    function selectExpert(expert, advance) {
+        if (!expert || !expert.id) return;
+        state.expertId = expert.id;
+        state.expert = expert;
+        renderSelected();
+        hideSuggest();
+        if (qInput) qInput.value = '';
+        var createBtn = root.querySelector('[data-ins-create]');
+        if (createBtn) createBtn.disabled = !(state.expertId && state.productId);
+        if (advance) setStep(2);
+    }
+
+    function clearExpert() {
+        state.expertId = null;
+        state.expert = null;
+        renderSelected();
+        if (qInput) {
+            qInput.value = '';
+            qInput.focus();
+        }
+        hideSuggest();
+        if (searchHint) searchHint.textContent = 'Mindestens 2 Zeichen — max. 12 Treffer live.';
+        var createBtn = root.querySelector('[data-ins-create]');
+        if (createBtn) createBtn.disabled = true;
+    }
+
+    function renderSelected() {
+        if (!selectedWrap) return;
+        var has = !!(state.expert && state.expertId);
+        selectedWrap.hidden = !has;
+        if (searchWrap) searchWrap.hidden = has;
+        if (recentWrap) recentWrap.hidden = has;
+        if (!has) return;
+        var nameEl = root.querySelector('[data-ins-selected-name]');
+        var metaEl = root.querySelector('[data-ins-selected-meta]');
+        if (nameEl) nameEl.textContent = state.expert.company_name || ('#' + state.expert.id);
+        if (metaEl) metaEl.textContent = expertMeta(state.expert);
+    }
+
+    function updateChosenExpertBanner() {
+        var banner = root.querySelector('[data-ins-chosen-expert]');
+        var name = root.querySelector('[data-ins-chosen-name]');
+        if (!banner) return;
+        if (state.expert) {
+            banner.hidden = false;
+            if (name) name.textContent = state.expert.company_name || ('#' + state.expertId);
+        } else {
+            banner.hidden = true;
+        }
+    }
+
+    function hideSuggest() {
+        if (suggestBox) {
+            suggestBox.hidden = true;
+            suggestBox.innerHTML = '';
+        }
+        if (searchStatus) searchStatus.hidden = true;
+    }
+
+    function renderSuggest(list, q) {
+        if (!suggestBox) return;
+        if (!list.length) {
+            suggestBox.hidden = false;
+            suggestBox.innerHTML = '<div class="ins__suggest-empty">Keine Treffer für «' + escapeHtml(q) + '»</div>';
+            return;
+        }
+        suggestBox.hidden = false;
+        suggestBox.innerHTML = list.map(function (e) {
+            return '<button type="button" class="ins__suggest-item" role="option" data-expert-id="' + e.id + '">' +
+                '<strong>' + escapeHtml(e.company_name || '') + '</strong>' +
+                '<span>' + escapeHtml(expertMeta(e)) + '</span>' +
+                '</button>';
+        }).join('');
+        suggestBox.querySelectorAll('[data-expert-id]').forEach(function (btn) {
             btn.addEventListener('click', function () {
-                state.expertId = parseInt(btn.getAttribute('data-expert'), 10);
-                renderExperts(root.querySelector('[data-ins-expert-q]').value);
-                setStep(2);
+                var id = parseInt(btn.getAttribute('data-expert-id'), 10);
+                var expert = list.find(function (x) { return x.id === id; });
+                selectExpert(expert, true);
+            });
+        });
+    }
+
+    function scheduleSearch(raw) {
+        clearTimeout(state.searchTimer);
+        var q = String(raw || '').trim();
+        if (q.length < 2) {
+            hideSuggest();
+            if (searchHint) searchHint.textContent = 'Mindestens 2 Zeichen — max. 12 Treffer live.';
+            return;
+        }
+        if (searchStatus) {
+            searchStatus.hidden = false;
+            searchStatus.textContent = 'Suche…';
+        }
+        state.searchTimer = setTimeout(function () { runSearch(q); }, 280);
+    }
+
+    async function runSearch(q) {
+        if (!urls.search_experts) return;
+        var seq = ++state.searchSeq;
+        try {
+            var endpoint = urls.search_experts + (urls.search_experts.indexOf('?') >= 0 ? '&' : '?') +
+                'q=' + encodeURIComponent(q) + '&limit=12';
+            var res = await fetch(endpoint, {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+                credentials: 'same-origin',
+            });
+            var data = await res.json();
+            if (seq !== state.searchSeq) return;
+            if (!res.ok) throw new Error((data && data.message) || 'Suche fehlgeschlagen');
+            if (searchStatus) {
+                searchStatus.hidden = false;
+                searchStatus.textContent = (data.count || 0) + ' Treffer';
+            }
+            if (searchHint) searchHint.textContent = 'Klicken zum Auswählen — Seite lädt nie die gesamte Expertenliste.';
+            renderSuggest(data.experts || [], q);
+        } catch (err) {
+            if (seq !== state.searchSeq) return;
+            hideSuggest();
+            toast(err.message || 'Suche fehlgeschlagen', 'error');
+        }
+    }
+
+    function renderRecent() {
+        var box = root.querySelector('[data-ins-recent]');
+        if (!box) return;
+        var list = boot.recent_experts || [];
+        if (!list.length) {
+            if (recentWrap) recentWrap.hidden = true;
+            return;
+        }
+        if (recentWrap) recentWrap.hidden = !!state.expertId;
+        box.innerHTML = list.map(function (e) {
+            return '<button type="button" class="ins__recent-item" data-recent-id="' + e.id + '">' +
+                '<strong>' + escapeHtml(e.company_name || '') + '</strong>' +
+                '<span>' + escapeHtml(e.email || '') + '</span></button>';
+        }).join('');
+        box.querySelectorAll('[data-recent-id]').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                var id = parseInt(btn.getAttribute('data-recent-id'), 10);
+                var expert = list.find(function (x) { return x.id === id; });
+                selectExpert(expert, true);
             });
         });
     }
@@ -202,12 +354,11 @@
 
     async function createDraft() {
         if (!state.expertId || !state.productId) return;
-        var expert = (boot.experts || []).find(function (e) { return e.id === state.expertId; });
         try {
             var res = await api('POST', urls.store, {
                 expert_id: state.expertId,
                 invoice_product_id: state.productId,
-                billing_email: expert ? expert.email : null,
+                billing_email: state.expert ? state.expert.email : null,
             });
             state.invoice = res.invoice;
             upsertInvoice(state.invoice);
@@ -279,7 +430,14 @@
             var res = await api('GET', url('show', id));
             state.invoice = res.invoice;
             state.expertId = state.invoice.expert_id;
+            state.expert = {
+                id: state.invoice.expert_id,
+                company_name: state.invoice.expert_name,
+                email: state.invoice.expert_email || state.invoice.billing_email,
+            };
             state.productId = state.invoice.invoice_product_id;
+            renderSelected();
+            renderProducts();
             fillForm(state.invoice);
             setStep(3);
             toast('Rechnung geladen', 'ok');
@@ -288,13 +446,15 @@
 
     function restart() {
         state.expertId = null;
+        state.expert = null;
         state.productId = null;
         state.invoice = null;
         if (feedEl) feedEl.innerHTML = '';
         markMail('confirm', '');
         markMail('invoice', '');
         setProgress(0, 'Bereit zum Versand', 'Schritt für Schritt wählen');
-        renderExperts('');
+        clearExpert();
+        renderRecent();
         renderProducts();
         setStep(1);
         toast('Neue Rechnung gestartet');
@@ -304,6 +464,7 @@
         btn.addEventListener('click', function () {
             var n = btn.getAttribute('data-ins-goto');
             if (n === '4') { saveDraft().then(function () { setStep(4); }).catch(function (e) { toast(e.message, 'error'); }); return; }
+            if (n === '2' && !state.expertId) { toast('Bitte zuerst einen Experten wählen', 'error'); return; }
             setStep(n === 'library' ? 'library' : parseInt(n, 10));
         });
     });
@@ -312,12 +473,34 @@
             var id = li.getAttribute('data-ins-step');
             if (id === 'library') { setStep('library'); return; }
             var n = parseInt(id, 10);
+            if (n >= 2 && !state.expertId && !state.invoice) return;
             if (n >= 3 && !state.invoice) return;
             setStep(n);
         });
     });
-    var q = root.querySelector('[data-ins-expert-q]');
-    if (q) q.addEventListener('input', function () { renderExperts(q.value); });
+
+    if (qInput) {
+        qInput.addEventListener('input', function () { scheduleSearch(qInput.value); });
+        qInput.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape') hideSuggest();
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                var first = suggestBox && suggestBox.querySelector('[data-expert-id]');
+                if (first) first.click();
+            }
+        });
+        qInput.addEventListener('focus', function () {
+            if (String(qInput.value || '').trim().length >= 2) scheduleSearch(qInput.value);
+        });
+    }
+    document.addEventListener('click', function (e) {
+        if (!suggestBox || suggestBox.hidden) return;
+        if (root.querySelector('[data-ins-expert-picker]') && root.querySelector('[data-ins-expert-picker]').contains(e.target)) return;
+        hideSuggest();
+    });
+
+    var clearBtn = root.querySelector('[data-ins-clear-expert]');
+    if (clearBtn) clearBtn.addEventListener('click', clearExpert);
     var createBtn = root.querySelector('[data-ins-create]');
     if (createBtn) createBtn.addEventListener('click', createDraft);
     var saveBtn = root.querySelector('[data-ins-save]');
@@ -330,7 +513,8 @@
         btn.addEventListener('click', restart);
     });
 
-    renderExperts('');
+    renderSelected();
+    renderRecent();
     renderProducts();
     renderLibrary();
     if (boot.initial_invoice_id) loadInvoice(boot.initial_invoice_id);

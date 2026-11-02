@@ -159,6 +159,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin'])->grou
 
     Route::get('/rechnungen', [AdminInvoiceController::class, 'index'])->name('invoices.index');
     Route::get('/rechnungen/neu', [AdminInvoiceController::class, 'create'])->name('invoices.create');
+    Route::get('/rechnungen/experten-suche', [AdminInvoiceController::class, 'searchExperts'])->name('invoices.search-experts');
     Route::post('/rechnungen', [AdminInvoiceController::class, 'store'])->name('invoices.store');
     Route::get('/rechnungen/{invoice}', [AdminInvoiceController::class, 'show'])->name('invoices.show');
     Route::get('/rechnungen/{invoice}/bearbeiten', [AdminInvoiceController::class, 'edit'])->name('invoices.edit');
@@ -178,6 +179,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin'])->grou
     Route::get('/experten/{expert}/cv', [AdminCvController::class, 'index'])->name('experts.cv.index');
     Route::post('/experten/{expert}/cv', [AdminCvController::class, 'store'])->name('experts.cv.store');
     Route::post('/experten/{expert}/cv/template-vorschlag', [AdminCvController::class, 'suggestTemplate'])->name('experts.cv.suggest-template');
+    Route::post('/experten/{expert}/cv/ki-design', [AdminCvController::class, 'inventDesign'])->name('experts.cv.invent-design');
     Route::post('/experten/{expert}/cv/live-vorschau', [AdminCvController::class, 'livePreview'])->name('experts.cv.live-preview');
     Route::get('/experten/{expert}/cv/{cv}', [AdminCvController::class, 'show'])->name('experts.cv.show');
     Route::get('/experten/{expert}/cv/{cv}/bearbeiten', [AdminCvController::class, 'edit'])->name('experts.cv.edit');
@@ -258,6 +260,7 @@ Route::prefix('expert')->name('expert.')->middleware(['auth', 'role:expert', 'ex
     Route::get('/lebenslauf', [ExpertCvController::class, 'index'])->name('cv.index');
     Route::post('/lebenslauf', [ExpertCvController::class, 'store'])->name('cv.store');
     Route::post('/lebenslauf/template-vorschlag', [ExpertCvController::class, 'suggestTemplate'])->name('cv.suggest-template');
+    Route::post('/lebenslauf/ki-design', [ExpertCvController::class, 'inventDesign'])->name('cv.invent-design');
     Route::post('/lebenslauf/live-vorschau', [ExpertCvController::class, 'livePreview'])->name('cv.live-preview');
     Route::get('/lebenslauf/{cv}', [ExpertCvController::class, 'show'])->name('cv.show');
     Route::get('/lebenslauf/{cv}/bearbeiten', [ExpertCvController::class, 'edit'])->name('cv.edit');
