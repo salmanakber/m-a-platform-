@@ -9,6 +9,7 @@
  *
  * Optional:
  *   &seed=1     also run database seeders (usually NOT needed on live)
+ *   &relink=1   only relink expert logins ↔ profiles by e-mail (no migrate)
  *
  * DELETE this file immediately after a successful run.
  */
@@ -36,6 +37,7 @@ $kernel = $app->make(Kernel::class);
 $kernel->bootstrap();
 
 $withSeed = isset($_GET['seed']) && (string) $_GET['seed'] === '1';
+$relinkOnly = isset($_GET['relink']) && (string) $_GET['relink'] === '1';
 
 echo '<!DOCTYPE html><html lang="de"><head><meta charset="utf-8"><title>Install</title>';
 echo '<style>body{font-family:system-ui,sans-serif;max-width:900px;margin:2rem auto;padding:0 1rem;background:#0b1f2e;color:#e8f2f8}';
@@ -48,6 +50,22 @@ try {
     echo "DB connection check...\n";
     DB::connection()->getPdo();
     echo "OK — connected.\n\n";
+
+    if ($relinkOnly) {
+        echo "Mode: relink-only (expert logins ↔ profiles by e-mail)\n\n";
+        echo "Running: php artisan experts:relink-users\n";
+        $relink = Artisan::call('experts:relink-users');
+        echo Artisan::output();
+        echo "relink exit code: {$relink}\n\n";
+        Artisan::call('view:clear');
+        echo Artisan::output();
+        echo "<span class=\"ok\">DONE — expert profiles re-linked. Experts can open /expert/profil again.</span>\n";
+        echo "\nDELETE public/install-once.php NOW for security.\n";
+        echo '</pre>';
+        echo '<p class="warn"><strong>Delete this file from the server immediately after success.</strong></p>';
+        echo '</body></html>';
+        exit;
+    }
 
     echo "Schema before migrate:\n";
     echo '  events: '.(Schema::hasTable('events') ? 'EXISTS' : 'MISSING')."\n";
@@ -75,6 +93,11 @@ try {
     } else {
         echo "Skipping full seeders (safe default). Add &seed=1 only if you need them.\n\n";
     }
+
+    echo "Relinking expert logins to profiles (by e-mail)…\n";
+    $relink = Artisan::call('experts:relink-users');
+    echo Artisan::output();
+    echo "relink exit code: {$relink}\n\n";
 
     echo "Clearing caches (config / cache / view / route)…\n";
     Artisan::call('config:clear');
