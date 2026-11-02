@@ -169,4 +169,33 @@ class InvoiceService
 
         return $prefix.str_pad((string) $seq, 5, '0', STR_PAD_LEFT);
     }
+
+    /** @return array<string, mixed> */
+    public function toStudioArray(Invoice $invoice): array
+    {
+        $invoice->loadMissing(['expert', 'product']);
+
+        return [
+            'id' => $invoice->id,
+            'invoice_number' => $invoice->invoice_number,
+            'invoice_date' => optional($invoice->invoice_date)->format('Y-m-d'),
+            'invoice_date_label' => optional($invoice->invoice_date)->format('d.m.Y'),
+            'amount' => (float) $invoice->amount,
+            'amount_label' => number_format((float) $invoice->amount, 2, '.', "'"),
+            'currency' => $invoice->currency ?: 'CHF',
+            'payment_status' => $invoice->payment_status,
+            'billing_email' => $invoice->billing_email,
+            'service_title' => $invoice->service_title,
+            'service_detail' => $invoice->service_detail,
+            'notes' => $invoice->notes,
+            'admin_notes' => $invoice->admin_notes,
+            'invoice_product_id' => $invoice->invoice_product_id,
+            'expert_id' => $invoice->expert_id,
+            'expert_name' => $invoice->expert->company_name ?? '—',
+            'product_name' => $invoice->product->name ?? null,
+            'confirmation_sent_at' => optional($invoice->confirmation_sent_at)->format('d.m.Y H:i'),
+            'invoice_sent_at' => optional($invoice->invoice_sent_at)->format('d.m.Y H:i'),
+            'updated_label' => optional($invoice->updated_at)->format('d.m.Y H:i'),
+        ];
+    }
 }

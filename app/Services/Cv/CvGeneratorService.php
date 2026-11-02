@@ -17,6 +17,18 @@ class CvGeneratorService
         'executive' => 'Executive',
     ];
 
+    /** Accent colors for live design control room. */
+    public const COLORS = [
+        '#0E4971' => 'Nachtblau',
+        '#0B6E4F' => 'Smaragd',
+        '#B45309' => 'Bernstein',
+        '#7C2D12' => 'Terrakotta',
+        '#1E3A5F' => 'Navy',
+        '#334155' => 'Schiefer',
+        '#6D28D9' => 'Violett',
+        '#0F766E' => 'Petrol',
+    ];
+
     public function __construct(private AIManager $ai)
     {
     }
@@ -52,6 +64,7 @@ class CvGeneratorService
             'skills' => [],
             'languages' => ['Deutsch'],
             'photo_path' => $expert->contact_photo_path,
+            'accent_color' => '#0E4971',
         ];
     }
 
@@ -89,17 +102,34 @@ class CvGeneratorService
         return $cv->fresh();
     }
 
+    /** Ordered AI steps for the studio progress UI. */
+    public static function generationSteps(): array
+    {
+        return [
+            ['id' => 'summary', 'label' => 'Professionelle Zusammenfassung', 'kind' => 'text'],
+            ['id' => 'services', 'label' => 'Leistungsprofil', 'kind' => 'text'],
+            ['id' => 'experience', 'label' => 'Berufserfahrung', 'kind' => 'list'],
+            ['id' => 'education', 'label' => 'Ausbildung', 'kind' => 'list'],
+            ['id' => 'skills', 'label' => 'Kompetenzen', 'kind' => 'list'],
+        ];
+    }
+
     public function generateField(Expert $expert, string $field, array $context = []): string
     {
-        $seed = $this->seedFromExpert($expert);
+        $seed = array_merge($this->seedFromExpert($expert), $context['payload'] ?? []);
         $fieldLabels = [
             'summary' => 'Professionelle Zusammenfassung (3–5 Sätze, Deutsch CH)',
             'services' => 'Leistungsbeschreibung (Stichpunkte oder kurze Absätze)',
-            'experience' => 'Berufserfahrung als strukturierte Liste (Rolle, Firma, Zeitraum, 2–3 Bulletpoints)',
-            'education' => 'Ausbildung / Diplome als strukturierte Liste',
-            'skills' => 'Kompetenzen als kommagetrennte Liste',
+            'experience' => 'Berufserfahrung als strukturierte Liste — eine Zeile pro Station: Rolle · Firma · Zeitraum — Kurzbeschreibung',
+            'education' => 'Ausbildung / Diplome — eine Zeile pro Eintrag',
+            'skills' => 'Kompetenzen — eine Zeile oder Komma-getrennt',
         ];
         $label = $fieldLabels[$field] ?? 'Professioneller CV-Abschnitt «'.$field.'»';
+
+        $areas = $seed['experience_areas'] ?? [];
+        if (is_array($areas)) {
+            $areas = implode(', ', $areas);
+        }
 
         $prompt = "Du schreibst einen professionellen Schweizer Lebenslauf-Abschnitt für einen Nachfolge-/M&A-Experten.\n"
             ."Feld: {$label}\n"
@@ -107,13 +137,48 @@ class CvGeneratorService
             .'Unternehmen: '.($seed['company'] ?? '')."\n"
             .'Fachgruppe: '.($seed['headline'] ?? '')."\n"
             .'Standort: '.($seed['location'] ?? '')."\n"
+            .'Eigenkapital: '.($seed['equity_capital'] ?? '')."\n"
             .'Bestehende Beschreibung: '.mb_substr((string) ($seed['summary'] ?? ''), 0, 800)."\n"
             .'Leistungen: '.mb_substr((string) ($seed['services'] ?? ''), 0, 500)."\n"
-            .'Erfahrungsbereiche: '.implode(', ', $seed['experience_areas'] ?? [])."\n"
+            .'Erfahrungsbereiche: '.$areas."\n"
             .'Zusatzkontext: '.mb_substr((string) ($context['notes'] ?? ''), 0, 500)."\n"
-            ."Schreibe auf Deutsch (Schweiz). Keine Anrede, kein Markdown-Codeblock. Nur den Inhalt.";
+            ."Schreibe auf Deutsch (Schweiz). Keine Anrede, kein Markdown-Codeblock, keine Überschrift. Nur den Inhalt.";
 
         return trim($this->ai->complete($prompt, 'cv_'.$field));
+    }
+
+    /**
+     * Merge AI output into payload for a given field.
+     *
+     * @param  array<string, mixed>  $payload
+     * @return array<string, mixed>
+     */
+    public function mergeGeneratedField(array $payload, string $field, string $text): array
+    {
+        $listFields = ['experience', 'education', 'skills', 'experience_areas', 'diplomas', 'criteria', 'languages'];
+        if (in_array($field, $listFields, true)) {
+            $normalized = str_replace([', ', ' • ', ' · '], "\n", $text);
+            $payload[$field] = \App\Support\TextLines::fromInput($normalized);
+        } else {
+            $payload[$field] = $text;
+        }
+
+        return $payload;
+    }
+
+    /** @return array<string, mixed> */
+    public function toStudioArray(ExpertCv $cv): array
+    {
+        return [
+            'id' => $cv->id,
+            'title' => $cv->title,
+            'template_key' => $cv->template_key,
+            'status' => $cv->status,
+            'payload' => $cv->payload ?? [],
+            'pdf_url' => $cv->pdf_path ? asset('storage/'.$cv->pdf_path) : null,
+            'updated_at' => optional($cv->updated_at)->toIso8601String(),
+            'updated_label' => optional($cv->updated_at)->format('d.m.Y H:i'),
+        ];
     }
 
     public function suggestTemplate(Expert $expert, array $payload = []): string
@@ -147,11 +212,39 @@ class CvGeneratorService
     {
         $cv->loadMissing('expert');
         $template = array_key_exists($cv->template_key, self::TEMPLATES) ? $cv->template_key : 'classic';
+        $payload = $cv->payload ?? [];
+        if (empty($payload['accent_color'])) {
+            $payload['accent_color'] = '#0E4971';
+        }
 
         return view('cv.templates.'.$template, [
             'cv' => $cv,
             'expert' => $cv->expert,
-            'payload' => $cv->payload ?? [],
+            'payload' => $payload,
+            'accent' => $payload['accent_color'],
+        ])->render();
+    }
+
+    /**
+     * Live preview without persisting (control room).
+     *
+     * @param  array<string, mixed>  $payload
+     */
+    public function renderPreviewHtml(Expert $expert, string $templateKey, array $payload): string
+    {
+        $template = array_key_exists($templateKey, self::TEMPLATES) ? $templateKey : 'classic';
+        if (empty($payload['accent_color'])) {
+            $payload['accent_color'] = '#0E4971';
+        }
+        if (empty($payload['photo_path']) && $expert->contact_photo_path) {
+            $payload['photo_path'] = $expert->contact_photo_path;
+        }
+
+        return view('cv.templates.'.$template, [
+            'cv' => null,
+            'expert' => $expert,
+            'payload' => $payload,
+            'accent' => $payload['accent_color'],
         ])->render();
     }
 

@@ -3,6 +3,7 @@
 <head>
     <meta charset="utf-8">
     <title>{{ $payload['full_name'] ?? 'Lebenslauf' }}</title>
+    @php $accent = $accent ?? ($payload['accent_color'] ?? '#0E4971'); @endphp
     <style>
         *{box-sizing:border-box}
         body{margin:0;background:#f4f1ea;color:#1c1917;font-family:"Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif}
@@ -11,7 +12,7 @@
         h1{margin:0;font-size:34px;letter-spacing:-.03em;line-height:1.1}
         .sub{margin:8px 0 0;font-family:"Helvetica Neue",Arial,sans-serif;font-size:14px;color:#57534e}
         .rule{height:1px;background:#d6d3d1;margin:28px 0}
-        h2{font-family:"Helvetica Neue",Arial,sans-serif;font-size:12px;letter-spacing:.14em;text-transform:uppercase;margin:0 0 10px;color:#0E4971}
+        h2{font-family:"Helvetica Neue",Arial,sans-serif;font-size:12px;letter-spacing:.14em;text-transform:uppercase;margin:0 0 10px;color: {{ $accent }}}
         p,li{font-size:15px;line-height:1.65}
         ul{margin:0 0 18px;padding-left:1.15rem}
         .grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}

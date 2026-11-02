@@ -3,8 +3,9 @@
 <head>
     <meta charset="utf-8">
     <title>{{ $payload['full_name'] ?? 'Lebenslauf' }}</title>
+    @php $accent = $accent ?? ($payload['accent_color'] ?? '#0E4971'); @endphp
     <style>
-        :root { --ink:#0E4971; --muted:#5a6b78; --line:#d7e3ec; --bg:#f7fafc; }
+        :root { --ink: {{ $accent }}; --muted:#5a6b78; --line:#d7e3ec; --bg:#f7fafc; }
         * { box-sizing: border-box; }
         body { margin:0; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; color:#102433; background:#fff; }
         .cv { max-width:820px; margin:0 auto; padding:36px 40px; }
@@ -16,14 +17,11 @@
         h2 { font-size:13px; letter-spacing:0.08em; text-transform:uppercase; color:var(--ink); margin:22px 0 8px; border-bottom:1px solid var(--line); padding-bottom:4px; }
         p, li { font-size:14px; line-height:1.55; }
         ul { margin:0; padding-left:1.1rem; }
-        .muted { color:var(--muted); }
         @media print { body { background:#fff; } .cv { padding:0; } }
     </style>
 </head>
 <body>
-@php
-    $photo = $payload['photo_path'] ?? null;
-@endphp
+@php $photo = $payload['photo_path'] ?? null; @endphp
 <main class="cv">
     <header class="cv__top">
         @if ($photo)

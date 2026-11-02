@@ -160,6 +160,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin'])->grou
     Route::get('/rechnungen', [AdminInvoiceController::class, 'index'])->name('invoices.index');
     Route::get('/rechnungen/neu', [AdminInvoiceController::class, 'create'])->name('invoices.create');
     Route::post('/rechnungen', [AdminInvoiceController::class, 'store'])->name('invoices.store');
+    Route::get('/rechnungen/{invoice}', [AdminInvoiceController::class, 'show'])->name('invoices.show');
     Route::get('/rechnungen/{invoice}/bearbeiten', [AdminInvoiceController::class, 'edit'])->name('invoices.edit');
     Route::put('/rechnungen/{invoice}', [AdminInvoiceController::class, 'update'])->name('invoices.update');
     Route::post('/rechnungen/{invoice}/bestaetigung', [AdminInvoiceController::class, 'sendConfirmation'])->name('invoices.send-confirmation');
@@ -176,6 +177,9 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin'])->grou
 
     Route::get('/experten/{expert}/cv', [AdminCvController::class, 'index'])->name('experts.cv.index');
     Route::post('/experten/{expert}/cv', [AdminCvController::class, 'store'])->name('experts.cv.store');
+    Route::post('/experten/{expert}/cv/template-vorschlag', [AdminCvController::class, 'suggestTemplate'])->name('experts.cv.suggest-template');
+    Route::post('/experten/{expert}/cv/live-vorschau', [AdminCvController::class, 'livePreview'])->name('experts.cv.live-preview');
+    Route::get('/experten/{expert}/cv/{cv}', [AdminCvController::class, 'show'])->name('experts.cv.show');
     Route::get('/experten/{expert}/cv/{cv}/bearbeiten', [AdminCvController::class, 'edit'])->name('experts.cv.edit');
     Route::put('/experten/{expert}/cv/{cv}', [AdminCvController::class, 'update'])->name('experts.cv.update');
     Route::post('/experten/{expert}/cv/{cv}/ki', [AdminCvController::class, 'generateAi'])->name('experts.cv.generate-ai');
@@ -253,6 +257,9 @@ Route::prefix('expert')->name('expert.')->middleware(['auth', 'role:expert', 'ex
 
     Route::get('/lebenslauf', [ExpertCvController::class, 'index'])->name('cv.index');
     Route::post('/lebenslauf', [ExpertCvController::class, 'store'])->name('cv.store');
+    Route::post('/lebenslauf/template-vorschlag', [ExpertCvController::class, 'suggestTemplate'])->name('cv.suggest-template');
+    Route::post('/lebenslauf/live-vorschau', [ExpertCvController::class, 'livePreview'])->name('cv.live-preview');
+    Route::get('/lebenslauf/{cv}', [ExpertCvController::class, 'show'])->name('cv.show');
     Route::get('/lebenslauf/{cv}/bearbeiten', [ExpertCvController::class, 'edit'])->name('cv.edit');
     Route::put('/lebenslauf/{cv}', [ExpertCvController::class, 'update'])->name('cv.update');
     Route::post('/lebenslauf/{cv}/ki', [ExpertCvController::class, 'generateAi'])->name('cv.generate-ai');

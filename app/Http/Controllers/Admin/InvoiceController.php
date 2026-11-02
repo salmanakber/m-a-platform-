@@ -11,6 +11,7 @@ use App\Services\Promotion\PromotionService;
 use App\Support\InvoicePaymentStatus;
 use App\Support\PromotionStatus;
 use Carbon\Carbon;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -25,51 +26,63 @@ class InvoiceController extends Controller
 
     public function index(Request $request): View
     {
-        $paymentStatus = $request->query('payment_status');
-        $q = trim((string) $request->query('q', ''));
-        $dateFrom = $request->query('date_from');
-        $dateTo = $request->query('date_to');
-
-        $invoices = Invoice::query()
-            ->when($paymentStatus, fn ($query) => $query->where('payment_status', $paymentStatus))
-            ->when($dateFrom, fn ($query) => $query->whereDate('invoice_date', '>=', $dateFrom))
-            ->when($dateTo, fn ($query) => $query->whereDate('invoice_date', '<=', $dateTo))
-            ->when($q !== '', function ($query) use ($q) {
-                $query->where(function ($inner) use ($q) {
-                    $inner->where('invoice_number', 'like', '%'.$q.'%')
-                        ->orWhere('billing_email', 'like', '%'.$q.'%')
-                        ->orWhere('service_title', 'like', '%'.$q.'%')
-                        ->orWhereHas('expert', function ($expert) use ($q) {
-                            $expert->where('company_name', 'like', '%'.$q.'%')
-                                ->orWhere('email', 'like', '%'.$q.'%');
-                        });
-                });
-            })
-            ->with(['expert', 'product', 'promotion.canton', 'linkedPromotion.canton'])
+        $recent = Invoice::query()
+            ->with(['expert', 'product'])
             ->orderByDesc('created_at')
-            ->paginate(20)
-            ->withQueryString();
+            ->limit(40)
+            ->get()
+            ->map(fn (Invoice $inv) => $this->invoiceService->toStudioArray($inv))
+            ->values()
+            ->all();
 
-        return view('admin.invoices.index', [
-            'invoices' => $invoices,
-            'paymentStatus' => $paymentStatus,
-            'q' => $q,
-            'dateFrom' => $dateFrom,
-            'dateTo' => $dateTo,
-            'paymentStatuses' => InvoicePaymentStatus::all(),
-            'monthlyPrice' => $this->invoiceService->monthlyPromotionPrice(),
-        ]);
+        $boot = [
+            'experts' => Expert::query()->orderBy('company_name')->get(['id', 'company_name', 'email'])
+                ->map(fn (Expert $e) => [
+                    'id' => $e->id,
+                    'company_name' => $e->company_name,
+                    'email' => $e->email,
+                ])->values()->all(),
+            'products' => InvoiceProduct::query()->where('is_active', true)->orderBy('sort_order')->orderBy('name')->get()
+                ->map(fn (InvoiceProduct $p) => [
+                    'id' => $p->id,
+                    'sku' => $p->sku,
+                    'name' => $p->name,
+                    'description' => $p->description,
+                    'unit_price' => (float) $p->unit_price,
+                    'unit_price_label' => number_format((float) $p->unit_price, 2, '.', "'"),
+                    'currency' => $p->currency ?: 'CHF',
+                    'billing_period' => $p->billing_period,
+                ])->values()->all(),
+            'invoices' => $recent,
+            'monthly_price' => $this->invoiceService->monthlyPromotionPrice(),
+            'initial_invoice_id' => $request->integer('invoice') ?: null,
+            'urls' => [
+                'store' => route('admin.invoices.store'),
+                'show' => route('admin.invoices.show', ['invoice' => '__ID__']),
+                'update' => route('admin.invoices.update', ['invoice' => '__ID__']),
+                'confirm' => route('admin.invoices.send-confirmation', ['invoice' => '__ID__']),
+                'send' => route('admin.invoices.send-email', ['invoice' => '__ID__']),
+                'products' => route('admin.invoice-products.index'),
+            ],
+        ];
+
+        return view('admin.invoices.index', ['boot' => $boot]);
     }
 
-    public function create(): View
+    public function create(): RedirectResponse
     {
-        return view('admin.invoices.create', [
-            'experts' => Expert::query()->orderBy('company_name')->get(['id', 'company_name', 'email']),
-            'products' => InvoiceProduct::query()->where('is_active', true)->orderBy('sort_order')->orderBy('name')->get(),
+        return redirect()->route('admin.invoices.index');
+    }
+
+    public function show(Invoice $invoice): JsonResponse
+    {
+        return response()->json([
+            'ok' => true,
+            'invoice' => $this->invoiceService->toStudioArray($invoice),
         ]);
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request): JsonResponse|RedirectResponse
     {
         $validated = $request->validate([
             'expert_id' => ['required', 'exists:experts,id'],
@@ -96,22 +109,23 @@ class InvoiceController extends Controller
             'admin_notes' => $validated['admin_notes'] ?? null,
         ]);
 
-        return redirect()
-            ->route('admin.invoices.edit', $invoice)
-            ->with('success', 'Rechnung als Entwurf erstellt. Bitte prüfen, Bestätigung senden, danach Rechnung versenden.');
+        if ($request->expectsJson() || $request->ajax()) {
+            return response()->json([
+                'ok' => true,
+                'message' => 'Rechnungsentwurf erstellt.',
+                'invoice' => $this->invoiceService->toStudioArray($invoice),
+            ], 201);
+        }
+
+        return redirect()->route('admin.invoices.index', ['invoice' => $invoice->id]);
     }
 
-    public function edit(Invoice $invoice): View
+    public function edit(Invoice $invoice): RedirectResponse
     {
-        $invoice->load(['expert', 'product']);
-
-        return view('admin.invoices.edit', [
-            'invoice' => $invoice,
-            'products' => InvoiceProduct::query()->orderBy('sort_order')->orderBy('name')->get(),
-        ]);
+        return redirect()->route('admin.invoices.index', ['invoice' => $invoice->id]);
     }
 
-    public function update(Request $request, Invoice $invoice): RedirectResponse
+    public function update(Request $request, Invoice $invoice): JsonResponse|RedirectResponse
     {
         $validated = $request->validate([
             'invoice_product_id' => ['nullable', 'exists:invoice_products,id'],
@@ -125,15 +139,38 @@ class InvoiceController extends Controller
             'admin_notes' => ['nullable', 'string', 'max:5000'],
         ]);
 
-        $this->invoiceService->updateDraft($invoice, $validated);
+        $invoice = $this->invoiceService->updateDraft($invoice, $validated);
+
+        if ($request->expectsJson() || $request->ajax()) {
+            return response()->json([
+                'ok' => true,
+                'message' => 'Gespeichert.',
+                'invoice' => $this->invoiceService->toStudioArray($invoice),
+            ]);
+        }
 
         return back()->with('success', 'Rechnung gespeichert.');
     }
 
-    public function sendConfirmation(Invoice $invoice): RedirectResponse
+    public function sendConfirmation(Invoice $invoice): JsonResponse|RedirectResponse
     {
-        if ($this->invoiceService->sendConfirmation($invoice)) {
-            return back()->with('success', 'Bestätigungs-E-Mail gesendet an '.($invoice->billing_email ?: $invoice->expert?->email).'.');
+        $ok = $this->invoiceService->sendConfirmation($invoice);
+        $to = $invoice->fresh()->billing_email ?: $invoice->expert?->email;
+
+        if ($ok) {
+            if (request()->expectsJson() || request()->ajax()) {
+                return response()->json([
+                    'ok' => true,
+                    'message' => 'Bestätigung gesendet an '.$to,
+                    'invoice' => $this->invoiceService->toStudioArray($invoice->fresh(['expert', 'product'])),
+                ]);
+            }
+
+            return back()->with('success', 'Bestätigungs-E-Mail gesendet an '.$to.'.');
+        }
+
+        if (request()->expectsJson() || request()->ajax()) {
+            return response()->json(['ok' => false, 'message' => 'Bestätigung fehlgeschlagen (Vorlage/Resend prüfen).'], 422);
         }
 
         return back()->with('error', 'Bestätigungs-E-Mail fehlgeschlagen. Vorlage invoice_confirmation und Resend prüfen.');
@@ -181,7 +218,7 @@ class InvoiceController extends Controller
         return back()->with('success', $msg);
     }
 
-    public function sendEmail(Request $request, Invoice $invoice): RedirectResponse
+    public function sendEmail(Request $request, Invoice $invoice): JsonResponse|RedirectResponse
     {
         $validated = $request->validate([
             'type' => ['nullable', 'in:created,paid,auto'],
@@ -196,15 +233,28 @@ class InvoiceController extends Controller
             ? $this->invoiceService->notifyPaid($invoice)
             : $this->invoiceService->notifyCreated($invoice);
 
+        $to = $invoice->billing_email ?: $invoice->expert?->email;
+        $msg = $type === 'paid'
+            ? 'Zahlungsbestätigung an '.$to.' gesendet.'
+            : 'Rechnung per E-Mail an '.$to.' gesendet.';
+
         if (! $ok) {
+            if ($request->expectsJson() || $request->ajax()) {
+                return response()->json(['ok' => false, 'message' => 'E-Mail fehlgeschlagen (Resend/Vorlage prüfen).'], 422);
+            }
+
             return back()->with('error', 'E-Mail fehlgeschlagen. Bitte Resend-Einstellungen und Vorlagen prüfen.');
         }
 
-        $to = $invoice->billing_email ?: $invoice->expert?->email;
+        if ($request->expectsJson() || $request->ajax()) {
+            return response()->json([
+                'ok' => true,
+                'message' => $msg,
+                'invoice' => $this->invoiceService->toStudioArray($invoice->fresh(['expert', 'product'])),
+            ]);
+        }
 
-        return back()->with('success', $type === 'paid'
-            ? 'Zahlungsbestätigung an '.$to.' gesendet.'
-            : 'Rechnung per E-Mail an '.$to.' gesendet.');
+        return back()->with('success', $msg);
     }
 
     public function bulk(Request $request): RedirectResponse
