@@ -17,5 +17,5 @@
 @endsection
 
 @push('scripts')
-<script src="{{ asset('js/cv-studio.js') }}?v=7"></script>
+<script src="{{ asset('js/cv-studio.js') }}?v=8"></script>
 @endpush

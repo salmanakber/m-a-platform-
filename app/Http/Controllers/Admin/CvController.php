@@ -237,14 +237,23 @@ class CvController extends Controller
     {
         abort_if((int) $cv->expert_id !== (int) $expert->id, 404);
 
-        $binary = $this->cvs->pdfBinary($cv);
-        $filename = 'Lebenslauf-'.preg_replace('/[^A-Za-z0-9_-]+/', '-', (string) ($cv->title ?: 'CV')).'.pdf';
-        $this->cvs->syncArtifacts($cv);
+        if ($this->cvs->canGeneratePdf()) {
+            try {
+                $binary = $this->cvs->pdfBinary($cv);
+                $this->cvs->syncArtifacts($cv);
+                $filename = 'Lebenslauf-'.preg_replace('/[^A-Za-z0-9_-]+/', '-', (string) ($cv->title ?: 'CV')).'.pdf';
 
-        return response($binary, 200, [
-            'Content-Type' => 'application/pdf',
-            'Content-Disposition' => 'attachment; filename="'.$filename.'"',
-        ]);
+                return response($binary, 200, [
+                    'Content-Type' => 'application/pdf',
+                    'Content-Disposition' => 'attachment; filename="'.$filename.'"',
+                ]);
+            } catch (\Throwable) {
+                // Fall through.
+            }
+        }
+
+        return response($this->cvs->renderPrintHtml($cv, true))
+            ->header('Content-Type', 'text/html; charset=UTF-8');
     }
 
     public function finalize(Expert $expert, ExpertCv $cv): JsonResponse|RedirectResponse

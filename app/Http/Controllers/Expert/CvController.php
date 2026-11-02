@@ -259,16 +259,25 @@ class CvController extends Controller
         $expert = Auth::user()?->resolvePortalExpert();
         abort_if($expert === null || (int) $cv->expert_id !== (int) $expert->id, 403);
 
-        $binary = $this->cvs->pdfBinary($cv);
-        $filename = 'Lebenslauf-'.preg_replace('/[^A-Za-z0-9_-]+/', '-', (string) ($cv->title ?: 'CV')).'.pdf';
+        // Prefer Dompdf binary download when the package is available locally.
+        if ($this->cvs->canGeneratePdf()) {
+            try {
+                $binary = $this->cvs->pdfBinary($cv);
+                $this->cvs->syncArtifacts($cv);
+                $filename = 'Lebenslauf-'.preg_replace('/[^A-Za-z0-9_-]+/', '-', (string) ($cv->title ?: 'CV')).'.pdf';
 
-        // Persist for library download
-        $this->cvs->syncArtifacts($cv);
+                return response($binary, 200, [
+                    'Content-Type' => 'application/pdf',
+                    'Content-Disposition' => 'attachment; filename="'.$filename.'"',
+                ]);
+            } catch (\Throwable) {
+                // Fall through to print HTML (no SSH / broken vendor).
+            }
+        }
 
-        return response($binary, 200, [
-            'Content-Type' => 'application/pdf',
-            'Content-Disposition' => 'attachment; filename="'.$filename.'"',
-        ]);
+        // No Dompdf needed: clean A4 print page → browser «Als PDF speichern».
+        return response($this->cvs->renderPrintHtml($cv, true))
+            ->header('Content-Type', 'text/html; charset=UTF-8');
     }
 
     public function finalize(ExpertCv $cv): JsonResponse|RedirectResponse

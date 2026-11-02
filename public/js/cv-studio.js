@@ -579,8 +579,8 @@
         }
         try {
             await saveReview();
-            toast('PDF wird erzeugt…', 'ok');
-            window.location.href = pdfHref(state.cv.id);
+            toast('PDF-Ansicht wird geöffnet…', 'ok');
+            window.open(pdfHref(state.cv.id), '_blank', 'noopener');
         } catch (err) {
             toast(err.message || 'PDF fehlgeschlagen', 'error');
         }

@@ -7,8 +7,6 @@ use App\Models\ExpertCv;
 use App\Services\AI\AIManager;
 use App\Support\ProfessionalGroup;
 use App\Support\TextLines;
-use Dompdf\Dompdf;
-use Dompdf\Options;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 
@@ -150,22 +148,35 @@ class CvGeneratorService
         return $cv;
     }
 
-    /** Generate real A4 PDF (+ HTML) and store path on the CV. */
+    public function canGeneratePdf(): bool
+    {
+        return class_exists(\Dompdf\Dompdf::class);
+    }
+
+    /** Generate real A4 PDF (+ HTML) when Dompdf is installed; otherwise HTML only. */
     public function syncArtifacts(ExpertCv $cv): ExpertCv
     {
         Storage::disk('public')->makeDirectory('experts/cvs');
         $base = 'experts/cvs/cv-'.$cv->expert_id.'-'.$cv->id;
         $htmlPath = $base.'.html';
-        $pdfPath = $base.'.pdf';
-
         Storage::disk('public')->put($htmlPath, $this->renderHtml($cv));
-        Storage::disk('public')->put($pdfPath, $this->pdfBinary($cv));
 
-        $cv->update(['pdf_path' => $pdfPath]);
+        $storePath = $htmlPath;
+        if ($this->canGeneratePdf()) {
+            try {
+                $pdfPath = $base.'.pdf';
+                Storage::disk('public')->put($pdfPath, $this->pdfBinary($cv));
+                $storePath = $pdfPath;
+            } catch (\Throwable) {
+                $storePath = $htmlPath;
+            }
+        }
+
+        $cv->update(['pdf_path' => $storePath]);
         $cv = $cv->fresh();
 
         if ($cv->status === 'ready') {
-            $cv->expert?->update(['cv_path' => $pdfPath]);
+            $cv->expert?->update(['cv_path' => $storePath]);
         }
 
         return $cv;
@@ -193,14 +204,37 @@ class CvGeneratorService
         ])->render();
     }
 
+    /** Print-optimized A4 HTML (works without Dompdf / SSH). */
+    public function renderPrintHtml(ExpertCv $cv, bool $autoPrint = true): string
+    {
+        $cv->loadMissing('expert');
+        $payload = $cv->payload ?? [];
+        if (empty($payload['accent_color'])) {
+            $payload['accent_color'] = '#0E4971';
+        }
+
+        return view('cv.print', [
+            'cv' => $cv,
+            'expert' => $cv->expert,
+            'payload' => $payload,
+            'accent' => $payload['accent_color'],
+            'autoPrint' => $autoPrint,
+            'title' => $cv->title ?: ($payload['full_name'] ?? 'Lebenslauf'),
+        ])->render();
+    }
+
     public function pdfBinary(ExpertCv $cv): string
     {
-        $options = new Options();
+        if (! $this->canGeneratePdf()) {
+            throw new \RuntimeException('Dompdf ist nicht installiert.');
+        }
+
+        $options = new \Dompdf\Options();
         $options->set('isRemoteEnabled', true);
         $options->set('isHtml5ParserEnabled', true);
         $options->set('defaultFont', 'DejaVu Sans');
 
-        $dompdf = new Dompdf($options);
+        $dompdf = new \Dompdf\Dompdf($options);
         $dompdf->loadHtml($this->renderPdfHtml($cv), 'UTF-8');
         $dompdf->setPaper('A4', 'portrait');
         $dompdf->render();
