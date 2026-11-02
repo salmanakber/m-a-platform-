@@ -129,22 +129,67 @@
         return templateHints[key] || '';
     }
 
+    function onTemplatePicked(key) {
+        state.template = key;
+        renderTemplates();
+        renderLayoutChips();
+        scheduleLivePreview(true);
+        if (state.step === 3 && state.cv) {
+            saveReview().then(function () { toast('Vorlage gespeichert', 'ok'); }).catch(function (err) {
+                toast(err.message || 'Speichern fehlgeschlagen', 'error');
+            });
+        } else if (state.cv) {
+            saveDesignQuiet();
+        }
+    }
+
     function renderTemplates() {
-        var box = root.querySelector('[data-cvs-templates]');
-        if (!box) return;
-        box.innerHTML = '';
-        Object.keys(templates).forEach(function (key) {
-            var btn = document.createElement('button');
-            btn.type = 'button';
-            btn.className = 'cvs__tpl' + (state.template === key ? ' is-on' : '') + (key === 'ai_design' ? ' cvs__tpl--ai' : '');
-            btn.innerHTML = '<strong>' + escapeHtml(templates[key]) + '</strong><span>' + escapeHtml(templateHint(key)) + '</span>';
+        [root.querySelector('[data-cvs-templates]'), root.querySelector('[data-cvs-templates-review]')].forEach(function (box) {
+            if (!box) return;
+            box.innerHTML = '';
+            Object.keys(templates).forEach(function (key) {
+                var btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'cvs__tpl' + (state.template === key ? ' is-on' : '') + (key === 'ai_design' ? ' cvs__tpl--ai' : '');
+                btn.innerHTML = '<strong>' + escapeHtml(templates[key]) + '</strong><span>' + escapeHtml(templateHint(key)) + '</span>';
+                btn.addEventListener('click', function () { onTemplatePicked(key); });
+                box.appendChild(btn);
+            });
+        });
+        renderLayoutChips();
+    }
+
+    function renderLayoutChips() {
+        var wrap = root.querySelector('[data-cvs-layout-chips]');
+        var box = root.querySelector('[data-cvs-layout-styles]');
+        if (!wrap || !box) return;
+        var show = state.template === 'ai_design';
+        wrap.hidden = !show;
+        if (!show) return;
+        var styles = [
+            { id: 'sidebar_left', label: 'Sidebar links' },
+            { id: 'sidebar_right', label: 'Sidebar rechts' },
+            { id: 'banner', label: 'Banner' },
+            { id: 'centered', label: 'Zentriert' },
+            { id: 'split', label: 'Zweispalter' },
+        ];
+        var current = (state.layout && state.layout.style) || 'centered';
+        box.innerHTML = styles.map(function (s) {
+            return '<button type="button" class="cvs__chip' + (current === s.id ? ' is-on' : '') + '" data-layout-style="' + s.id + '">' + escapeHtml(s.label) + '</button>';
+        }).join('');
+        box.querySelectorAll('[data-layout-style]').forEach(function (btn) {
             btn.addEventListener('click', function () {
-                state.template = key;
+                state.layout = Object.assign({}, state.layout || {}, { style: btn.getAttribute('data-layout-style') });
+                state.template = 'ai_design';
                 renderTemplates();
                 scheduleLivePreview(true);
-                if (state.cv) saveDesignQuiet();
+                if (state.cv) {
+                    (state.step === 3 ? saveReview() : ensureDraft()).then(function () {
+                        if (state.step === 3) refreshPreview();
+                        toast('Layout gespeichert', 'ok');
+                    }).catch(function (err) { toast(err.message || 'Fehler', 'error'); });
+                }
             });
-            box.appendChild(btn);
         });
     }
 
@@ -164,7 +209,7 @@
                     renderColors();
                     scheduleLivePreview(true);
                     if (state.step === 3 && state.cv) {
-                        saveReview().catch(function () {});
+                        saveReview().then(function () { toast('Farbe gespeichert', 'ok'); }).catch(function () {});
                     } else if (state.cv) {
                         saveDesignQuiet();
                     }
@@ -183,6 +228,12 @@
         });
         if (!found) boot.cvs.unshift(cv);
         renderLibrary();
+    }
+
+    function previewHref(cvId, print) {
+        var href = url('preview', cvId) + '?t=' + Date.now();
+        if (print) href += '&print=1';
+        return href;
     }
 
     function renderLibrary() {
@@ -204,8 +255,9 @@
                 '<span>' + escapeHtml((templates[cv.template_key] || cv.template_key) + ' · ' + (cv.status === 'ready' ? 'Final' : 'Entwurf') + ' · ' + (cv.updated_label || '')) + '</span>' +
                 '</div>' +
                 '<div class="cvs__card-actions">' +
-                '<button type="button" class="btn btn--small" data-load-cv="' + cv.id + '">Öffnen</button>' +
-                (cv.pdf_url ? '<a class="btn btn--ghost btn--small" href="' + escapeHtml(cv.pdf_url) + '" target="_blank" rel="noopener">Ansehen</a>' : '') +
+                '<button type="button" class="btn btn--small" data-load-cv="' + cv.id + '">Bearbeiten</button>' +
+                '<a class="btn btn--ghost btn--small" href="' + escapeHtml(previewHref(cv.id, false)) + '" target="_blank" rel="noopener">Vorschau</a>' +
+                '<a class="btn btn--ghost btn--small" href="' + escapeHtml(previewHref(cv.id, true)) + '" target="_blank" rel="noopener">Drucken</a>' +
                 '<button type="button" class="btn btn--ghost btn--small" data-del-cv="' + cv.id + '">Löschen</button>' +
                 '</div></article>'
             );
@@ -435,7 +487,20 @@
 
     function refreshPreview() {
         if (!preview || !state.cv) return;
-        preview.src = url('preview', state.cv.id) + '?t=' + Date.now();
+        preview.src = previewHref(state.cv.id, false);
+    }
+
+    async function printCv() {
+        if (!state.cv) {
+            toast('Bitte zuerst speichern oder erzeugen', 'error');
+            return;
+        }
+        try {
+            await saveReview();
+            window.open(previewHref(state.cv.id, true), '_blank', 'noopener');
+        } catch (err) {
+            toast(err.message || 'Druckvorschau fehlgeschlagen', 'error');
+        }
     }
 
     async function finalize() {
@@ -447,8 +512,8 @@
             var block = root.querySelector('[data-cvs-done-block]');
             var open = root.querySelector('[data-cvs-open-final]');
             if (block) block.hidden = false;
-            if (open) open.href = state.cv.pdf_url || url('preview', state.cv.id);
-            toast(res.message || 'Finalisiert', 'ok');
+            if (open) open.href = previewHref(state.cv.id, false);
+            toast(res.message || 'Finalisiert — bereit zum Drucken', 'ok');
             refreshPreview();
         } catch (err) { toast(err.message || 'Finalisieren fehlgeschlagen', 'error'); }
     }
@@ -502,22 +567,36 @@
     }
 
     async function inventDesign() {
+        if (!urls.invent_design) {
+            toast('KI-Design-URL fehlt — Seite neu laden', 'error');
+            return;
+        }
         var btn = root.querySelector('[data-cvs-invent-design]');
         var label = root.querySelector('[data-cvs-invent-label]');
         if (btn) btn.disabled = true;
         if (label) label.textContent = 'Entwirft…';
         try {
             var res = await api('POST', urls.invent_design, { payload: payloadFromForms() });
-            state.template = res.template_key || 'ai_design';
+            state.template = 'ai_design';
             if (res.accent_color) state.color = res.accent_color;
             if (res.layout) state.layout = res.layout;
             renderTemplates();
             renderColors();
+            await ensureDraft();
             scheduleLivePreview(true);
-            if (state.cv) saveDesignQuiet();
-            toast('KI-Design bereit — jetzt mit KI erzeugen', 'ok');
+            if (state.step === 3) refreshPreview();
+            var styleLabel = (state.layout && state.layout.style) ? state.layout.style.replace(/_/g, ' ') : 'custom';
+            toast('KI-Design aktiv (' + styleLabel + ') — Vorschau aktualisiert', 'ok');
         } catch (err) {
-            toast(err.message || 'KI-Design fehlgeschlagen', 'error');
+            // Local fallback so the button never feels broken
+            state.template = 'ai_design';
+            state.layout = { style: 'sidebar_left', density: 'normal', type_mood: 'sans' };
+            state.color = '#0B6E4F';
+            renderTemplates();
+            renderColors();
+            try { await ensureDraft(); } catch (e2) {}
+            scheduleLivePreview(true);
+            toast((err && err.message ? err.message + ' — ' : '') + 'Fallback-Design geladen', 'ok');
         } finally {
             if (btn) btn.disabled = false;
             if (label) label.textContent = 'KI erstellt Design';
@@ -592,12 +671,18 @@
     root.querySelectorAll('[data-cvs-refresh-preview]').forEach(function (btn) {
         btn.addEventListener('click', function () { refreshPreview(); });
     });
+    root.querySelectorAll('[data-cvs-print]').forEach(function (btn) {
+        btn.addEventListener('click', function () { printCv(); });
+    });
     root.querySelectorAll('[data-cvs-finalize]').forEach(function (btn) {
         btn.addEventListener('click', finalize);
     });
     var saveBtn = root.querySelector('[data-cvs-save-review]');
     if (saveBtn) saveBtn.addEventListener('click', function () {
-        saveReview().then(function () { toast('Gespeichert', 'ok'); }).catch(function (err) {
+        saveReview().then(function () {
+            toast('Gespeichert — Bibliothek/Vorschau sind aktuell', 'ok');
+            refreshPreview();
+        }).catch(function (err) {
             toast(err.message || 'Speichern fehlgeschlagen', 'error');
         });
     });

@@ -120,13 +120,21 @@
                 <div class="cvs__panel-head cvs__panel-head--split">
                     <div>
                         <h2>3. Feinschliff &amp; fertigstellen</h2>
-                        <p>Texte anpassen, Farbe ändern, finalisieren und drucken.</p>
+                        <p>Vorlage/Farbe ändern, speichern, öffnen oder drucken — Bibliothek zeigt immer die aktuelle Version.</p>
                     </div>
                     <div class="cvs__panel-tools">
-                        <div class="cvs__colors cvs__colors--compact" data-cvs-colors-review></div>
                         <button type="button" class="btn btn--ghost btn--small" data-cvs-refresh-preview>Vorschau</button>
+                        <button type="button" class="btn btn--ghost btn--small" data-cvs-print>Drucken</button>
                         <button type="button" class="btn btn--small" data-cvs-finalize>Finalisieren</button>
                     </div>
+                </div>
+                <p class="cvs__mini-label">Vorlage</p>
+                <div class="cvs__templates cvs__templates--compact" data-cvs-templates-review role="radiogroup"></div>
+                <p class="cvs__mini-label">Akzentfarbe</p>
+                <div class="cvs__colors cvs__colors--compact" data-cvs-colors-review></div>
+                <div class="cvs__layout-chips" data-cvs-layout-chips hidden>
+                    <p class="cvs__mini-label">KI-Layout</p>
+                    <div class="cvs__chips" data-cvs-layout-styles></div>
                 </div>
                 <div class="cvs__split">
                     <form class="cvs__form cvs__form--compact" data-cvs-form-review>
@@ -140,6 +148,7 @@
                         <div class="cvs__actions">
                             <button type="button" class="btn btn--ghost" data-cvs-prev="2">Design</button>
                             <button type="button" class="btn btn--ghost" data-cvs-save-review>Speichern</button>
+                            <button type="button" class="btn btn--ghost" data-cvs-print>Drucken</button>
                             <button type="button" class="btn" data-cvs-finalize>Finalisieren</button>
                         </div>
                     </form>
@@ -150,9 +159,10 @@
                 <div class="cvs__done cvs__done--inline" data-cvs-done-block hidden>
                     <div class="cvs__done-badge" aria-hidden="true">✓</div>
                     <h2>Lebenslauf bereit</h2>
-                    <p data-cvs-done-msg>Finalisierte Version zum Öffnen und Drucken (PDF über Browser).</p>
+                    <p data-cvs-done-msg>Öffnen oder als PDF drucken (Browser → Speichern als PDF).</p>
                     <div class="cvs__actions" style="justify-content:center;">
                         <a class="btn" data-cvs-open-final href="#" target="_blank" rel="noopener">CV öffnen</a>
+                        <button type="button" class="btn btn--ghost" data-cvs-print>Drucken / PDF</button>
                         <button type="button" class="btn btn--ghost" data-cvs-open-library>Meine CVs</button>
                         <button type="button" class="btn btn--ghost" data-cvs-restart>Neu starten</button>
                     </div>

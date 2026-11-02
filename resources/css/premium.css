@@ -9154,3 +9154,13 @@ body.lp-busy { overflow: hidden; }
 .ins__chosen { display:flex; align-items:center; gap:.55rem; flex-wrap:wrap; margin:0 0 .85rem; padding:.65rem .8rem; border-radius:12px; background:#f4f9fc; border:1px solid var(--ins-line,#d7e3ec); font-size:.9rem; color:var(--ins-muted,#5a6b78); }
 .ins__chosen strong { color:#163246; }
 .ins__pick-list { display:none !important; }
+
+/* CV review templates + print / layout chips */
+.cvs__templates--compact { margin:0 0 .75rem; }
+.cvs__templates--compact .cvs__tpl { padding:.55rem .65rem; }
+.cvs__templates--compact .cvs__tpl span { font-size:.75rem; }
+.cvs__chips { display:flex; flex-wrap:wrap; gap:.4rem; margin:0 0 .85rem; }
+.cvs__chip { border:1px solid var(--cvs-line,#d7e3ec); background:#fff; border-radius:999px; padding:.35rem .75rem; font-size:.82rem; cursor:pointer; color:#163246; }
+.cvs__chip.is-on, .cvs__chip:hover { border-color:var(--cvs-ink,#0E4971); background:var(--cvs-soft,#eef5fa); }
+.cvs__layout-chips[hidden] { display:none !important; }
+.cvs__mini-label { margin:.35rem 0 .4rem; font-size:.72rem; letter-spacing:.1em; text-transform:uppercase; color:var(--cvs-muted,#5a6b78); }

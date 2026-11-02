@@ -224,11 +224,21 @@ class CvController extends Controller
         return back()->with('success', 'KI-Inhalt eingefügt.');
     }
 
-    public function preview(Expert $expert, ExpertCv $cv): Response
+    public function preview(Request $request, Expert $expert, ExpertCv $cv): Response
     {
         abort_if((int) $cv->expert_id !== (int) $expert->id, 404);
 
-        return response($this->cvs->renderHtml($cv))->header('Content-Type', 'text/html; charset=UTF-8');
+        $html = $this->cvs->renderHtml($cv);
+        if ($request->boolean('print')) {
+            $html = preg_replace(
+                '/<\/body>/i',
+                '<script>window.addEventListener("load",function(){setTimeout(function(){window.print()},200)});</script></body>',
+                $html,
+                1
+            ) ?: $html;
+        }
+
+        return response($html)->header('Content-Type', 'text/html; charset=UTF-8');
     }
 
     public function finalize(Expert $expert, ExpertCv $cv): JsonResponse|RedirectResponse
