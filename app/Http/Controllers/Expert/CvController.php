@@ -44,6 +44,7 @@ class CvController extends Controller
             'suggest_template' => route('expert.cv.suggest-template'),
             'invent_design' => route('expert.cv.invent-design'),
             'live_preview' => route('expert.cv.live-preview'),
+            'pdf' => route('expert.cv.pdf', ['cv' => '__ID__']),
         ];
         $boot['initial_cv_id'] = $request->integer('cv') ?: null;
 
@@ -135,6 +136,7 @@ class CvController extends Controller
             'template_label' => CvGeneratorService::TEMPLATES[$design['template_key']] ?? $design['template_key'],
             'accent_color' => $design['accent_color'],
             'layout' => $design['layout'],
+            'label' => $design['label'] ?? 'KI-Design',
         ]);
     }
 
@@ -249,17 +251,24 @@ class CvController extends Controller
         $expert = Auth::user()?->resolvePortalExpert();
         abort_if($expert === null || (int) $cv->expert_id !== (int) $expert->id, 403);
 
-        $html = $this->cvs->renderHtml($cv);
-        if ($request->boolean('print')) {
-            $html = preg_replace(
-                '/<\/body>/i',
-                '<script>window.addEventListener("load",function(){setTimeout(function(){window.print()},200)});</script></body>',
-                $html,
-                1
-            ) ?: $html;
-        }
+        return response($this->cvs->renderHtml($cv))->header('Content-Type', 'text/html; charset=UTF-8');
+    }
 
-        return response($html)->header('Content-Type', 'text/html; charset=UTF-8');
+    public function pdf(ExpertCv $cv)
+    {
+        $expert = Auth::user()?->resolvePortalExpert();
+        abort_if($expert === null || (int) $cv->expert_id !== (int) $expert->id, 403);
+
+        $binary = $this->cvs->pdfBinary($cv);
+        $filename = 'Lebenslauf-'.preg_replace('/[^A-Za-z0-9_-]+/', '-', (string) ($cv->title ?: 'CV')).'.pdf';
+
+        // Persist for library download
+        $this->cvs->syncArtifacts($cv);
+
+        return response($binary, 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'attachment; filename="'.$filename.'"',
+        ]);
     }
 
     public function finalize(ExpertCv $cv): JsonResponse|RedirectResponse

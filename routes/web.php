@@ -186,6 +186,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin'])->grou
     Route::put('/experten/{expert}/cv/{cv}', [AdminCvController::class, 'update'])->name('experts.cv.update');
     Route::post('/experten/{expert}/cv/{cv}/ki', [AdminCvController::class, 'generateAi'])->name('experts.cv.generate-ai');
     Route::get('/experten/{expert}/cv/{cv}/vorschau', [AdminCvController::class, 'preview'])->name('experts.cv.preview');
+    Route::get('/experten/{expert}/cv/{cv}/pdf', [AdminCvController::class, 'pdf'])->name('experts.cv.pdf');
     Route::post('/experten/{expert}/cv/{cv}/finalisieren', [AdminCvController::class, 'finalize'])->name('experts.cv.finalize');
     Route::delete('/experten/{expert}/cv/{cv}', [AdminCvController::class, 'destroy'])->name('experts.cv.destroy');
 
@@ -267,6 +268,7 @@ Route::prefix('expert')->name('expert.')->middleware(['auth', 'role:expert', 'ex
     Route::put('/lebenslauf/{cv}', [ExpertCvController::class, 'update'])->name('cv.update');
     Route::post('/lebenslauf/{cv}/ki', [ExpertCvController::class, 'generateAi'])->name('cv.generate-ai');
     Route::get('/lebenslauf/{cv}/vorschau', [ExpertCvController::class, 'preview'])->name('cv.preview');
+    Route::get('/lebenslauf/{cv}/pdf', [ExpertCvController::class, 'pdf'])->name('cv.pdf');
     Route::post('/lebenslauf/{cv}/finalisieren', [ExpertCvController::class, 'finalize'])->name('cv.finalize');
     Route::delete('/lebenslauf/{cv}', [ExpertCvController::class, 'destroy'])->name('cv.destroy');
 });

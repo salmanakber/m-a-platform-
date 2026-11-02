@@ -7,6 +7,8 @@ use App\Models\ExpertCv;
 use App\Services\AI\AIManager;
 use App\Support\ProfessionalGroup;
 use App\Support\TextLines;
+use Dompdf\Dompdf;
+use Dompdf\Options;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 
@@ -132,32 +134,78 @@ class CvGeneratorService
         }
         $cv->update($data);
         $cv = $cv->fresh();
-        $this->syncRenderedHtml($cv);
+        // Fast HTML snapshot on every save; PDF is generated on download/finalize.
+        $this->syncHtmlPreview($cv);
 
         return $cv->fresh();
     }
 
-    /** Rewrite stored HTML so library / Ansehen always matches the latest design. */
-    public function syncRenderedHtml(ExpertCv $cv): ExpertCv
+    /** Lightweight HTML snapshot for library/preview caching. */
+    public function syncHtmlPreview(ExpertCv $cv): ExpertCv
     {
-        $html = $this->renderHtml($cv);
         Storage::disk('public')->makeDirectory('experts/cvs');
-        $path = $cv->pdf_path ?: ('experts/cvs/cv-'.$cv->expert_id.'-'.$cv->id.'.html');
-        Storage::disk('public')->put($path, $html);
+        $htmlPath = 'experts/cvs/cv-'.$cv->expert_id.'-'.$cv->id.'.html';
+        Storage::disk('public')->put($htmlPath, $this->renderHtml($cv));
 
-        $updates = [];
-        if ($cv->pdf_path !== $path) {
-            $updates['pdf_path'] = $path;
-        }
-        if ($updates !== []) {
-            $cv->update($updates);
-            $cv = $cv->fresh();
-        }
+        return $cv;
+    }
+
+    /** Generate real A4 PDF (+ HTML) and store path on the CV. */
+    public function syncArtifacts(ExpertCv $cv): ExpertCv
+    {
+        Storage::disk('public')->makeDirectory('experts/cvs');
+        $base = 'experts/cvs/cv-'.$cv->expert_id.'-'.$cv->id;
+        $htmlPath = $base.'.html';
+        $pdfPath = $base.'.pdf';
+
+        Storage::disk('public')->put($htmlPath, $this->renderHtml($cv));
+        Storage::disk('public')->put($pdfPath, $this->pdfBinary($cv));
+
+        $cv->update(['pdf_path' => $pdfPath]);
+        $cv = $cv->fresh();
+
         if ($cv->status === 'ready') {
-            $cv->expert?->update(['cv_path' => $path]);
+            $cv->expert?->update(['cv_path' => $pdfPath]);
         }
 
         return $cv;
+    }
+
+    /** @deprecated */
+    public function syncRenderedHtml(ExpertCv $cv): ExpertCv
+    {
+        return $this->syncHtmlPreview($cv);
+    }
+
+    public function renderPdfHtml(ExpertCv $cv): string
+    {
+        $cv->loadMissing('expert');
+        $payload = $cv->payload ?? [];
+        if (empty($payload['accent_color'])) {
+            $payload['accent_color'] = '#0E4971';
+        }
+
+        return view('cv.pdf', [
+            'cv' => $cv,
+            'expert' => $cv->expert,
+            'payload' => $payload,
+            'accent' => $payload['accent_color'],
+        ])->render();
+    }
+
+    public function pdfBinary(ExpertCv $cv): string
+    {
+        $options = new Options();
+        $options->set('isRemoteEnabled', true);
+        $options->set('isHtml5ParserEnabled', true);
+        $options->set('defaultFont', 'DejaVu Sans');
+
+        $dompdf = new Dompdf($options);
+        $dompdf->loadHtml($this->renderPdfHtml($cv), 'UTF-8');
+        $dompdf->setPaper('A4', 'portrait');
+        $dompdf->render();
+
+        return $dompdf->output();
     }
 
     /** Kept for UI labels / optional single-field regen. */
@@ -336,6 +384,12 @@ class CvGeneratorService
     public function toStudioArray(ExpertCv $cv): array
     {
         $updatedTs = optional($cv->updated_at)->timestamp ?: time();
+        $pdfPath = $cv->pdf_path;
+        $isPdf = is_string($pdfPath) && str_ends_with(strtolower($pdfPath), '.pdf');
+        $studioStep = (int) (($cv->payload['studio_step'] ?? 1) ?: 1);
+        if ($studioStep < 1 || $studioStep > 3) {
+            $studioStep = 1;
+        }
 
         return [
             'id' => $cv->id,
@@ -343,8 +397,10 @@ class CvGeneratorService
             'template_key' => $cv->template_key,
             'status' => $cv->status,
             'payload' => $cv->payload ?? [],
-            'pdf_url' => $cv->pdf_path ? asset('storage/'.$cv->pdf_path).'?v='.$updatedTs : null,
-            'has_file' => (bool) $cv->pdf_path,
+            'studio_step' => $studioStep,
+            'pdf_url' => ($isPdf && $pdfPath) ? asset('storage/'.$pdfPath).'?v='.$updatedTs : null,
+            'has_pdf' => $isPdf,
+            'has_file' => (bool) $pdfPath,
             'updated_at' => optional($cv->updated_at)->toIso8601String(),
             'updated_label' => optional($cv->updated_at)->format('d.m.Y H:i'),
         ];
@@ -380,51 +436,31 @@ class CvGeneratorService
     }
 
     /**
-     * AI invents layout primitives for the flexible ai_design template (fast, no content rewrite).
+     * Instant design invent (curated presets — no slow AI round-trip).
      *
      * @param  array<string, mixed>  $payload
-     * @return array{template_key: string, accent_color: string, layout: array<string, string>}
+     * @return array{template_key: string, accent_color: string, layout: array<string, string>, label: string}
      */
     public function inventDesign(Expert $expert, array $payload = []): array
     {
         $presets = [
-            ['accent_color' => '#0E4971', 'layout' => ['style' => 'sidebar_left', 'density' => 'normal', 'type_mood' => 'sans']],
-            ['accent_color' => '#0B6E4F', 'layout' => ['style' => 'banner', 'density' => 'airy', 'type_mood' => 'mixed']],
-            ['accent_color' => '#1E3A5F', 'layout' => ['style' => 'split', 'density' => 'normal', 'type_mood' => 'serif']],
-            ['accent_color' => '#7C2D12', 'layout' => ['style' => 'sidebar_right', 'density' => 'compact', 'type_mood' => 'sans']],
-            ['accent_color' => '#0F766E', 'layout' => ['style' => 'centered', 'density' => 'airy', 'type_mood' => 'serif']],
+            ['label' => 'Sidebar links · Nachtblau', 'accent_color' => '#0E4971', 'layout' => ['style' => 'sidebar_left', 'density' => 'normal', 'type_mood' => 'sans']],
+            ['label' => 'Banner · Smaragd', 'accent_color' => '#0B6E4F', 'layout' => ['style' => 'banner', 'density' => 'airy', 'type_mood' => 'mixed']],
+            ['label' => 'Zweispalter · Navy', 'accent_color' => '#1E3A5F', 'layout' => ['style' => 'split', 'density' => 'normal', 'type_mood' => 'serif']],
+            ['label' => 'Sidebar rechts · Terrakotta', 'accent_color' => '#7C2D12', 'layout' => ['style' => 'sidebar_right', 'density' => 'compact', 'type_mood' => 'sans']],
+            ['label' => 'Zentriert · Petrol', 'accent_color' => '#0F766E', 'layout' => ['style' => 'centered', 'density' => 'airy', 'type_mood' => 'serif']],
+            ['label' => 'Banner kompakt · Bernstein', 'accent_color' => '#B45309', 'layout' => ['style' => 'banner', 'density' => 'compact', 'type_mood' => 'sans']],
         ];
-        $fallback = $presets[array_rand($presets)];
 
-        $prompt = "Entwirf ein CV-Layout für einen Schweizer Experten. Antworte NUR mit JSON:\n"
-            ."{\"accent_color\":\"#RRGGBB\",\"layout\":{\"style\":\"sidebar_left|sidebar_right|banner|centered|split\",\"density\":\"airy|normal|compact\",\"type_mood\":\"sans|serif|mixed\"}}\n"
-            .'Fachgruppe: '.ProfessionalGroup::label($expert->professional_group ?? ProfessionalGroup::MA_SPECIALIST)."\n"
-            .'Name: '.($payload['full_name'] ?? $expert->publicDisplayName())."\n"
-            .'Headline: '.($payload['headline'] ?? '');
-
-        try {
-            $parsed = $this->parseJsonObject(trim($this->ai->complete($prompt, 'cv_invent_design'))) ?? [];
-        } catch (\Throwable) {
-            $parsed = [];
-        }
-
-        if ($parsed === []) {
-            return [
-                'template_key' => 'ai_design',
-                'accent_color' => $fallback['accent_color'],
-                'layout' => $this->normalizeLayout($fallback['layout']),
-            ];
-        }
-
-        $accent = (string) ($parsed['accent_color'] ?? $fallback['accent_color']);
-        if (! preg_match('/^#[0-9A-Fa-f]{6}$/', $accent)) {
-            $accent = $fallback['accent_color'];
-        }
+        $seed = ($payload['full_name'] ?? $expert->publicDisplayName()).'|'.microtime(true);
+        $idx = abs(crc32($seed)) % count($presets);
+        $pick = $presets[$idx];
 
         return [
             'template_key' => 'ai_design',
-            'accent_color' => strtoupper($accent),
-            'layout' => $this->normalizeLayout($parsed['layout'] ?? $fallback['layout']),
+            'accent_color' => $pick['accent_color'],
+            'layout' => $this->normalizeLayout($pick['layout']),
+            'label' => $pick['label'],
         ];
     }
 
@@ -477,7 +513,7 @@ class CvGeneratorService
     public function finalize(ExpertCv $cv): ExpertCv
     {
         $cv->update(['status' => 'ready']);
-        $cv = $this->syncRenderedHtml($cv->fresh());
+        $cv = $this->syncArtifacts($cv->fresh());
         $cv->expert?->update(['cv_path' => $cv->pdf_path]);
 
         return $cv->fresh();

@@ -6,7 +6,7 @@
         <div class="cvs__hero-copy">
             <p class="cvs__kicker">Lebenslauf</p>
             <h1>CV in 3 Schritten</h1>
-            <p>Angaben prüfen → Vorlage wählen → mit KI in unter einer Minute erzeugen und feinschleifen.</p>
+            <p>Angaben prüfen → Vorlage wählen → mit KI erzeugen, speichern und als PDF herunterladen.</p>
         </div>
         <div class="cvs__hero-person">
             <div class="cvs__avatar" data-cvs-avatar>
@@ -23,6 +23,17 @@
         </div>
     </header>
 
+    <div class="cvs__resume" data-cvs-resume hidden>
+        <div>
+            <strong>Entwurf fortsetzen</strong>
+            <p data-cvs-resume-text>Sie haben einen offenen Entwurf — genau dort weitermachen, wo Sie aufgehört haben.</p>
+        </div>
+        <div class="cvs__resume-actions">
+            <button type="button" class="btn" data-cvs-resume-continue>Fortsetzen</button>
+            <button type="button" class="btn btn--ghost btn--small" data-cvs-resume-dismiss>Neu starten</button>
+        </div>
+    </div>
+
     <div class="cvs__layout">
         <aside class="cvs__rail" aria-label="Navigation">
             <ol class="cvs__steps" data-cvs-nav>
@@ -31,6 +42,7 @@
                 <li data-step-nav="3"><em>3</em><span>Bearbeiten</span></li>
                 <li data-step-nav="library"><em>·</em><span>Meine CVs</span></li>
             </ol>
+            <button type="button" class="btn btn--ghost btn--small cvs__rail-explore" data-cvs-save-draft>Entwurf speichern</button>
             <button type="button" class="btn btn--ghost btn--small cvs__rail-explore" data-cvs-open-library>Gespeicherte CVs</button>
         </aside>
 
@@ -96,12 +108,20 @@
                         </div>
                     </div>
                     <div class="cvs__design-preview">
-                        <div class="cvs__preview-wrap cvs__preview-wrap--live">
-                            <iframe class="cvs__preview" data-cvs-live-preview title="Live-Design-Vorschau"></iframe>
+                        <div class="cvs__preview-toolbar">
+                            <span>Live-Vorschau</span>
+                            <div class="cvs__zoom" data-cvs-zoom>
+                                <button type="button" class="btn btn--ghost btn--small" data-cvs-zoom-out title="Verkleinern">−</button>
+                                <em data-cvs-zoom-label>70%</em>
+                                <button type="button" class="btn btn--ghost btn--small" data-cvs-zoom-in title="Vergrössern">+</button>
+                            </div>
+                        </div>
+                        <div class="cvs__preview-wrap cvs__preview-wrap--live" data-cvs-live-frame>
+                            <iframe class="cvs__preview cvs__preview--scaled" data-cvs-live-preview title="Live-Design-Vorschau"></iframe>
                         </div>
                         <div class="cvs__gen-overlay" data-cvs-gen-overlay hidden>
                             <div class="cvs__gen-card">
-                                <div class="cvs__pulse" aria-hidden="true"><span></span><span></span><span></span></div>
+                                <div class="cvs__loader" aria-hidden="true"><i></i></div>
                                 <strong data-cvs-progress-title>KI schreibt Ihren Lebenslauf…</strong>
                                 <p data-cvs-progress-sub>Ein Durchgang · bitte Seite nicht aktualisieren</p>
                                 <div class="cvs__bar"><i data-cvs-bar></i></div>
@@ -110,6 +130,13 @@
                                     <span class="cvs__wait-badge" data-cvs-eta-badge>~0:45</span>
                                 </div>
                                 <p class="cvs__eta-line" data-cvs-eta-text>Geschätzte Dauer: ca. 30–60 Sekunden.</p>
+                            </div>
+                        </div>
+                        <div class="cvs__gen-overlay cvs__gen-overlay--design" data-cvs-design-overlay hidden>
+                            <div class="cvs__gen-card">
+                                <div class="cvs__loader" aria-hidden="true"><i></i></div>
+                                <strong>Design wird vorbereitet…</strong>
+                                <p>Layout &amp; Farbe werden angewendet — dauert nur einen Moment.</p>
                             </div>
                         </div>
                     </div>
@@ -124,7 +151,8 @@
                     </div>
                     <div class="cvs__panel-tools">
                         <button type="button" class="btn btn--ghost btn--small" data-cvs-refresh-preview>Vorschau</button>
-                        <button type="button" class="btn btn--ghost btn--small" data-cvs-print>Drucken</button>
+                        <button type="button" class="btn btn--ghost btn--small" data-cvs-save-draft>Entwurf speichern</button>
+                        <button type="button" class="btn btn--ghost btn--small" data-cvs-print>PDF herunterladen</button>
                         <button type="button" class="btn btn--small" data-cvs-finalize>Finalisieren</button>
                     </div>
                 </div>
@@ -147,22 +175,33 @@
                         <label class="cvs__field"><span>Sprachen</span><textarea name="languages" rows="2"></textarea></label>
                         <div class="cvs__actions">
                             <button type="button" class="btn btn--ghost" data-cvs-prev="2">Design</button>
+                            <button type="button" class="btn btn--ghost" data-cvs-save-draft>Entwurf speichern</button>
                             <button type="button" class="btn btn--ghost" data-cvs-save-review>Speichern</button>
-                            <button type="button" class="btn btn--ghost" data-cvs-print>Drucken</button>
+                            <button type="button" class="btn btn--ghost" data-cvs-print>PDF</button>
                             <button type="button" class="btn" data-cvs-finalize>Finalisieren</button>
                         </div>
                     </form>
-                    <div class="cvs__preview-wrap">
-                        <iframe class="cvs__preview" data-cvs-preview title="CV-Vorschau"></iframe>
+                    <div class="cvs__preview-side">
+                        <div class="cvs__preview-toolbar">
+                            <span>Vorschau</span>
+                            <div class="cvs__zoom" data-cvs-zoom-review>
+                                <button type="button" class="btn btn--ghost btn--small" data-cvs-zoom-out-review>−</button>
+                                <em data-cvs-zoom-label-review>70%</em>
+                                <button type="button" class="btn btn--ghost btn--small" data-cvs-zoom-in-review>+</button>
+                            </div>
+                        </div>
+                        <div class="cvs__preview-wrap cvs__preview-wrap--review" data-cvs-review-frame>
+                            <iframe class="cvs__preview cvs__preview--scaled" data-cvs-preview title="CV-Vorschau"></iframe>
+                        </div>
                     </div>
                 </div>
                 <div class="cvs__done cvs__done--inline" data-cvs-done-block hidden>
                     <div class="cvs__done-badge" aria-hidden="true">✓</div>
                     <h2>Lebenslauf bereit</h2>
-                    <p data-cvs-done-msg>Öffnen oder als PDF drucken (Browser → Speichern als PDF).</p>
+                    <p data-cvs-done-msg>Als saubere A4-PDF herunterladen oder weiter bearbeiten.</p>
                     <div class="cvs__actions" style="justify-content:center;">
                         <a class="btn" data-cvs-open-final href="#" target="_blank" rel="noopener">CV öffnen</a>
-                        <button type="button" class="btn btn--ghost" data-cvs-print>Drucken / PDF</button>
+                        <button type="button" class="btn" data-cvs-print>PDF herunterladen</button>
                         <button type="button" class="btn btn--ghost" data-cvs-open-library>Meine CVs</button>
                         <button type="button" class="btn btn--ghost" data-cvs-restart>Neu starten</button>
                     </div>

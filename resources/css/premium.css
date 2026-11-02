@@ -9164,3 +9164,22 @@ body.lp-busy { overflow: hidden; }
 .cvs__chip.is-on, .cvs__chip:hover { border-color:var(--cvs-ink,#0E4971); background:var(--cvs-soft,#eef5fa); }
 .cvs__layout-chips[hidden] { display:none !important; }
 .cvs__mini-label { margin:.35rem 0 .4rem; font-size:.72rem; letter-spacing:.1em; text-transform:uppercase; color:var(--cvs-muted,#5a6b78); }
+
+/* CV PDF / zoom / draft resume / invent loader */
+.cvs__resume { display:flex; justify-content:space-between; gap:1rem; align-items:center; margin:0 0 1rem; padding:.9rem 1.05rem; border-radius:14px; background:#fff8e8; border:1px solid rgba(180,120,20,.28); }
+.cvs__resume[hidden] { display:none !important; }
+.cvs__resume strong { display:block; color:#8a5a12; }
+.cvs__resume p { margin:.2rem 0 0; color:#6b4a10; font-size:.9rem; }
+.cvs__resume-actions { display:flex; gap:.45rem; flex-wrap:wrap; }
+.cvs__preview-toolbar { display:flex; justify-content:space-between; align-items:center; gap:.75rem; margin:0 0 .45rem; font-size:.78rem; color:var(--cvs-muted,#5a6b78); text-transform:uppercase; letter-spacing:.08em; }
+.cvs__zoom { display:flex; align-items:center; gap:.35rem; }
+.cvs__zoom em { font-style:normal; min-width:2.6rem; text-align:center; font-weight:700; color:var(--cvs-ink,#0E4971); text-transform:none; letter-spacing:0; }
+.cvs__preview-wrap--live, .cvs__preview-wrap--review { overflow:hidden; background:#dbe4ec; min-height:640px; height:min(78vh,820px); position:relative; }
+.cvs__preview--scaled { position:absolute; top:0; left:0; border:0; background:#fff; transform-origin:top left; }
+.cvs__preview-side { min-width:0; }
+.cvs__loader { width:42px; height:42px; margin:0 auto .35rem; border-radius:50%; border:3px solid rgba(14,73,113,.15); border-top-color:#0E4971; animation:cvsSpin .8s linear infinite; }
+.cvs__loader i { display:none; }
+@keyframes cvsSpin { to { transform:rotate(360deg); } }
+.cvs.is-inventing .cvs__design-controls { pointer-events:none; opacity:.55; }
+.cvs__gen-overlay--design .cvs__gen-card { text-align:center; }
+.cvs__rail-explore + .cvs__rail-explore { margin-top:.4rem; }

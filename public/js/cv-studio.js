@@ -27,10 +27,13 @@
         layout: { style: 'centered', density: 'normal', type_mood: 'sans' },
         notes: '',
         generating: false,
+        inventing: false,
         saveTimer: null,
         liveTimer: null,
         etaTimer: null,
         genStartedAt: 0,
+        zoomLive: 0.7,
+        zoomReview: 0.7,
     };
 
     var profileForm = root.querySelector('[data-cvs-form-profile]');
@@ -41,6 +44,8 @@
     var preview = root.querySelector('[data-cvs-preview]');
     var livePreview = root.querySelector('[data-cvs-live-preview]');
     var overlay = root.querySelector('[data-cvs-gen-overlay]');
+    var designOverlay = root.querySelector('[data-cvs-design-overlay]');
+    var resumeBanner = root.querySelector('[data-cvs-resume]');
 
     function url(key, id) {
         return String(urls[key] || '').replace('__ID__', id != null ? id : (state.cv && state.cv.id) || '');
@@ -105,7 +110,8 @@
         return p;
     }
 
-    function setStep(n) {
+    function setStep(n, opts) {
+        opts = opts || {};
         state.step = n;
         root.querySelectorAll('[data-cvs-panel]').forEach(function (panel) {
             var id = panel.getAttribute('data-cvs-panel');
@@ -120,9 +126,41 @@
                 li.classList.toggle('is-done', parseInt(id, 10) < parseInt(n, 10));
             }
         });
-        if (n === 2) scheduleLivePreview(true);
-        if (n === 3) refreshPreview();
+        if (n === 2) {
+            applyZoom('live');
+            scheduleLivePreview(true);
+        }
+        if (n === 3) {
+            applyZoom('review');
+            refreshPreview();
+        }
         if (n === 'library') renderLibrary();
+        if (!opts.skipSave && state.cv && (n === 1 || n === 2 || n === 3)) {
+            persistDraftQuiet(n);
+        }
+    }
+
+    function applyZoom(which) {
+        var scale = which === 'review' ? state.zoomReview : state.zoomLive;
+        var frame = root.querySelector(which === 'review' ? '[data-cvs-review-frame]' : '[data-cvs-live-frame]');
+        var iframe = which === 'review' ? preview : livePreview;
+        var label = root.querySelector(which === 'review' ? '[data-cvs-zoom-label-review]' : '[data-cvs-zoom-label]');
+        if (label) label.textContent = Math.round(scale * 100) + '%';
+        if (!frame || !iframe) return;
+        frame.style.setProperty('--cvs-zoom', String(scale));
+        iframe.style.width = (100 / scale) + '%';
+        iframe.style.height = (100 / scale) + '%';
+        iframe.style.transform = 'scale(' + scale + ')';
+        iframe.style.transformOrigin = 'top left';
+    }
+
+    function bumpZoom(which, delta) {
+        if (which === 'review') {
+            state.zoomReview = Math.max(0.45, Math.min(1, +(state.zoomReview + delta).toFixed(2)));
+        } else {
+            state.zoomLive = Math.max(0.45, Math.min(1, +(state.zoomLive + delta).toFixed(2)));
+        }
+        applyZoom(which);
     }
 
     function templateHint(key) {
@@ -230,10 +268,12 @@
         renderLibrary();
     }
 
-    function previewHref(cvId, print) {
-        var href = url('preview', cvId) + '?t=' + Date.now();
-        if (print) href += '&print=1';
-        return href;
+    function previewHref(cvId) {
+        return url('preview', cvId) + '?t=' + Date.now();
+    }
+
+    function pdfHref(cvId) {
+        return url('pdf', cvId) + '?t=' + Date.now();
     }
 
     function renderLibrary() {
@@ -247,17 +287,18 @@
         box.innerHTML = list.map(function (cv) {
             var accent = (cv.payload && cv.payload.accent_color) || '#0E4971';
             var active = state.cv && state.cv.id === cv.id ? ' is-on' : '';
+            var status = cv.status === 'ready' ? 'Final' : ('Entwurf · Schritt ' + (cv.studio_step || 1));
             return (
                 '<article class="cvs__card' + active + '">' +
                 '<div class="cvs__card-swatch" style="background:' + escapeHtml(accent) + '"></div>' +
                 '<div class="cvs__card-body">' +
                 '<strong>' + escapeHtml(cv.title || 'Lebenslauf') + '</strong>' +
-                '<span>' + escapeHtml((templates[cv.template_key] || cv.template_key) + ' · ' + (cv.status === 'ready' ? 'Final' : 'Entwurf') + ' · ' + (cv.updated_label || '')) + '</span>' +
+                '<span>' + escapeHtml((templates[cv.template_key] || cv.template_key) + ' · ' + status + ' · ' + (cv.updated_label || '')) + '</span>' +
                 '</div>' +
                 '<div class="cvs__card-actions">' +
-                '<button type="button" class="btn btn--small" data-load-cv="' + cv.id + '">Bearbeiten</button>' +
-                '<a class="btn btn--ghost btn--small" href="' + escapeHtml(previewHref(cv.id, false)) + '" target="_blank" rel="noopener">Vorschau</a>' +
-                '<a class="btn btn--ghost btn--small" href="' + escapeHtml(previewHref(cv.id, true)) + '" target="_blank" rel="noopener">Drucken</a>' +
+                '<button type="button" class="btn btn--small" data-load-cv="' + cv.id + '">' + (cv.status === 'draft' ? 'Fortsetzen' : 'Bearbeiten') + '</button>' +
+                '<a class="btn btn--ghost btn--small" href="' + escapeHtml(previewHref(cv.id)) + '" target="_blank" rel="noopener">Vorschau</a>' +
+                '<a class="btn btn--ghost btn--small" href="' + escapeHtml(pdfHref(cv.id)) + '" target="_blank" rel="noopener">PDF</a>' +
                 '<button type="button" class="btn btn--ghost btn--small" data-del-cv="' + cv.id + '">Löschen</button>' +
                 '</div></article>'
             );
@@ -308,6 +349,7 @@
         });
         if (!res.ok) throw new Error('Live-Vorschau fehlgeschlagen');
         livePreview.srcdoc = await res.text();
+        applyZoom('live');
     }
 
     function scheduleLivePreview(immediate) {
@@ -377,28 +419,66 @@
         });
     }
 
-    async function ensureDraft() {
+    async function ensureDraft(stepOverride) {
         var payload = payloadFromForms();
         var body = Object.assign({}, payload, {
             template_key: state.template,
             accent_color: state.color,
             layout: state.layout,
+            studio_step: stepOverride != null ? stepOverride : (typeof state.step === 'number' ? state.step : 1),
             title: (readForm(reviewForm).title) || ('Lebenslauf — ' + ((boot.expert && boot.expert.display_name) || '')),
         });
         if (state.cv && state.cv.id) {
             var updated = await api('PUT', url('update', state.cv.id), body);
             state.cv = updated.cv;
             upsertCvInList(state.cv);
+            boot.resume_cv = state.cv.status === 'draft' ? state.cv : boot.resume_cv;
             return state.cv;
         }
         var created = await api('POST', urls.store, body);
         state.cv = created.cv;
         upsertCvInList(state.cv);
+        boot.resume_cv = state.cv;
         return state.cv;
     }
 
     function saveDesignQuiet() {
         ensureDraft().catch(function () {});
+    }
+
+    function persistDraftQuiet(step) {
+        clearTimeout(state.saveTimer);
+        state.saveTimer = setTimeout(function () {
+            ensureDraft(step).catch(function () {});
+        }, 450);
+    }
+
+    async function saveDraftExplicit() {
+        try {
+            await ensureDraft(typeof state.step === 'number' ? state.step : 3);
+            toast('Entwurf gespeichert — Sie können später fortsetzen', 'ok');
+            showResumeBanner();
+        } catch (err) {
+            toast(err.message || 'Entwurf speichern fehlgeschlagen', 'error');
+        }
+    }
+
+    function showResumeBanner() {
+        if (!resumeBanner || !boot.resume_cv || (state.cv && state.cv.id === boot.resume_cv.id && state.step !== 1)) {
+            if (resumeBanner && state.cv) resumeBanner.hidden = true;
+            return;
+        }
+        var draft = boot.resume_cv;
+        if (!draft || draft.status === 'ready') {
+            resumeBanner.hidden = true;
+            return;
+        }
+        var text = root.querySelector('[data-cvs-resume-text]');
+        if (text) {
+            text.textContent = (draft.title || 'Lebenslauf') + ' · Schritt ' + (draft.studio_step || 1) +
+                ' · zuletzt ' + (draft.updated_label || '');
+        }
+        resumeBanner.hidden = false;
     }
 
     async function runGeneration() {
@@ -463,12 +543,13 @@
     }
 
     async function saveReview() {
-        if (!state.cv) await ensureDraft();
+        if (!state.cv) await ensureDraft(3);
         var payload = payloadFromForms();
         var body = Object.assign({}, payload, {
             template_key: state.template,
             accent_color: state.color,
             layout: state.layout,
+            studio_step: 3,
             title: readForm(reviewForm).title || state.cv.title,
         });
         var res = await api('PUT', url('update', state.cv.id), body);
@@ -487,7 +568,8 @@
 
     function refreshPreview() {
         if (!preview || !state.cv) return;
-        preview.src = previewHref(state.cv.id, false);
+        preview.src = previewHref(state.cv.id);
+        applyZoom('review');
     }
 
     async function printCv() {
@@ -497,9 +579,10 @@
         }
         try {
             await saveReview();
-            window.open(previewHref(state.cv.id, true), '_blank', 'noopener');
+            toast('PDF wird erzeugt…', 'ok');
+            window.location.href = pdfHref(state.cv.id);
         } catch (err) {
-            toast(err.message || 'Druckvorschau fehlgeschlagen', 'error');
+            toast(err.message || 'PDF fehlgeschlagen', 'error');
         }
     }
 
@@ -509,16 +592,18 @@
             var res = await api('POST', url('finalize', state.cv.id));
             state.cv = res.cv;
             upsertCvInList(state.cv);
+            if (boot.resume_cv && boot.resume_cv.id === state.cv.id) boot.resume_cv = null;
+            showResumeBanner();
             var block = root.querySelector('[data-cvs-done-block]');
             var open = root.querySelector('[data-cvs-open-final]');
             if (block) block.hidden = false;
-            if (open) open.href = previewHref(state.cv.id, false);
-            toast(res.message || 'Finalisiert — bereit zum Drucken', 'ok');
+            if (open) open.href = previewHref(state.cv.id);
+            toast(res.message || 'Finalisiert — PDF bereit', 'ok');
             refreshPreview();
         } catch (err) { toast(err.message || 'Finalisieren fehlgeschlagen', 'error'); }
     }
 
-    async function loadCv(id) {
+    async function loadCv(id, resumeStep) {
         if (!confirmLeaveIfGenerating()) return;
         try {
             var res = await api('GET', url('show', id));
@@ -526,13 +611,16 @@
             state.template = state.cv.template_key || 'classic';
             state.color = (state.cv.payload && state.cv.payload.accent_color) || '#0E4971';
             state.layout = (state.cv.payload && state.cv.payload.layout) || state.layout;
+            state.notes = (state.cv.payload && state.cv.payload.notes) || state.notes || '';
             fillForm(profileForm, state.cv.payload || {});
             fillForm(reviewForm, Object.assign({}, state.cv.payload || {}, { title: state.cv.title }));
             renderTemplates();
             renderColors();
-            setStep(3);
-            refreshPreview();
-            toast('CV geladen', 'ok');
+            var step = resumeStep != null ? resumeStep : (state.cv.studio_step || 3);
+            if (step < 1 || step > 3) step = 3;
+            if (resumeBanner) resumeBanner.hidden = true;
+            setStep(step, { skipSave: true });
+            toast(state.cv.status === 'draft' ? 'Entwurf fortgesetzt (Schritt ' + step + ')' : 'CV geladen', 'ok');
         } catch (err) { toast(err.message || 'Laden fehlgeschlagen', 'error'); }
     }
 
@@ -571,10 +659,14 @@
             toast('KI-Design-URL fehlt — Seite neu laden', 'error');
             return;
         }
+        if (state.inventing) return;
+        state.inventing = true;
         var btn = root.querySelector('[data-cvs-invent-design]');
         var label = root.querySelector('[data-cvs-invent-label]');
         if (btn) btn.disabled = true;
-        if (label) label.textContent = 'Entwirft…';
+        if (label) label.textContent = 'Wird geladen…';
+        if (designOverlay) designOverlay.hidden = false;
+        root.classList.add('is-inventing');
         try {
             var res = await api('POST', urls.invent_design, { payload: payloadFromForms() });
             state.template = 'ai_design';
@@ -582,22 +674,23 @@
             if (res.layout) state.layout = res.layout;
             renderTemplates();
             renderColors();
-            await ensureDraft();
+            await ensureDraft(2);
             scheduleLivePreview(true);
             if (state.step === 3) refreshPreview();
-            var styleLabel = (state.layout && state.layout.style) ? state.layout.style.replace(/_/g, ' ') : 'custom';
-            toast('KI-Design aktiv (' + styleLabel + ') — Vorschau aktualisiert', 'ok');
+            toast('Design bereit: ' + (res.label || 'KI-Design'), 'ok');
         } catch (err) {
-            // Local fallback so the button never feels broken
             state.template = 'ai_design';
             state.layout = { style: 'sidebar_left', density: 'normal', type_mood: 'sans' };
             state.color = '#0B6E4F';
             renderTemplates();
             renderColors();
-            try { await ensureDraft(); } catch (e2) {}
+            try { await ensureDraft(2); } catch (e2) {}
             scheduleLivePreview(true);
             toast((err && err.message ? err.message + ' — ' : '') + 'Fallback-Design geladen', 'ok');
         } finally {
+            state.inventing = false;
+            root.classList.remove('is-inventing');
+            if (designOverlay) designOverlay.hidden = true;
             if (btn) btn.disabled = false;
             if (label) label.textContent = 'KI erstellt Design';
         }
@@ -677,6 +770,9 @@
     root.querySelectorAll('[data-cvs-finalize]').forEach(function (btn) {
         btn.addEventListener('click', finalize);
     });
+    root.querySelectorAll('[data-cvs-save-draft]').forEach(function (btn) {
+        btn.addEventListener('click', function () { saveDraftExplicit(); });
+    });
     var saveBtn = root.querySelector('[data-cvs-save-review]');
     if (saveBtn) saveBtn.addEventListener('click', function () {
         saveReview().then(function () {
@@ -689,16 +785,43 @@
     if (reviewForm) {
         reviewForm.addEventListener('input', scheduleSaveReview);
     }
+    if (profileForm) {
+        profileForm.addEventListener('change', function () {
+            if (state.cv) persistDraftQuiet(1);
+        });
+    }
+
+    var zoomOut = root.querySelector('[data-cvs-zoom-out]');
+    var zoomIn = root.querySelector('[data-cvs-zoom-in]');
+    if (zoomOut) zoomOut.addEventListener('click', function () { bumpZoom('live', -0.1); });
+    if (zoomIn) zoomIn.addEventListener('click', function () { bumpZoom('live', 0.1); });
+    var zoomOutR = root.querySelector('[data-cvs-zoom-out-review]');
+    var zoomInR = root.querySelector('[data-cvs-zoom-in-review]');
+    if (zoomOutR) zoomOutR.addEventListener('click', function () { bumpZoom('review', -0.1); });
+    if (zoomInR) zoomInR.addEventListener('click', function () { bumpZoom('review', 0.1); });
+
+    var resumeContinue = root.querySelector('[data-cvs-resume-continue]');
+    if (resumeContinue) resumeContinue.addEventListener('click', function () {
+        if (boot.resume_cv) loadCv(boot.resume_cv.id, boot.resume_cv.studio_step || 1);
+    });
+    var resumeDismiss = root.querySelector('[data-cvs-resume-dismiss]');
+    if (resumeDismiss) resumeDismiss.addEventListener('click', function () {
+        if (resumeBanner) resumeBanner.hidden = true;
+        restart();
+    });
 
     bindLeaveGuard();
     fillForm(profileForm, boot.seed || {});
     renderTemplates();
     renderColors();
     renderLibrary();
+    applyZoom('live');
+    applyZoom('review');
 
     if (boot.initial_cv_id) {
         loadCv(boot.initial_cv_id);
     } else {
-        setStep(1);
+        setStep(1, { skipSave: true });
+        showResumeBanner();
     }
 })();
