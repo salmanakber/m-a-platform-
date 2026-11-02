@@ -16,6 +16,9 @@
     var steps = boot.steps || [];
     var templates = boot.templates || {};
     var colors = boot.colors || { '#0E4971': 'Nachtblau' };
+    var EST_TOTAL_SEC = 150; // ~2.5 minutes for 5 AI sections
+    var LEAVE_MSG = 'Die KI-Generierung läuft noch (ca. 2–3 Minuten). Wenn Sie die Seite aktualisieren oder verlassen, geht der aktuelle Fortschritt verloren.';
+
     var state = {
         step: 1,
         cv: null,
@@ -25,6 +28,10 @@
         generating: false,
         saveTimer: null,
         liveTimer: null,
+        etaTimer: null,
+        genStartedAt: 0,
+        genStepIndex: 0,
+        genStepTotal: 5,
     };
 
     var profileForm = root.querySelector('[data-cvs-form-profile]');
@@ -280,6 +287,64 @@
         if (s && sub) s.textContent = sub;
     }
 
+    function formatEta(sec) {
+        sec = Math.max(0, Math.round(sec));
+        var m = Math.floor(sec / 60);
+        var s = sec % 60;
+        return m + ':' + String(s).padStart(2, '0');
+    }
+
+    function updateEtaUi() {
+        var badge = root.querySelector('[data-cvs-eta-badge]');
+        var text = root.querySelector('[data-cvs-eta-text]');
+        if (!state.generating) {
+            if (badge) badge.textContent = 'Fertig';
+            if (text) text.textContent = 'Generierung abgeschlossen. Sie können fortfahren.';
+            return;
+        }
+        var elapsed = (Date.now() - state.genStartedAt) / 1000;
+        var perStep = EST_TOTAL_SEC / Math.max(1, state.genStepTotal);
+        var doneSteps = state.genStepIndex;
+        var remaining = Math.max(15, (state.genStepTotal - doneSteps) * perStep - (elapsed % perStep));
+        // Blend wall-clock estimate with step-based estimate
+        var wallRemain = Math.max(10, EST_TOTAL_SEC - elapsed);
+        remaining = Math.round((remaining + wallRemain) / 2);
+        if (badge) badge.textContent = '~' + formatEta(remaining);
+        if (text) {
+            text.textContent = 'Geschätzte Restzeit: ca. ' + formatEta(remaining) +
+                ' · Schritt ' + Math.min(doneSteps + 1, state.genStepTotal) + ' von ' + state.genStepTotal +
+                ' · Seite nicht aktualisieren oder schliessen.';
+        }
+    }
+
+    function startEtaTicker() {
+        stopEtaTicker();
+        state.genStartedAt = Date.now();
+        updateEtaUi();
+        state.etaTimer = setInterval(updateEtaUi, 1000);
+    }
+
+    function stopEtaTicker() {
+        if (state.etaTimer) clearInterval(state.etaTimer);
+        state.etaTimer = null;
+    }
+
+    function confirmLeaveIfGenerating() {
+        if (!state.generating) return true;
+        return window.confirm(
+            LEAVE_MSG + '\n\nTrotzdem fortfahren? Die laufende KI-Generierung wird abgebrochen.'
+        );
+    }
+
+    function bindLeaveGuard() {
+        window.addEventListener('beforeunload', function (e) {
+            if (!state.generating) return;
+            e.preventDefault();
+            e.returnValue = LEAVE_MSG;
+            return LEAVE_MSG;
+        });
+    }
+
     function buildGenStepsUi() {
         if (!genStepsEl) return;
         genStepsEl.innerHTML = steps.map(function (st) {
@@ -322,31 +387,52 @@
 
     async function runGeneration() {
         if (state.generating) return;
+        var okStart = window.confirm(
+            'KI-Generierung starten?\n\n' +
+            'Dauer: ca. 2–3 Minuten (5 Abschnitte nacheinander).\n' +
+            'Bitte Seite nicht aktualisieren und Tab nicht schliessen.\n\n' +
+            'Warum so lange? Jeder Abschnitt braucht einen eigenen KI-Aufruf — so bleibt die Qualität hoch.'
+        );
+        if (!okStart) return;
+
         state.generating = true;
+        state.genStepTotal = steps.length || 5;
+        state.genStepIndex = 0;
+        root.classList.add('is-generating');
         setStep(3);
         feedEl.innerHTML = '';
         buildGenStepsUi();
         root.querySelector('[data-cvs-gen-actions]').hidden = true;
-        setProgress(4, 'Entwurf wird vorbereitet…', 'Profil, Design & Farbe speichern');
+        startEtaTicker();
+        setProgress(4, 'Entwurf wird vorbereitet…', 'Profil, Design & Farbe speichern · Gesamt ca. 2,5 Min.');
+        logFeed('Hinweis: Gesamtdauer ca. 2–3 Minuten. Bitte warten.', 'working');
         logFeed('Profil und Design werden gespeichert…', 'working');
         try {
             await ensureDraft();
             logFeed('Entwurf #' + state.cv.id + ' bereit (' + (templates[state.template] || state.template) + ').', 'ok');
             var total = steps.length;
             for (var i = 0; i < total; i++) {
+                state.genStepIndex = i;
+                updateEtaUi();
                 var st = steps[i];
-                setProgress(8 + ((i / total) * 82), st.label + ' wird geschrieben…', 'Schritt ' + (i + 1) + ' von ' + total);
-                markGen(st.id, 'active', 'KI arbeitet…');
-                logFeed('Erzeuge: ' + st.label, 'working');
+                setProgress(
+                    8 + ((i / total) * 82),
+                    st.label + ' wird geschrieben…',
+                    'Schritt ' + (i + 1) + ' von ' + total + ' · Restzeit ca. ' + formatEta(((total - i) / total) * EST_TOTAL_SEC)
+                );
+                markGen(st.id, 'active', 'KI arbeitet… bitte warten');
+                logFeed('Erzeuge: ' + st.label + ' (Abschnitt ' + (i + 1) + '/' + total + ')', 'working');
                 var res = await api('POST', url('generate', state.cv.id), { field: st.id, notes: state.notes || '' });
                 state.cv = res.cv;
                 upsertCvInList(state.cv);
+                state.genStepIndex = i + 1;
+                updateEtaUi();
                 markGen(st.id, 'done', (res.preview || 'Fertig').slice(0, 90) + (res.preview && res.preview.length > 90 ? '…' : ''));
                 logFeed(st.label + ' fertig.', 'ok');
                 fillForm(reviewForm, Object.assign({}, state.cv.payload || {}, { title: state.cv.title }));
             }
             setProgress(100, 'Alles generiert', 'Weiter zum Feinschliff');
-            logFeed('Alle Abschnitte erzeugt.', 'ok');
+            logFeed('Alle Abschnitte erzeugt. Danke fürs Warten.', 'ok');
             root.querySelector('[data-cvs-gen-actions]').hidden = false;
             toast('CV-Inhalt erzeugt', 'ok');
         } catch (err) {
@@ -356,10 +442,29 @@
             root.querySelector('[data-cvs-gen-actions]').hidden = false;
         } finally {
             state.generating = false;
+            root.classList.remove('is-generating');
+            stopEtaTicker();
+            updateEtaUi();
+            var badge = root.querySelector('[data-cvs-eta-badge]');
+            var text = root.querySelector('[data-cvs-eta-text]');
+            if (badge) badge.textContent = 'Fertig';
+            if (text) text.textContent = 'Generierung beendet. Seite darf wieder gewechselt werden.';
         }
     }
 
     async function skipAi() {
+        if (state.generating) {
+            if (!confirmLeaveIfGenerating()) return;
+            state.generating = false;
+            stopEtaTicker();
+            root.classList.remove('is-generating');
+        }
+        var ok = window.confirm(
+            'KI überspringen?\n\n' +
+            'Es wird nur ein Entwurf aus Ihren Profilangaben erstellt — ohne KI-Texte für Zusammenfassung, Erfahrung usw.\n' +
+            'Sie können die Felder danach manuell ausfüllen.'
+        );
+        if (!ok) return;
         try {
             await ensureDraft();
             fillForm(reviewForm, Object.assign({}, state.cv.payload || {}, { title: state.cv.title }));
@@ -439,7 +544,8 @@
         var btn = root.querySelector('[data-cvs-suggest-template]');
         var label = root.querySelector('[data-cvs-suggest-label]');
         if (btn) btn.disabled = true;
-        if (label) label.textContent = 'KI wählt…';
+        if (label) label.textContent = 'KI wählt… (~30 Sek.)';
+        toast('KI analysiert Ihr Profil für die passende Vorlage… bitte kurz warten.', 'ok');
         try {
             var res = await api('POST', urls.suggest_template, { payload: payloadFromForms() });
             state.template = res.template_key;
@@ -455,6 +561,10 @@
     }
 
     function restart() {
+        if (!confirmLeaveIfGenerating()) return;
+        state.generating = false;
+        stopEtaTicker();
+        root.classList.remove('is-generating');
         state.cv = null;
         state.template = 'classic';
         state.color = '#0E4971';
@@ -470,30 +580,38 @@
 
     root.querySelectorAll('[data-cvs-next]').forEach(function (btn) {
         btn.addEventListener('click', function () {
+            if (!confirmLeaveIfGenerating()) return;
             if (btn.getAttribute('data-cvs-next') === '2') state.notes = (readForm(profileForm).notes || '');
             setStep(btn.getAttribute('data-cvs-next') === 'library' ? 'library' : parseInt(btn.getAttribute('data-cvs-next'), 10));
         });
     });
     root.querySelectorAll('[data-cvs-prev]').forEach(function (btn) {
-        btn.addEventListener('click', function () { setStep(parseInt(btn.getAttribute('data-cvs-prev'), 10)); });
+        btn.addEventListener('click', function () {
+            if (!confirmLeaveIfGenerating()) return;
+            setStep(parseInt(btn.getAttribute('data-cvs-prev'), 10));
+        });
     });
     root.querySelectorAll('[data-step-nav]').forEach(function (li) {
         li.addEventListener('click', function () {
-            if (state.generating) return;
+            if (!confirmLeaveIfGenerating()) return;
             var id = li.getAttribute('data-step-nav');
             if (id === 'library') { setStep('library'); return; }
             var n = parseInt(id, 10);
-            if (n === 3 && !state.cv) return;
+            if (n === 3 && !state.cv && !state.generating) return;
             if (n >= 4 && !state.cv) return;
             setStep(n);
         });
     });
     root.querySelectorAll('[data-cvs-open-library]').forEach(function (btn) {
-        btn.addEventListener('click', function () { setStep('library'); });
+        btn.addEventListener('click', function () {
+            if (!confirmLeaveIfGenerating()) return;
+            setStep('library');
+        });
     });
     root.querySelectorAll('[data-cvs-restart]').forEach(function (btn) {
         btn.addEventListener('click', restart);
     });
+    bindLeaveGuard();
 
     var startBtn = root.querySelector('[data-cvs-start-generate]');
     if (startBtn) startBtn.addEventListener('click', runGeneration);

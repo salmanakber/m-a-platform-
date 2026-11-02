@@ -83,10 +83,14 @@
                         <div class="cvs__templates" data-cvs-templates role="radiogroup"></div>
                         <p class="cvs__mini-label">Akzentfarbe</p>
                         <div class="cvs__colors" data-cvs-colors role="radiogroup"></div>
+                        <div class="cvs__eta-note" role="note">
+                            <strong>Dauer ca. 2–3 Minuten</strong>
+                            <span>Die KI schreibt 5 Abschnitte nacheinander (Zusammenfassung, Leistungen, Erfahrung, Ausbildung, Kompetenzen). Bitte Seite nicht neu laden und Tab nicht schliessen.</span>
+                        </div>
                         <div class="cvs__actions">
                             <button type="button" class="btn btn--ghost" data-cvs-prev="1">Zurück</button>
                             <button type="button" class="btn btn--ghost" data-cvs-suggest-template><span data-cvs-suggest-label>KI-Vorlage</span></button>
-                            <button type="button" class="btn" data-cvs-start-generate>Mit KI erzeugen</button>
+                            <button type="button" class="btn" data-cvs-start-generate>Mit KI erzeugen (~2,5 Min.)</button>
                         </div>
                         <button type="button" class="btn btn--ghost btn--small" data-cvs-skip-ai>Nur Entwurf ohne KI</button>
                     </div>
@@ -102,6 +106,21 @@
                 <div class="cvs__panel-head">
                     <h2>KI schreibt Ihren Lebenslauf</h2>
                     <p>Jeder Abschnitt erscheint live. Danach Feinschliff und Farbe jederzeit änderbar.</p>
+                </div>
+                <div class="cvs__wait-banner" data-cvs-wait-banner>
+                    <div>
+                        <strong>Bitte warten — ca. 2,5 Minuten</strong>
+                        <p data-cvs-eta-text>Geschätzte Restzeit: ca. 2 Min. 30 Sek. · Seite nicht aktualisieren oder schliessen.</p>
+                    </div>
+                    <span class="cvs__wait-badge" data-cvs-eta-badge>~2:30</span>
+                </div>
+                <div class="cvs__why" data-cvs-why>
+                    <strong>Warum dauert das?</strong>
+                    <ul>
+                        <li>5 Textabschnitte werden <em>nacheinander</em> von der KI erzeugt (nicht parallel).</li>
+                        <li>Jeder Abschnitt braucht einen separaten KI-Aufruf (Qualität vor Geschwindigkeit).</li>
+                        <li>Netzwerk und gewählter KI-Anbieter können die Dauer etwas verlängern.</li>
+                    </ul>
                 </div>
                 <div class="cvs__progress">
                     <div class="cvs__progress-top">
