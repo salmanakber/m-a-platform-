@@ -95,24 +95,9 @@ class HomeController extends Controller
                 });
         }
 
-        $juristRankings = $this->rankings->nationalTop5(ProfessionalGroup::JURIST);
-        if ($juristRankings->isEmpty()) {
-            $juristRankings = Expert::query()
-                ->where('status', ExpertStatus::APPROVED)
-                ->where('is_public', true)
-                ->where('professional_group', ProfessionalGroup::JURIST)
-                ->with('offices.canton')
-                ->orderBy('company_name')
-                ->limit(5)
-                ->get()
-                ->values()
-                ->map(function (Expert $expert, int $index) {
-                    $row = new Ranking(['position' => $index + 1]);
-                    $row->setRelation('expert', $expert);
-
-                    return $row;
-                });
-        }
+        $juristRankings = $this->groupHomeRankings(ProfessionalGroup::JURIST);
+        $treuhandRankings = $this->groupHomeRankings(ProfessionalGroup::TREUHAND);
+        $beraterRankings = $this->groupHomeRankings(ProfessionalGroup::MA_SPECIALIST);
 
         $articleTopIds = $articleTopRankings->pluck('article_id')->filter()->all();
 
@@ -209,7 +194,9 @@ class HomeController extends Controller
             'bannerCards' => $bannerCards,
             'nationalCards' => $nationalCards,
             'marktplatzCards' => $this->expertCardsFromRankings($marktplatzRankings),
+            'beraterCards' => $this->expertCardsFromRankings($beraterRankings),
             'juristCards' => $this->expertCardsFromRankings($juristRankings),
+            'treuhandCards' => $this->expertCardsFromRankings($treuhandRankings),
             'cantonCards' => $this->expertCardsFromRankings($cantonTop),
             'articleTopCards' => $this->articleCardsFromRankings($articleTopRankings),
             'fachGroupTops' => $fachGroupTops,
@@ -237,6 +224,35 @@ class HomeController extends Controller
                 'kauf' => 'Kaufberatung',
             ],
         ]);
+    }
+
+    /**
+     * Group ranking for homepage fachgruppe strips; falls back to approved public experts.
+     *
+     * @return Collection<int, Ranking>
+     */
+    private function groupHomeRankings(string $group): Collection
+    {
+        $ranked = $this->rankings->nationalTop5($group);
+        if ($ranked->isNotEmpty()) {
+            return $ranked;
+        }
+
+        return Expert::query()
+            ->where('status', ExpertStatus::APPROVED)
+            ->where('is_public', true)
+            ->where('professional_group', $group)
+            ->with('offices.canton')
+            ->orderBy('company_name')
+            ->limit(5)
+            ->get()
+            ->values()
+            ->map(function (Expert $expert, int $index) {
+                $row = new Ranking(['position' => $index + 1]);
+                $row->setRelation('expert', $expert);
+
+                return $row;
+            });
     }
 
     /**

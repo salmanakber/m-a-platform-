@@ -165,36 +165,37 @@
         </div>
     </div>
 
-    {{-- Top 5 --}}
-    <section class="nh-section" id="top5">
+    {{-- 1) Berater --}}
+    <section class="nh-section" id="berater">
         <div class="nh-section__head">
             <div>
-                <p class="nh-kicker">Rangliste · {{ $periodLabel }}</p>
-                <h2>Top 5 Experten der Schweiz</h2>
-                <p>Die führenden M&A- und Nachfolge-Spezialisten — manuell kuratiert, mit Rang und Gültigkeitsdauer.</p>
+                <p class="nh-kicker">Fachgruppe · {{ $periodLabel }}</p>
+                <h2>Berater</h2>
+                <p>M&A- und Nachfolge-Spezialisten — geprüft und kantonal gelistet für Verkauf, Kauf und Nachfolgeplanung.</p>
             </div>
             <div class="nh-section__tools">
-                @if ($nationalCards->isNotEmpty())
+                @if (($beraterCards ?? $nationalCards)->isNotEmpty())
                     <div class="nh-slider-nav" data-top5-nav>
                         <button type="button" data-top5-prev aria-label="Zurück">‹</button>
                         <button type="button" data-top5-next aria-label="Weiter">›</button>
                     </div>
                 @endif
-                <a class="nh-link" href="{{ route('directory.index') }}">Alle Experten →</a>
+                <a class="nh-link" href="{{ route('directory.index', ['gruppe' => 'ma_specialist']) }}">Alle Berater →</a>
             </div>
         </div>
 
-        @if ($nationalCards->isEmpty())
+        @php $beraterShow = ($beraterCards ?? collect())->isNotEmpty() ? $beraterCards : $nationalCards; @endphp
+        @if ($beraterShow->isEmpty())
             <div class="nh-empty">
-                <strong>Noch keine Top-5-Liste.</strong>
-                <p>Die nationale Top-5-Liste wird in Kürze veröffentlicht. Bis dahin finden Sie alle geprüften Profile im Verzeichnis.</p>
+                <strong>Noch keine Berater veröffentlicht.</strong>
+                <p>Geprüfte M&A- und Nachfolge-Profile erscheinen hier und im Verzeichnis unter «M&A-Spezialisten».</p>
             </div>
         @else
-            <div class="nh-top-slider" data-top5-slider>
+            <div class="nh-top-slider" data-top5-slider id="top5">
                 <div class="nh-top-slider__track" data-top5-track>
-                    @foreach ($nationalCards as $card)
+                    @foreach ($beraterShow as $card)
                         <div class="nh-top-slider__item">
-                            @include('public.partials.nh-expert-card', ['card' => $card])
+                            @include('public.partials.nh-expert-card', ['card' => $card, 'forceTag' => 'Berater'])
                         </div>
                     @endforeach
                 </div>
@@ -202,30 +203,7 @@
         @endif
     </section>
 
-    {{-- Marktplätze (after Experten) --}}
-    <section class="nh-band nh-band--soft" id="marktplaetze">
-        <div class="nh-section">
-            <div class="nh-section__head">
-                <div>
-                    <p class="nh-kicker">Fachgruppe</p>
-                    <h2>Marktplätze</h2>
-                    <p>Digitale Plattformen und Marktplätze für Unternehmensnachfolge und M&A in der Schweiz.</p>
-                </div>
-                <a class="nh-link" href="{{ route('directory.index', ['gruppe' => 'marktplatz']) }}">Alle Marktplätze →</a>
-            </div>
-            @if ($marktplatzCards->isEmpty())
-                <div class="nh-empty">Derzeit sind noch keine Marktplätze veröffentlicht.</div>
-            @else
-                <div class="nh-topgrid">
-                    @foreach ($marktplatzCards as $card)
-                        @include('public.partials.nh-expert-card', ['card' => $card, 'forceTag' => 'Marktplatz'])
-                    @endforeach
-                </div>
-            @endif
-        </div>
-    </section>
-
-    {{-- Juristen --}}
+    {{-- 2) Juristen --}}
     <section class="nh-section" id="juristen">
         <div class="nh-section__head">
             <div>
@@ -241,6 +219,50 @@
             <div class="nh-topgrid">
                 @foreach ($juristCards as $card)
                     @include('public.partials.nh-expert-card', ['card' => $card, 'forceTag' => 'Jurist'])
+                @endforeach
+            </div>
+        @endif
+    </section>
+
+    {{-- 3) Treuhand (like Juristen) --}}
+    <section class="nh-band nh-band--soft" id="treuhand">
+        <div class="nh-section">
+            <div class="nh-section__head">
+                <div>
+                    <p class="nh-kicker">Fachgruppe</p>
+                    <h2>Treuhand</h2>
+                    <p>Treuhand- und Revisionspartner für Unternehmensnachfolge, Bewertung und Transaktionsbegleitung in der Schweiz.</p>
+                </div>
+                <a class="nh-link" href="{{ route('directory.index', ['gruppe' => 'treuhand']) }}">Alle Treuhand →</a>
+            </div>
+            @if (($treuhandCards ?? collect())->isEmpty())
+                <div class="nh-empty">Derzeit sind noch keine Treuhand-Profile veröffentlicht. Im Verzeichnis können Sie die Fachgruppe «Treuhand» filtern.</div>
+            @else
+                <div class="nh-topgrid">
+                    @foreach ($treuhandCards as $card)
+                        @include('public.partials.nh-expert-card', ['card' => $card, 'forceTag' => 'Treuhand'])
+                    @endforeach
+                </div>
+            @endif
+        </div>
+    </section>
+
+    {{-- 4) Marktplätze --}}
+    <section class="nh-section" id="marktplaetze">
+        <div class="nh-section__head">
+            <div>
+                <p class="nh-kicker">Fachgruppe</p>
+                <h2>Marktplätze</h2>
+                <p>Digitale Plattformen und Marktplätze für Unternehmensnachfolge und M&A in der Schweiz.</p>
+            </div>
+            <a class="nh-link" href="{{ route('directory.index', ['gruppe' => 'marktplatz']) }}">Alle Marktplätze →</a>
+        </div>
+        @if ($marktplatzCards->isEmpty())
+            <div class="nh-empty">Derzeit sind noch keine Marktplätze veröffentlicht.</div>
+        @else
+            <div class="nh-topgrid">
+                @foreach ($marktplatzCards as $card)
+                    @include('public.partials.nh-expert-card', ['card' => $card, 'forceTag' => 'Marktplatz'])
                 @endforeach
             </div>
         @endif

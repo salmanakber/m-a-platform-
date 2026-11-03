@@ -20,12 +20,12 @@
                 <div class="nav-drop {{ request()->routeIs('home', 'directory.*', 'experts.*') ? 'is-active' : '' }}" data-nav-drop>
                     <button type="button" class="nav-drop__trigger" aria-expanded="false" aria-haspopup="true">Experten</button>
                     <div class="nav-drop__menu" role="menu">
-                        <a href="{{ route('home') }}#top5" role="menuitem">Top Experten</a>
-                        <a href="{{ route('directory.index') }}" role="menuitem">Verzeichnis</a>
-                        <a href="{{ route('directory.index', ['gruppe' => 'jurist']) }}" role="menuitem">Juristen</a>
-                        <a href="{{ route('directory.index', ['gruppe' => 'treuhand']) }}" role="menuitem">Treuhand</a>
-                        <a href="{{ route('directory.index', ['gruppe' => 'ad_interim']) }}" role="menuitem">Ad Interim</a>
+                        <a href="{{ route('home') }}#berater" role="menuitem">Berater</a>
+                        <a href="{{ route('home') }}#juristen" role="menuitem">Juristen</a>
+                        <a href="{{ route('home') }}#treuhand" role="menuitem">Treuhand</a>
                         <a href="{{ route('home') }}#marktplaetze" role="menuitem">Marktplätze</a>
+                        <a href="{{ route('directory.index') }}" role="menuitem">Verzeichnis</a>
+                        <a href="{{ route('directory.index', ['gruppe' => 'ad_interim']) }}" role="menuitem">Ad Interim</a>
                         <a href="{{ route('map.index') }}" role="menuitem">Schweiz-Karte</a>
                     </div>
                 </div>
@@ -85,10 +85,11 @@
             </div>
             <div>
                 <h4>Entdecken</h4>
-                <a href="{{ route('home') }}#top5">Experten</a>
-                <a href="{{ route('directory.index') }}">Verzeichnis</a>
-                <a href="{{ route('directory.index', ['gruppe' => 'jurist']) }}">Juristen</a>
+                <a href="{{ route('home') }}#berater">Berater</a>
+                <a href="{{ route('home') }}#juristen">Juristen</a>
+                <a href="{{ route('home') }}#treuhand">Treuhand</a>
                 <a href="{{ route('home') }}#marktplaetze">Marktplätze</a>
+                <a href="{{ route('directory.index') }}">Verzeichnis</a>
                 <a href="{{ route('blog.index') }}">Fachbeiträge</a>
                 @foreach (($navArticleCategories ?? collect()) as $cat)
                     <a href="{{ route('blog.index', ['gruppe' => $cat->slug]) }}">{{ $cat->name_de }}</a>
