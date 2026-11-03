@@ -23,9 +23,9 @@
                         <a href="{{ route('home') }}#berater" role="menuitem">Berater</a>
                         <a href="{{ route('home') }}#juristen" role="menuitem">Juristen</a>
                         <a href="{{ route('home') }}#treuhand" role="menuitem">Treuhand</a>
+                        <a href="{{ route('home') }}#ad-interim" role="menuitem">Ad Interim</a>
                         <a href="{{ route('home') }}#marktplaetze" role="menuitem">Marktplätze</a>
                         <a href="{{ route('directory.index') }}" role="menuitem">Verzeichnis</a>
-                        <a href="{{ route('directory.index', ['gruppe' => 'ad_interim']) }}" role="menuitem">Ad Interim</a>
                         <a href="{{ route('map.index') }}" role="menuitem">Schweiz-Karte</a>
                     </div>
                 </div>
@@ -88,6 +88,7 @@
                 <a href="{{ route('home') }}#berater">Berater</a>
                 <a href="{{ route('home') }}#juristen">Juristen</a>
                 <a href="{{ route('home') }}#treuhand">Treuhand</a>
+                <a href="{{ route('home') }}#ad-interim">Ad Interim</a>
                 <a href="{{ route('home') }}#marktplaetze">Marktplätze</a>
                 <a href="{{ route('directory.index') }}">Verzeichnis</a>
                 <a href="{{ route('blog.index') }}">Fachbeiträge</a>

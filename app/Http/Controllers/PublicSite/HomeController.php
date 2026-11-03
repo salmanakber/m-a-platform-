@@ -97,6 +97,7 @@ class HomeController extends Controller
 
         $juristRankings = $this->groupHomeRankings(ProfessionalGroup::JURIST);
         $treuhandRankings = $this->groupHomeRankings(ProfessionalGroup::TREUHAND);
+        $adInterimRankings = $this->groupHomeRankings(ProfessionalGroup::AD_INTERIM);
         $beraterRankings = $this->groupHomeRankings(ProfessionalGroup::MA_SPECIALIST);
 
         $articleTopIds = $articleTopRankings->pluck('article_id')->filter()->all();
@@ -197,6 +198,7 @@ class HomeController extends Controller
             'beraterCards' => $this->expertCardsFromRankings($beraterRankings),
             'juristCards' => $this->expertCardsFromRankings($juristRankings),
             'treuhandCards' => $this->expertCardsFromRankings($treuhandRankings),
+            'adInterimCards' => $this->expertCardsFromRankings($adInterimRankings),
             'cantonCards' => $this->expertCardsFromRankings($cantonTop),
             'articleTopCards' => $this->articleCardsFromRankings($articleTopRankings),
             'fachGroupTops' => $fachGroupTops,

@@ -247,25 +247,48 @@
         </div>
     </section>
 
-    {{-- 4) Marktplätze --}}
-    <section class="nh-section" id="marktplaetze">
+    {{-- 4) Ad Interim (under Treuhand) --}}
+    <section class="nh-section" id="ad-interim">
         <div class="nh-section__head">
             <div>
                 <p class="nh-kicker">Fachgruppe</p>
-                <h2>Marktplätze</h2>
-                <p>Digitale Plattformen und Marktplätze für Unternehmensnachfolge und M&A in der Schweiz.</p>
+                <h2>Ad Interim</h2>
+                <p>Ad-Interim-Kandidaten für operative Nachfolge, Übergangsmandate und temporäre Führungsverantwortung.</p>
             </div>
-            <a class="nh-link" href="{{ route('directory.index', ['gruppe' => 'marktplatz']) }}">Alle Marktplätze →</a>
+            <a class="nh-link" href="{{ route('directory.index', ['gruppe' => 'ad_interim']) }}">Alle Ad Interim →</a>
         </div>
-        @if ($marktplatzCards->isEmpty())
-            <div class="nh-empty">Derzeit sind noch keine Marktplätze veröffentlicht.</div>
+        @if (($adInterimCards ?? collect())->isEmpty())
+            <div class="nh-empty">Derzeit sind noch keine Ad-Interim-Profile veröffentlicht. Im Verzeichnis können Sie die Fachgruppe «Ad Interim» filtern.</div>
         @else
             <div class="nh-topgrid">
-                @foreach ($marktplatzCards as $card)
-                    @include('public.partials.nh-expert-card', ['card' => $card, 'forceTag' => 'Marktplatz'])
+                @foreach ($adInterimCards as $card)
+                    @include('public.partials.nh-expert-card', ['card' => $card, 'forceTag' => 'Ad Interim'])
                 @endforeach
             </div>
         @endif
+    </section>
+
+    {{-- 5) Marktplätze --}}
+    <section class="nh-band nh-band--soft" id="marktplaetze">
+        <div class="nh-section">
+            <div class="nh-section__head">
+                <div>
+                    <p class="nh-kicker">Fachgruppe</p>
+                    <h2>Marktplätze</h2>
+                    <p>Digitale Plattformen und Marktplätze für Unternehmensnachfolge und M&A in der Schweiz.</p>
+                </div>
+                <a class="nh-link" href="{{ route('directory.index', ['gruppe' => 'marktplatz']) }}">Alle Marktplätze →</a>
+            </div>
+            @if ($marktplatzCards->isEmpty())
+                <div class="nh-empty">Derzeit sind noch keine Marktplätze veröffentlicht.</div>
+            @else
+                <div class="nh-topgrid">
+                    @foreach ($marktplatzCards as $card)
+                        @include('public.partials.nh-expert-card', ['card' => $card, 'forceTag' => 'Marktplatz'])
+                    @endforeach
+                </div>
+            @endif
+        </div>
     </section>
 
     {{-- Top 5 Kanton --}}
