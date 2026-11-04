@@ -128,20 +128,25 @@ class NotificationService
         $this->sendInvoiceEmail($invoice, 'invoice_confirmation', [
             'headline' => 'Bestätigung vor Rechnung',
             'preheader' => 'Bitte prüfen Sie die Angaben zu '.$invoice->invoice_number,
-            'ctaUrl' => rtrim(config('app.url'), '/').'/login',
-            'ctaLabel' => 'Zum Expertenbereich',
+            'ctaUrl' => route('expert.invoices.show', $invoice),
+            'ctaLabel' => 'Zum Login / Rechnung',
             'paymentHint' => 'Dies ist noch keine Rechnung — nur die Bestätigung der gewählten Leistung. Die Rechnung folgt in einer separaten E-Mail.',
         ]);
     }
 
     public function sendInvoiceCreated(Invoice $invoice): void
     {
+        $hint = $this->settings->get(
+            SettingKey::INVOICE_PAYMENT_HINT,
+            'Bitte überweisen Sie den Betrag unter Angabe der Rechnungsnummer.'
+        );
+
         $this->sendInvoiceEmail($invoice, 'invoice_created', [
             'headline' => 'Ihre Rechnung',
             'preheader' => 'Rechnung '.$invoice->invoice_number.' — bitte zur Zahlung',
-            'ctaUrl' => rtrim(config('app.url'), '/').'/login',
-            'ctaLabel' => 'Zum Expertenbereich',
-            'paymentHint' => 'Bitte überweisen Sie den Betrag unter Angabe der Rechnungsnummer. Nach Zahlungseingang aktivieren wir Ihre Leistung / Promotion.',
+            'ctaUrl' => route('expert.invoices.show', $invoice),
+            'ctaLabel' => 'Rechnung im Login öffnen',
+            'paymentHint' => is_string($hint) && $hint !== '' ? $hint : 'Bitte überweisen Sie den Betrag unter Angabe der Rechnungsnummer.',
         ]);
     }
 
@@ -150,8 +155,8 @@ class NotificationService
         $this->sendInvoiceEmail($invoice, 'invoice_paid', [
             'headline' => 'Zahlung bestätigt',
             'preheader' => 'Rechnung '.$invoice->invoice_number.' ist bezahlt',
-            'ctaUrl' => rtrim(config('app.url'), '/').'/login',
-            'ctaLabel' => 'Zum Expertenbereich',
+            'ctaUrl' => route('expert.invoices.show', $invoice),
+            'ctaLabel' => 'Zum Login / Rechnung',
             'paymentHint' => null,
         ]);
     }
@@ -219,9 +224,26 @@ class NotificationService
             $contact = $expert->company_name ?? 'Experte';
         }
 
-        $billingEmail = filled($invoice->billing_email) ? (string) $invoice->billing_email : (string) ($expert->email ?? '');
+        $billingEmail = filled($invoice->billing_email)
+            ? (string) $invoice->billing_email
+            : (string) ($expert->billing_email ?: $expert->email ?? '');
+        $billingName = filled($invoice->billing_name)
+            ? (string) $invoice->billing_name
+            : (string) ($expert->billing_name ?: $expert->company_name ?? '—');
+        $billingAddress = filled($invoice->billing_address_line)
+            ? (string) $invoice->billing_address_line
+            : (string) ($expert->billing_address_line ?? '');
+        $billingPostal = filled($invoice->billing_postal_code)
+            ? (string) $invoice->billing_postal_code
+            : (string) ($expert->billing_postal_code ?? '');
+        $billingCity = filled($invoice->billing_city)
+            ? (string) $invoice->billing_city
+            : (string) ($expert->billing_city ?? '');
 
-        $amountFormatted = number_format((float) $invoice->amount, 2, '.', "'");
+        $net = $invoice->netAmount();
+        $vat = $invoice->vatAmount();
+        $gross = $invoice->grossAmount();
+        $amountFormatted = number_format($gross, 2, '.', "'");
         $statusLabels = [
             InvoicePaymentStatus::PENDING => 'Offen',
             InvoicePaymentStatus::PAID => 'Bezahlt',
@@ -229,34 +251,78 @@ class NotificationService
             InvoicePaymentStatus::CANCELLED => 'Storniert',
         ];
 
+        $sender = [
+            'sender_name' => $this->settings->get(SettingKey::INVOICE_SENDER_NAME, 'nachfolge-experten.ch'),
+            'sender_company' => $this->settings->get(SettingKey::INVOICE_SENDER_COMPANY, 'KMU Beratungen GmbH'),
+            'sender_address' => $this->settings->get(
+                SettingKey::INVOICE_SENDER_ADDRESS,
+                "Brünigstrasse 144\n6060 Sarnen · Schweiz"
+            ),
+            'bank_name' => $this->settings->get(SettingKey::INVOICE_BANK_NAME),
+            'bank_iban' => $this->settings->get(SettingKey::INVOICE_BANK_IBAN),
+            'bank_bic' => $this->settings->get(SettingKey::INVOICE_BANK_BIC),
+            'vat_uid' => $this->settings->get(SettingKey::INVOICE_VAT_UID),
+        ];
+        $periodLabel = null;
+        if ($invoice->period_start || $invoice->period_end) {
+            $from = optional($invoice->period_start)->format('d.m.Y') ?: '—';
+            $to = optional($invoice->period_end)->format('d.m.Y') ?: '—';
+            $periodLabel = $from.' – '.$to;
+        }
+
+        $qty = (float) ($invoice->quantity ?: 1);
+        $unit = $invoice->unit_price !== null ? (float) $invoice->unit_price : $net;
+        $qtyLabel = rtrim(rtrim(number_format($qty, 2, '.', "'"), '0'), '.').' × '.number_format($unit, 2, '.', "'").' CHF';
+
         $document = view('emails.partials.invoice-document', [
             'invoiceNumber' => $invoice->invoice_number,
             'invoiceDate' => optional($invoice->invoice_date)->format('d.m.Y') ?: now()->format('d.m.Y'),
             'paymentStatus' => $invoice->payment_status,
-            'companyName' => $expert->company_name ?? '—',
+            'companyName' => $billingName,
             'contactName' => $contact,
             'email' => $billingEmail,
+            'billingAddress' => $billingAddress,
+            'billingPostal' => $billingPostal,
+            'billingCity' => $billingCity,
             'serviceTitle' => $serviceTitle,
             'serviceDetail' => $serviceDetail,
+            'periodLabel' => $periodLabel,
+            'quantityLabel' => $qtyLabel,
+            'netFormatted' => number_format($net, 2, '.', "'"),
+            'vatRate' => $invoice->vat_rate !== null ? (float) $invoice->vat_rate : null,
+            'vatFormatted' => number_format($vat, 2, '.', "'"),
             'amountFormatted' => $amountFormatted,
             'currency' => $invoice->currency ?: 'CHF',
             'notes' => $invoice->notes,
             'paymentHint' => $paymentHint,
+            'senderName' => $sender['sender_name'] ?? 'nachfolge-experten.ch',
+            'senderCompany' => $sender['sender_company'] ?? 'KMU Beratungen GmbH',
+            'senderAddress' => $sender['sender_address'] ?? '',
+            'bankName' => $sender['bank_name'] ?? null,
+            'bankIban' => $sender['bank_iban'] ?? null,
+            'bankBic' => $sender['bank_bic'] ?? null,
+            'vatUid' => $sender['vat_uid'] ?? null,
         ])->render();
 
         return [
             'invoice_number' => $invoice->invoice_number,
             'invoice_date' => optional($invoice->invoice_date)->format('d.m.Y') ?: '',
+            'period' => $periodLabel ?? '',
+            'quantity' => (string) $qty,
+            'unit_price' => number_format($unit, 2, '.', "'"),
             'amount' => $amountFormatted,
             'currency' => $invoice->currency ?: 'CHF',
+            'vat_rate' => $invoice->vat_rate !== null ? (string) $invoice->vat_rate : '',
             'payment_status' => $invoice->payment_status,
             'payment_status_label' => $statusLabels[$invoice->payment_status] ?? $invoice->payment_status,
-            'company_name' => $expert->company_name ?? '',
+            'company_name' => $billingName,
             'contact_name' => $contact,
             'email' => $billingEmail,
             'service_title' => $serviceTitle,
             'service_detail' => $serviceDetail,
             'notes' => $invoice->notes,
+            'bank_iban' => $sender['bank_iban'] ?? '',
+            'bank_name' => $sender['bank_name'] ?? '',
             'invoice_document' => $document,
         ];
     }

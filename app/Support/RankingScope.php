@@ -35,7 +35,7 @@ final class RankingScope
     {
         return match ($key) {
             self::HERO_MATCH => 'Bis zu 3 Experten im Startseiten-Banner (rechts, Slider).',
-            self::NATIONAL_TOP5 => 'Bis zu 5 Experten für die nationale Rangliste.',
+            self::NATIONAL_TOP5 => 'Positionen 1–5 erscheinen nebeneinander auf der Startseite (Berater). Position 6 = Kontakt-/Bemerkungskarte.',
             self::CANTON_TOP3 => 'Bis zu 5 Experten pro Kanton.',
             self::GROUP_TOP => 'Bis zu 5 Experten für M&A, Juristen, Treuhand, Ad Interim oder Marktplätze.',
             self::ARTICLE_TOP => 'Bis zu 3 Fachbeiträge global oder je Fachbereich-Gruppe.',
@@ -59,7 +59,8 @@ final class RankingScope
     {
         return match ($scope) {
             self::HERO_MATCH => 3,
-            self::NATIONAL_TOP5, self::CANTON_TOP3, self::GROUP_TOP => 5,
+            self::NATIONAL_TOP5 => 6, // 1–5 Experten + 6 Kontakt/Bemerkung
+            self::CANTON_TOP3, self::GROUP_TOP => 5,
             self::ARTICLE_TOP, self::EVENT_TOP => 3,
             default => 1,
         };

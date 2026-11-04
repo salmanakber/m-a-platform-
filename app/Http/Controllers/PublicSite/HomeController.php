@@ -10,10 +10,12 @@ use App\Models\Event;
 use App\Models\Expert;
 use App\Models\Ranking;
 use App\Services\Ranking\RankingService;
+use App\Services\Settings\SettingsService;
 use App\Support\ArticleStatus;
 use App\Support\EventStatus;
 use App\Support\ExpertStatus;
 use App\Support\ProfessionalGroup;
+use App\Support\SettingKey;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
@@ -21,8 +23,10 @@ use Illuminate\View\View;
 
 class HomeController extends Controller
 {
-    public function __construct(private RankingService $rankings)
-    {
+    public function __construct(
+        private RankingService $rankings,
+        private SettingsService $settings
+    ) {
     }
 
     public function index(Request $request): View
@@ -188,12 +192,16 @@ class HomeController extends Controller
         $nationalCards = $this->expertCardsFromRankings($nationalTop);
         $bannerCards = $this->expertCardsFromRankings($heroMatches)->take(3)->values();
         $heroCard = $bannerCards->first();
+        $nationalContactRemark = $this->rankings->nationalContactRemark()
+            ?: 'Platz frei — melden Sie sich bei uns für eine Top-Position auf nachfolge-experten.ch.';
 
         return view('public.home', [
             'heroMatch' => $heroMatch,
             'heroCard' => $heroCard,
             'bannerCards' => $bannerCards,
             'nationalCards' => $nationalCards,
+            'nationalContactRemark' => $nationalContactRemark,
+            'footerContactEmail' => $this->settings->get(SettingKey::FOOTER_CONTACT_EMAIL, 'kontakt@nachfolge-experten.ch'),
             'marktplatzCards' => $this->expertCardsFromRankings($marktplatzRankings),
             'beraterCards' => $this->expertCardsFromRankings($beraterRankings),
             'juristCards' => $this->expertCardsFromRankings($juristRankings),

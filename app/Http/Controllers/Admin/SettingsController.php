@@ -21,8 +21,11 @@ class SettingsController extends Controller
     {
         $tab = request()->query('tab', 'general');
 
+        $user = request()->user();
+
         return view('admin.settings.edit', [
             'tab' => $tab,
+            'adminUser' => $user,
             'appName' => $this->settings->get(SettingKey::APP_NAME, config('app.name')),
             'adminNotificationEmail' => $this->settings->get(SettingKey::ADMIN_NOTIFICATION_EMAIL),
             'footerContactLines' => $this->settings->get(
@@ -37,6 +40,21 @@ class SettingsController extends Controller
             'resendFromEmail' => $this->settings->get(SettingKey::RESEND_FROM_EMAIL),
             'resendFromName' => $this->settings->get(SettingKey::RESEND_FROM_NAME),
             'resendReplyTo' => $this->settings->get(SettingKey::RESEND_REPLY_TO),
+            'invoiceSenderName' => $this->settings->get(SettingKey::INVOICE_SENDER_NAME, 'nachfolge-experten.ch'),
+            'invoiceSenderCompany' => $this->settings->get(SettingKey::INVOICE_SENDER_COMPANY, 'KMU Beratungen GmbH'),
+            'invoiceSenderAddress' => $this->settings->get(
+                SettingKey::INVOICE_SENDER_ADDRESS,
+                "Brünigstrasse 144\n6060 Sarnen · Schweiz"
+            ),
+            'invoiceBankName' => $this->settings->get(SettingKey::INVOICE_BANK_NAME),
+            'invoiceBankIban' => $this->settings->get(SettingKey::INVOICE_BANK_IBAN),
+            'invoiceBankBic' => $this->settings->get(SettingKey::INVOICE_BANK_BIC),
+            'invoicePaymentHint' => $this->settings->get(
+                SettingKey::INVOICE_PAYMENT_HINT,
+                'Bitte überweisen Sie den Betrag unter Angabe der Rechnungsnummer.'
+            ),
+            'invoiceDefaultVatRate' => $this->settings->get(SettingKey::INVOICE_DEFAULT_VAT_RATE, ''),
+            'invoiceVatUid' => $this->settings->get(SettingKey::INVOICE_VAT_UID),
             'geminiKeyMasked' => $this->settings->getMasked(SettingKey::AI_GEMINI_API_KEY),
             'groqKeyMasked' => $this->settings->getMasked(SettingKey::AI_GROQ_API_KEY),
             'openaiKeyMasked' => $this->settings->getMasked(SettingKey::AI_OPENAI_API_KEY),
@@ -59,7 +77,7 @@ class SettingsController extends Controller
         $tab = $request->input('tab', 'general');
 
         $validated = $request->validate([
-            'tab' => ['nullable', 'string', 'in:general,maps,email,ai,promotion,footer,password'],
+            'tab' => ['nullable', 'string', 'in:general,maps,email,ai,promotion,footer,invoice,account,password'],
             'app_name' => ['nullable', 'string', 'max:255'],
             'admin_notification_email' => ['nullable', 'email', 'max:255'],
             'footer_contact_lines' => ['nullable', 'string', 'max:2000'],
@@ -79,6 +97,17 @@ class SettingsController extends Controller
             'ai_groq_model' => ['nullable', 'string', 'max:120'],
             'ai_openai_model' => ['nullable', 'string', 'max:120'],
             'ai_anthropic_model' => ['nullable', 'string', 'max:120'],
+            'invoice_sender_name' => ['nullable', 'string', 'max:255'],
+            'invoice_sender_company' => ['nullable', 'string', 'max:255'],
+            'invoice_sender_address' => ['nullable', 'string', 'max:2000'],
+            'invoice_bank_name' => ['nullable', 'string', 'max:255'],
+            'invoice_bank_iban' => ['nullable', 'string', 'max:64'],
+            'invoice_bank_bic' => ['nullable', 'string', 'max:32'],
+            'invoice_payment_hint' => ['nullable', 'string', 'max:2000'],
+            'invoice_default_vat_rate' => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'invoice_vat_uid' => ['nullable', 'string', 'max:64'],
+            'admin_name' => ['nullable', 'string', 'max:255'],
+            'admin_email' => ['nullable', 'email', 'max:255'],
         ]);
 
         if ($tab === 'general') {
@@ -159,6 +188,34 @@ class SettingsController extends Controller
             );
         }
 
+        if ($tab === 'invoice') {
+            $this->settings->set(SettingKey::INVOICE_SENDER_NAME, $validated['invoice_sender_name'] ?? null, SettingKey::GROUP_INVOICE);
+            $this->settings->set(SettingKey::INVOICE_SENDER_COMPANY, $validated['invoice_sender_company'] ?? null, SettingKey::GROUP_INVOICE);
+            $this->settings->set(SettingKey::INVOICE_SENDER_ADDRESS, $validated['invoice_sender_address'] ?? null, SettingKey::GROUP_INVOICE);
+            $this->settings->set(SettingKey::INVOICE_BANK_NAME, $validated['invoice_bank_name'] ?? null, SettingKey::GROUP_INVOICE);
+            $this->settings->set(SettingKey::INVOICE_BANK_IBAN, $validated['invoice_bank_iban'] ?? null, SettingKey::GROUP_INVOICE);
+            $this->settings->set(SettingKey::INVOICE_BANK_BIC, $validated['invoice_bank_bic'] ?? null, SettingKey::GROUP_INVOICE);
+            $this->settings->set(SettingKey::INVOICE_PAYMENT_HINT, $validated['invoice_payment_hint'] ?? null, SettingKey::GROUP_INVOICE);
+            $this->settings->set(
+                SettingKey::INVOICE_DEFAULT_VAT_RATE,
+                array_key_exists('invoice_default_vat_rate', $validated) && $validated['invoice_default_vat_rate'] !== null
+                    ? (string) $validated['invoice_default_vat_rate']
+                    : null,
+                SettingKey::GROUP_INVOICE
+            );
+            $this->settings->set(SettingKey::INVOICE_VAT_UID, $validated['invoice_vat_uid'] ?? null, SettingKey::GROUP_INVOICE);
+        }
+
+        if ($tab === 'account') {
+            $user = $request->user();
+            abort_if($user === null || ! $user->isAdmin(), 403);
+
+            $user->forceFill([
+                'name' => $validated['admin_name'] ?? $user->name,
+                'email' => $validated['admin_email'] ?? $user->email,
+            ])->save();
+        }
+
         return redirect()
             ->route('admin.settings.edit', ['tab' => $tab])
             ->with('success', 'Einstellungen gespeichert.');
@@ -179,7 +236,7 @@ class SettingsController extends Controller
         ])->save();
 
         return redirect()
-            ->route('admin.settings.edit', ['tab' => 'password'])
+            ->route('admin.settings.edit', ['tab' => 'account'])
             ->with('success', 'Passwort aktualisiert.');
     }
 

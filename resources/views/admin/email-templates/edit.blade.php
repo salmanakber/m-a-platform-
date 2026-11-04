@@ -27,12 +27,18 @@
         'expires_minutes' => 'Ablauf (Min.)',
         'invoice_number' => 'Rechnungsnr.',
         'invoice_date' => 'Rechnungsdatum',
+        'period' => 'Zeitraum',
+        'quantity' => 'Menge',
+        'unit_price' => 'Einzelpreis',
         'amount' => 'Betrag',
         'currency' => 'Währung',
+        'vat_rate' => 'MwSt. %',
         'payment_status_label' => 'Zahlungsstatus',
         'service_title' => 'Leistung',
         'service_detail' => 'Leistungsdetail',
         'notes' => 'Bemerkung',
+        'bank_iban' => 'IBAN',
+        'bank_name' => 'Bank',
     ];
     $templateHeading = str_replace('_', ' ', str_replace('.', ' · ', $template->key));
 @endphp

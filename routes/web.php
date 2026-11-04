@@ -29,6 +29,7 @@ use App\Http\Controllers\Expert\EventController as ExpertEventController;
 use App\Http\Controllers\Expert\LeadController as ExpertLeadController;
 use App\Http\Controllers\Expert\OfficeController as ExpertOfficeController;
 use App\Http\Controllers\Expert\ProfileController as ExpertProfileController;
+use App\Http\Controllers\Expert\InvoiceController as ExpertInvoiceController;
 use App\Http\Controllers\Expert\PromotionController as ExpertPromotionController;
 use App\Http\Controllers\PublicSite\ArticleController as PublicArticleController;
 use App\Http\Controllers\PublicSite\CantonController;
@@ -257,6 +258,9 @@ Route::prefix('expert')->name('expert.')->middleware(['auth', 'role:expert', 'ex
     Route::get('/promotionen', [ExpertPromotionController::class, 'index'])->name('promotions.index');
     Route::post('/promotionen/anfragen', [ExpertPromotionController::class, 'requestPromotion'])->name('promotions.request');
     Route::post('/promotionen/warteliste', [ExpertPromotionController::class, 'joinWaitlist'])->name('promotions.waitlist');
+
+    Route::get('/rechnungen', [ExpertInvoiceController::class, 'index'])->name('invoices.index');
+    Route::get('/rechnungen/{invoice}', [ExpertInvoiceController::class, 'show'])->name('invoices.show');
 
     Route::get('/lebenslauf', [ExpertCvController::class, 'index'])->name('cv.index');
     Route::post('/lebenslauf', [ExpertCvController::class, 'store'])->name('cv.store');

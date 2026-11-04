@@ -165,40 +165,50 @@
         </div>
     </div>
 
-    {{-- 1) Berater --}}
+    {{-- 1) Berater = Top 5 Schweiz (neben­einander, 2 Reihen à 3) + Kontaktkarte --}}
     <section class="nh-section" id="berater">
         <div class="nh-section__head">
             <div>
-                <p class="nh-kicker">Fachgruppe · {{ $periodLabel }}</p>
+                <p class="nh-kicker">Top Schweiz · {{ $periodLabel }}</p>
                 <h2>Berater</h2>
-                <p>M&A- und Nachfolge-Spezialisten — geprüft und kantonal gelistet für Verkauf, Kauf und Nachfolgeplanung.</p>
+                <p>Die nationale Top-Auswahl — nummeriert, nebeneinander. Platz 6 bleibt offen für Ihre Anfrage.</p>
             </div>
             <div class="nh-section__tools">
-                @if (($beraterCards ?? $nationalCards)->isNotEmpty())
-                    <div class="nh-slider-nav" data-top5-nav>
-                        <button type="button" data-top5-prev aria-label="Zurück">‹</button>
-                        <button type="button" data-top5-next aria-label="Weiter">›</button>
-                    </div>
-                @endif
                 <a class="nh-link" href="{{ route('directory.index', ['gruppe' => 'ma_specialist']) }}">Alle Berater →</a>
             </div>
         </div>
 
-        @php $beraterShow = ($beraterCards ?? collect())->isNotEmpty() ? $beraterCards : $nationalCards; @endphp
+        @php
+            // Top 5 Schweiz (Admin) first — fixes mismatch with «Top Fachgruppe».
+            $beraterShow = ($nationalCards ?? collect())->isNotEmpty()
+                ? $nationalCards->take(5)->values()
+                : (($beraterCards ?? collect())->take(5)->values());
+            $contactRemark = $nationalContactRemark
+                ?? 'Platz frei — melden Sie sich bei uns für eine Top-Position auf nachfolge-experten.ch.';
+            $contactMail = $footerContactEmail ?? 'kontakt@nachfolge-experten.ch';
+        @endphp
         @if ($beraterShow->isEmpty())
             <div class="nh-empty">
                 <strong>Noch keine Berater veröffentlicht.</strong>
-                <p>Geprüfte M&A- und Nachfolge-Profile erscheinen hier und im Verzeichnis unter «M&A-Spezialisten».</p>
+                <p>Pflegen Sie «Top 5 Schweiz» unter Rankings — oder geprüfte Profile erscheinen im Verzeichnis.</p>
             </div>
         @else
-            <div class="nh-top-slider" data-top5-slider id="top5">
-                <div class="nh-top-slider__track" data-top5-track>
-                    @foreach ($beraterShow as $card)
-                        <div class="nh-top-slider__item">
-                            @include('public.partials.nh-expert-card', ['card' => $card, 'forceTag' => 'Berater'])
-                        </div>
-                    @endforeach
-                </div>
+            <div class="nh-topgrid nh-topgrid--six" id="top5">
+                @foreach ($beraterShow as $card)
+                    @include('public.partials.nh-expert-card', ['card' => $card, 'forceTag' => 'Berater'])
+                @endforeach
+                <article class="nh-card nh-card--contact">
+                    <span class="nh-card__rank" aria-hidden="true">06</span>
+                    <span class="nh-card__place">OFFEN</span>
+                    <span class="nh-avatar nh-avatar--contact" aria-hidden="true">?</span>
+                    <h3>Ihr Platz</h3>
+                    <p class="nh-card__firm">Kontakt &amp; Bemerkung</p>
+                    <p class="nh-card__remark">{{ $contactRemark }}</p>
+                    <div class="nh-card__foot">
+                        <span>Direkt melden</span>
+                        <a href="mailto:{{ $contactMail }}?subject={{ rawurlencode('Top-Position nachfolge-experten.ch') }}">Kontakt ↗</a>
+                    </div>
+                </article>
             </div>
         @endif
     </section>
@@ -562,21 +572,6 @@
             }
         }
         restart();
-    }
-
-    var top5 = document.querySelector('[data-top5-slider]');
-    if (top5) {
-        var track5 = top5.querySelector('[data-top5-track]');
-        var prev5 = document.querySelector('[data-top5-prev]');
-        var next5 = document.querySelector('[data-top5-next]');
-        function move5(dir) {
-            if (!track5) return;
-            var card = track5.querySelector('.nh-top-slider__item');
-            var step = card ? card.getBoundingClientRect().width + 16 : 280;
-            track5.scrollBy({ left: dir * step, behavior: 'smooth' });
-        }
-        if (prev5) prev5.addEventListener('click', function () { move5(-1); });
-        if (next5) next5.addEventListener('click', function () { move5(1); });
     }
 
     var root = document.querySelector('[data-carousel]');

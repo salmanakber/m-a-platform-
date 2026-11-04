@@ -26,6 +26,7 @@
 
             <p class="admin-sidebar__label">Wachstum</p>
             <a href="{{ route('expert.promotions.index') }}" class="{{ request()->routeIs('expert.promotions.*') ? 'is-active' : '' }}">Promotionen</a>
+            <a href="{{ route('expert.invoices.index') }}" class="{{ request()->routeIs('expert.invoices.*') ? 'is-active' : '' }}">Rechnungen</a>
             <a href="{{ route('expert.articles.index') }}" class="{{ request()->routeIs('expert.articles.*') ? 'is-active' : '' }}">Artikel / Blog</a>
             <a href="{{ route('expert.events.index') }}" class="{{ request()->routeIs('expert.events.*') ? 'is-active' : '' }}">Events</a>
         </nav>

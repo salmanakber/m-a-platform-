@@ -52,7 +52,7 @@
                 @endif
             </nav>
             <div class="admin-topbar__user">
-                <span>{{ auth()->user()->name ?? 'Admin' }}</span>
+                <a href="{{ route('admin.settings.edit', ['tab' => 'account']) }}" class="admin-topbar__profile" title="Profil bearbeiten">{{ auth()->user()->name ?? 'Admin' }}</a>
                 <form action="{{ route('logout') }}" method="post">
                     @csrf
                     <button type="submit" class="btn btn--ghost btn--small">Abmelden</button>

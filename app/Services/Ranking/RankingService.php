@@ -47,7 +47,26 @@ class RankingService
             return $this->active(RankingScope::GROUP_TOP, $group)->take(5);
         }
 
-        return $this->active(RankingScope::NATIONAL_TOP5)->take(5);
+        // Positions 1–5 with an expert (slot 6 is the contact/remark card).
+        return $this->active(RankingScope::NATIONAL_TOP5)
+            ->filter(fn (Ranking $row) => $row->expert_id && $row->expert)
+            ->take(5)
+            ->values();
+    }
+
+    /** Optional remark text for homepage slot 6 (Top 5 Schweiz). */
+    public function nationalContactRemark(): ?string
+    {
+        $row = $this->active(RankingScope::NATIONAL_TOP5)
+            ->first(fn (Ranking $row) => (int) $row->position === 6);
+
+        if ($row === null) {
+            return null;
+        }
+
+        $label = trim((string) ($row->label ?? ''));
+
+        return $label !== '' ? $label : null;
     }
 
     /**

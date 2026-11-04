@@ -36,6 +36,11 @@ class ProfileController extends Controller
         $validated = $request->validate([
             'company_name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255'],
+            'billing_email' => ['nullable', 'email', 'max:255'],
+            'billing_name' => ['nullable', 'string', 'max:255'],
+            'billing_address_line' => ['nullable', 'string', 'max:255'],
+            'billing_postal_code' => ['nullable', 'string', 'max:20'],
+            'billing_city' => ['nullable', 'string', 'max:120'],
             'phone' => ['nullable', 'string', 'max:50'],
             'website' => ['nullable', 'url', 'max:500'],
             'description' => ['nullable', 'string'],
@@ -65,6 +70,11 @@ class ProfileController extends Controller
         $data = [
             'company_name' => $validated['company_name'],
             'email' => $validated['email'],
+            'billing_email' => $validated['billing_email'] ?? null,
+            'billing_name' => $validated['billing_name'] ?? null,
+            'billing_address_line' => $validated['billing_address_line'] ?? null,
+            'billing_postal_code' => $validated['billing_postal_code'] ?? null,
+            'billing_city' => $validated['billing_city'] ?? null,
             'phone' => $validated['phone'] ?? null,
             'website' => $validated['website'] ?? null,
             'video_url' => $validated['video_url'] ?? null,

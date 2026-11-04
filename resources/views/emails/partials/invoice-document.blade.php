@@ -11,6 +11,8 @@
         'cancelled' => ['bg' => '#f1f5f9', 'fg' => '#475569', 'label' => 'Storniert'],
     ];
     $st = $statusColors[$paymentStatus] ?? $statusColors['pending'];
+    $senderAddressHtml = nl2br(e($senderAddress ?? ''));
+    $hasVat = isset($vatRate) && $vatRate !== null && (float) $vatRate > 0;
 @endphp
 
 <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:collapse;margin:8px 0 20px;border:1px solid #c5d6e4;">
@@ -28,6 +30,9 @@
                             {{ $st['label'] }}
                         </span>
                         <p style="margin:8px 0 0;font-family:Arial,Helvetica,sans-serif;font-size:12px;color:{{ $stone }};">Datum {{ $invoiceDate }}</p>
+                        @if (!empty($periodLabel))
+                            <p style="margin:4px 0 0;font-family:Arial,Helvetica,sans-serif;font-size:12px;color:{{ $stone }};">Zeitraum {{ $periodLabel }}</p>
+                        @endif
                     </td>
                 </tr>
             </table>
@@ -41,18 +46,27 @@
                 <tr>
                     <td width="50%" style="vertical-align:top;padding-right:10px;">
                         <p style="margin:0 0 6px;font-family:Arial,Helvetica,sans-serif;font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:{{ $stone }};">Rechnungssteller</p>
-                        <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.5;color:{{ $ink }};font-weight:700;">nachfolge-experten.ch</p>
+                        <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.5;color:{{ $ink }};font-weight:700;">{{ $senderName ?? 'nachfolge-experten.ch' }}</p>
                         <p style="margin:4px 0 0;font-family:Arial,Helvetica,sans-serif;font-size:13px;line-height:1.45;color:{{ $stone }};">
-                            KMU Beratungen GmbH<br>
-                            Brünigstrasse 144<br>
-                            6060 Sarnen · Schweiz
+                            {{ $senderCompany ?? 'KMU Beratungen GmbH' }}<br>
+                            {!! $senderAddressHtml !!}
+                            @if (!empty($vatUid))
+                                <br>MWST/UID: {{ $vatUid }}
+                            @endif
                         </p>
                     </td>
                     <td width="50%" style="vertical-align:top;padding-left:10px;">
                         <p style="margin:0 0 6px;font-family:Arial,Helvetica,sans-serif;font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:{{ $stone }};">Rechnungsempfänger</p>
                         <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.5;color:{{ $ink }};font-weight:700;">{{ $companyName }}</p>
                         <p style="margin:4px 0 0;font-family:Arial,Helvetica,sans-serif;font-size:13px;line-height:1.45;color:{{ $stone }};">
-                            {{ $contactName }}<br>
+                            {{ $contactName }}
+                            @if (!empty($billingAddress))
+                                <br>{{ $billingAddress }}
+                            @endif
+                            @if (!empty($billingPostal) || !empty($billingCity))
+                                <br>{{ trim(($billingPostal ?? '').' '.($billingCity ?? '')) }}
+                            @endif
+                            <br>
                             <a href="mailto:{{ $email }}" style="color:{{ $brand }};text-decoration:none;">{{ $email }}</a>
                         </p>
                     </td>
@@ -66,9 +80,9 @@
         <td style="padding:0;background-color:#ffffff;">
             <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:collapse;">
                 <tr>
-                    <td style="padding:10px 18px;background-color:#0E4971;font-family:Arial,Helvetica,sans-serif;font-size:11px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:#ffffff;width:58%;">Position</td>
-                    <td style="padding:10px 18px;background-color:#0E4971;font-family:Arial,Helvetica,sans-serif;font-size:11px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:#ffffff;width:18%;">Menge</td>
-                    <td align="right" style="padding:10px 18px;background-color:#0E4971;font-family:Arial,Helvetica,sans-serif;font-size:11px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:#ffffff;width:24%;">Betrag</td>
+                    <td style="padding:10px 18px;background-color:#0E4971;font-family:Arial,Helvetica,sans-serif;font-size:11px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:#ffffff;width:52%;">Position</td>
+                    <td style="padding:10px 18px;background-color:#0E4971;font-family:Arial,Helvetica,sans-serif;font-size:11px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:#ffffff;width:28%;">Menge × Preis</td>
+                    <td align="right" style="padding:10px 18px;background-color:#0E4971;font-family:Arial,Helvetica,sans-serif;font-size:11px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:#ffffff;width:20%;">Betrag</td>
                 </tr>
                 <tr>
                     <td style="padding:14px 18px;border-bottom:1px solid #e0ebf3;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.45;color:{{ $ink }};vertical-align:top;">
@@ -76,9 +90,12 @@
                         @if (!empty($serviceDetail))
                             <br><span style="color:{{ $stone }};font-size:13px;">{{ $serviceDetail }}</span>
                         @endif
+                        @if (!empty($periodLabel))
+                            <br><span style="color:{{ $stone }};font-size:12px;">Zeitraum: {{ $periodLabel }}</span>
+                        @endif
                     </td>
-                    <td style="padding:14px 18px;border-bottom:1px solid #e0ebf3;font-family:Arial,Helvetica,sans-serif;font-size:14px;color:{{ $ink }};vertical-align:top;">1 Monat</td>
-                    <td align="right" style="padding:14px 18px;border-bottom:1px solid #e0ebf3;font-family:Arial,Helvetica,sans-serif;font-size:14px;color:{{ $ink }};font-weight:700;vertical-align:top;">{{ $amountFormatted }} {{ $currency }}</td>
+                    <td style="padding:14px 18px;border-bottom:1px solid #e0ebf3;font-family:Arial,Helvetica,sans-serif;font-size:14px;color:{{ $ink }};vertical-align:top;">{{ $quantityLabel ?? '1' }}</td>
+                    <td align="right" style="padding:14px 18px;border-bottom:1px solid #e0ebf3;font-family:Arial,Helvetica,sans-serif;font-size:14px;color:{{ $ink }};font-weight:700;vertical-align:top;">{{ $netFormatted ?? $amountFormatted }} {{ $currency }}</td>
                 </tr>
             </table>
         </td>
@@ -90,11 +107,19 @@
             <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
                 <tr>
                     <td style="font-family:Arial,Helvetica,sans-serif;font-size:13px;color:{{ $stone }};">Zwischensumme</td>
-                    <td align="right" style="font-family:Arial,Helvetica,sans-serif;font-size:13px;color:{{ $ink }};">{{ $amountFormatted }} {{ $currency }}</td>
+                    <td align="right" style="font-family:Arial,Helvetica,sans-serif;font-size:13px;color:{{ $ink }};">{{ $netFormatted ?? $amountFormatted }} {{ $currency }}</td>
                 </tr>
                 <tr>
-                    <td style="padding-top:6px;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:{{ $stone }};">MwSt.</td>
-                    <td align="right" style="padding-top:6px;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:{{ $ink }};">inkl. / gemäss Vereinbarung</td>
+                    <td style="padding-top:6px;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:{{ $stone }};">
+                        MwSt.@if ($hasVat) {{ number_format((float) $vatRate, 1, '.', "'") }}&nbsp;%@endif
+                    </td>
+                    <td align="right" style="padding-top:6px;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:{{ $ink }};">
+                        @if ($hasVat)
+                            {{ $vatFormatted }} {{ $currency }}
+                        @else
+                            —
+                        @endif
+                    </td>
                 </tr>
                 <tr>
                     <td style="padding-top:12px;border-top:1px solid #c5d6e4;font-family:Arial,Helvetica,sans-serif;font-size:15px;font-weight:700;color:{{ $brandDeep }};">Total</td>
@@ -113,11 +138,18 @@
         </tr>
     @endif
 
-    @if (!empty($paymentHint))
+    @if (!empty($bankIban) || !empty($bankName) || !empty($paymentHint))
         <tr>
             <td style="padding:14px 18px;background-color:#e5f5fd;border-top:1px solid #9fc5de;">
-                <p style="margin:0 0 4px;font-family:Arial,Helvetica,sans-serif;font-size:12px;font-weight:700;color:{{ $brand }};">Zahlungsinfo</p>
-                <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:13px;line-height:1.5;color:{{ $ink }};">{{ $paymentHint }}</p>
+                <p style="margin:0 0 4px;font-family:Arial,Helvetica,sans-serif;font-size:12px;font-weight:700;color:{{ $brand }};">Zahlungsinfo / Bankverbindung</p>
+                @if (!empty($paymentHint))
+                    <p style="margin:0 0 8px;font-family:Arial,Helvetica,sans-serif;font-size:13px;line-height:1.5;color:{{ $ink }};">{{ $paymentHint }}</p>
+                @endif
+                <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:13px;line-height:1.55;color:{{ $ink }};">
+                    @if (!empty($bankName))Bank: {{ $bankName }}<br>@endif
+                    @if (!empty($bankIban))IBAN: {{ $bankIban }}<br>@endif
+                    @if (!empty($bankBic))BIC: {{ $bankBic }}@endif
+                </p>
             </td>
         </tr>
     @endif

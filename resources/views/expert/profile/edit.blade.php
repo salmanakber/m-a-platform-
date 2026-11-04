@@ -66,6 +66,37 @@
                     <label for="website">Website</label>
                     <input class="form-control" type="url" name="website" id="website" value="{{ old('website', $expert->website) }}" placeholder="https://">
                 </div>
+
+                <div class="xp-panel__head" style="margin-top:0.5rem;">
+                    <div>
+                        <h2>Rechnungsadresse (Buchhaltung)</h2>
+                        <p>Optional abweichend vom Profil — z.&nbsp;B. Buchhaltungsabteilung. Wird für Rechnungsversand genutzt.</p>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="billing_email">Rechnungs-E-Mail</label>
+                        <input class="form-control" type="email" name="billing_email" id="billing_email" value="{{ old('billing_email', $expert->billing_email) }}" placeholder="{{ $expert->email }}">
+                    </div>
+                    <div class="form-group">
+                        <label for="billing_name">Rechnungsempfänger</label>
+                        <input class="form-control" type="text" name="billing_name" id="billing_name" value="{{ old('billing_name', $expert->billing_name) }}" placeholder="{{ $expert->company_name }}">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="billing_address_line">Rechnungsadresse</label>
+                    <input class="form-control" type="text" name="billing_address_line" id="billing_address_line" value="{{ old('billing_address_line', $expert->billing_address_line) }}">
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="billing_postal_code">PLZ</label>
+                        <input class="form-control" type="text" name="billing_postal_code" id="billing_postal_code" value="{{ old('billing_postal_code', $expert->billing_postal_code) }}">
+                    </div>
+                    <div class="form-group">
+                        <label for="billing_city">Ort</label>
+                        <input class="form-control" type="text" name="billing_city" id="billing_city" value="{{ old('billing_city', $expert->billing_city) }}">
+                    </div>
+                </div>
                 <div class="form-row">
                     <div class="form-group">
                         <label for="contact_person_name">Ansprechpartner Vorname</label>

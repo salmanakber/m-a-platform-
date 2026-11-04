@@ -83,13 +83,37 @@
             </section>
 
             <section class="ins__panel" data-ins-panel="3" hidden>
-                <div class="ins__head"><h2>3. Rechnung bearbeiten</h2><p>Alle Felder vor dem Versand anpassbar — inkl. abweichende Rechnungs-E-Mail.</p></div>
+                <div class="ins__head"><h2>3. Rechnung bearbeiten</h2><p>Zeitraum, Menge × Preis, MwSt., Rechnungsadresse und E-Mail — alles vor dem Versand anpassbar. Bank/Absender unter Einstellungen → Rechnung / Bank.</p></div>
                 <form class="ins__form" data-ins-form>
                     <div class="ins__grid2">
                         <label class="ins__field"><span>Rechnungsnr.</span><input name="invoice_number" type="text" readonly></label>
                         <label class="ins__field"><span>Datum</span><input name="invoice_date" type="date"></label>
-                        <label class="ins__field"><span>Betrag CHF</span><input name="amount" type="number" step="0.01" min="0"></label>
-                        <label class="ins__field"><span>Rechnungs-E-Mail</span><input name="billing_email" type="email"></label>
+                        <label class="ins__field"><span>Zeitraum von</span><input name="period_start" type="date"></label>
+                        <label class="ins__field"><span>Zeitraum bis</span><input name="period_end" type="date"></label>
+                    </div>
+                    <div class="ins__calc" data-ins-calc>
+                        <div class="ins__grid3">
+                            <label class="ins__field"><span>Menge (Stk.)</span><input name="quantity" type="number" step="0.01" min="0.01" value="1" data-ins-calc-input></label>
+                            <label class="ins__field"><span>Einzelpreis CHF</span><input name="unit_price" type="number" step="0.01" min="0" data-ins-calc-input></label>
+                            <label class="ins__field"><span>MwSt. %</span><input name="vat_rate" type="number" step="0.01" min="0" max="100" placeholder="leer = 0" data-ins-calc-input></label>
+                        </div>
+                        <div class="ins__sum" aria-live="polite">
+                            <span>Zwischensumme <strong data-ins-net>0.00</strong> CHF</span>
+                            <span>MwSt. <strong data-ins-vat>0.00</strong> CHF</span>
+                            <span class="ins__sum-total">Total <strong data-ins-total>0.00</strong> CHF</span>
+                        </div>
+                        <input type="hidden" name="amount" value="0">
+                    </div>
+                    <div class="ins__grid2">
+                        <label class="ins__field"><span>Rechnungs-E-Mail</span><input name="billing_email" type="email" placeholder="Buchhaltung / abweichend"></label>
+                        <label class="ins__field"><span>Rechnungsempfänger (Name)</span><input name="billing_name" type="text"></label>
+                        <label class="ins__field"><span>Rechnungsadresse</span><input name="billing_address_line" type="text"></label>
+                        <label class="ins__field"><span>PLZ / Ort</span>
+                            <span class="ins__inline2">
+                                <input name="billing_postal_code" type="text" placeholder="PLZ" style="max-width:5.5rem;">
+                                <input name="billing_city" type="text" placeholder="Ort">
+                            </span>
+                        </label>
                     </div>
                     <label class="ins__field"><span>Leistungstitel</span><input name="service_title" type="text"></label>
                     <label class="ins__field"><span>Leistungsdetail</span><textarea name="service_detail" rows="3"></textarea></label>
@@ -104,20 +128,20 @@
             </section>
 
             <section class="ins__panel" data-ins-panel="4" hidden>
-                <div class="ins__head"><h2>4. Bestätigung &amp; Versand</h2><p>Zuerst Bestätigungs-E-Mail, danach die eigentliche Rechnung.</p></div>
-                <div class="ins__progress">
+                <div class="ins__head"><h2>4. Bestätigung &amp; Versand</h2><p>Nichts läuft automatisch — bitte die Buttons unten klicken. Zuerst Bestätigung, danach Rechnung.</p></div>
+                <div class="ins__progress" data-ins-progress>
                     <div class="ins__progress-top">
-                        <div class="cvs__pulse" aria-hidden="true"><span></span><span></span><span></span></div>
+                        <div class="cvs__pulse" data-ins-pulse hidden aria-hidden="true"><span></span><span></span><span></span></div>
                         <div>
-                            <strong data-ins-progress-title>Bereit zum Versand</strong>
-                            <p data-ins-progress-sub>Schritt für Schritt wählen</p>
+                            <strong data-ins-progress-title>Bereit — bitte senden</strong>
+                            <p data-ins-progress-sub>Noch nicht gestartet</p>
                         </div>
                         <div class="ins__pct"><strong data-ins-pct>0%</strong></div>
                     </div>
                     <div class="ins__bar"><i data-ins-bar></i></div>
                     <ol class="ins__gen-steps">
                         <li data-ins-mail="confirm"><i></i><div><strong>1) Bestätigungs-E-Mail</strong><em>Vor der Rechnung — Angaben prüfen lassen</em></div></li>
-                        <li data-ins-mail="invoice"><i></i><div><strong>2) Rechnung senden</strong><em>Offizielle Rechnung an Billing-E-Mail</em></div></li>
+                        <li data-ins-mail="invoice"><i></i><div><strong>2) Rechnung senden</strong><em>Offizielle Rechnung an Rechnungs-E-Mail</em></div></li>
                     </ol>
                     <div class="ins__feed" data-ins-feed aria-live="polite"></div>
                 </div>

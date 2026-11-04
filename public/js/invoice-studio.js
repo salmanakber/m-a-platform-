@@ -58,19 +58,48 @@
         feedEl.appendChild(row);
         feedEl.scrollTop = feedEl.scrollHeight;
     }
+    function setBusyPulse(on) {
+        var pulse = root.querySelector('[data-ins-pulse]');
+        if (pulse) pulse.hidden = !on;
+        root.querySelectorAll('[data-ins-send-confirm], [data-ins-send-invoice]').forEach(function (btn) {
+            btn.disabled = !!on;
+        });
+    }
     function setProgress(pct, title, sub) {
         if (pctEl) pctEl.textContent = Math.round(pct) + '%';
         if (barEl) barEl.style.width = Math.max(0, Math.min(100, pct)) + '%';
         var t = root.querySelector('[data-ins-progress-title]');
         var s = root.querySelector('[data-ins-progress-sub]');
         if (t && title) t.textContent = title;
-        if (s && sub) s.textContent = sub;
+        if (s && sub != null) s.textContent = sub;
     }
     function markMail(which, status) {
         var li = root.querySelector('[data-ins-mail="' + which + '"]');
         if (!li) return;
         li.classList.remove('is-active', 'is-done', 'is-error');
         if (status) li.classList.add('is-' + status);
+    }
+    function fmtMoney(n) {
+        var v = Math.round((Number(n) || 0) * 100) / 100;
+        return v.toFixed(2);
+    }
+    function recalcTotals() {
+        if (!form) return { net: 0, vat: 0, total: 0 };
+        var qty = parseFloat(form.quantity && form.quantity.value) || 0;
+        var unit = parseFloat(form.unit_price && form.unit_price.value) || 0;
+        var rate = parseFloat(form.vat_rate && form.vat_rate.value);
+        if (isNaN(rate) || rate < 0) rate = 0;
+        var net = Math.round(qty * unit * 100) / 100;
+        var vat = Math.round(net * (rate / 100) * 100) / 100;
+        var total = Math.round((net + vat) * 100) / 100;
+        var netEl = root.querySelector('[data-ins-net]');
+        var vatEl = root.querySelector('[data-ins-vat]');
+        var totEl = root.querySelector('[data-ins-total]');
+        if (netEl) netEl.textContent = fmtMoney(net);
+        if (vatEl) vatEl.textContent = fmtMoney(vat);
+        if (totEl) totEl.textContent = fmtMoney(total);
+        if (form.amount) form.amount.value = fmtMoney(total);
+        return { net: net, vat: vat, total: total };
     }
 
     async function api(method, endpoint, body) {
@@ -109,9 +138,19 @@
         if (n === 'library') renderLibrary();
         if (n === 2) updateChosenExpertBanner();
         if (n === 4 && state.invoice) {
-            setProgress(state.invoice.confirmation_sent_at ? 50 : 0, 'Bereit zum Versand', state.invoice.invoice_number || '');
-            if (state.invoice.confirmation_sent_at) markMail('confirm', 'done');
-            if (state.invoice.invoice_sent_at) markMail('invoice', 'done');
+            setBusyPulse(false);
+            var doneConfirm = !!state.invoice.confirmation_sent_at;
+            var doneInvoice = !!state.invoice.invoice_sent_at;
+            setProgress(
+                doneInvoice ? 100 : (doneConfirm ? 50 : 0),
+                doneInvoice ? 'Versand abgeschlossen' : (doneConfirm ? 'Bestätigung erledigt — Rechnung senden' : 'Bereit — bitte Button klicken'),
+                state.invoice.invoice_number || 'Noch nicht gestartet'
+            );
+            markMail('confirm', doneConfirm ? 'done' : '');
+            markMail('invoice', doneInvoice ? 'done' : '');
+            if (feedEl && !feedEl.children.length) {
+                log('Warte auf Klick: zuerst Bestätigung, dann Rechnung.', 'working');
+            }
         }
     }
 
@@ -298,19 +337,38 @@
         if (!form || !inv) return;
         form.invoice_number.value = inv.invoice_number || '';
         form.invoice_date.value = inv.invoice_date || '';
-        form.amount.value = inv.amount != null ? inv.amount : '';
+        if (form.period_start) form.period_start.value = inv.period_start || '';
+        if (form.period_end) form.period_end.value = inv.period_end || '';
+        if (form.quantity) form.quantity.value = inv.quantity != null ? inv.quantity : 1;
+        if (form.unit_price) form.unit_price.value = inv.unit_price != null ? inv.unit_price : (inv.amount != null ? inv.amount : '');
+        if (form.vat_rate) form.vat_rate.value = inv.vat_rate != null ? inv.vat_rate : (boot.default_vat_rate != null ? boot.default_vat_rate : '');
         form.billing_email.value = inv.billing_email || '';
+        if (form.billing_name) form.billing_name.value = inv.billing_name || '';
+        if (form.billing_address_line) form.billing_address_line.value = inv.billing_address_line || '';
+        if (form.billing_postal_code) form.billing_postal_code.value = inv.billing_postal_code || '';
+        if (form.billing_city) form.billing_city.value = inv.billing_city || '';
         form.service_title.value = inv.service_title || '';
         form.service_detail.value = inv.service_detail || '';
         form.notes.value = inv.notes || '';
         form.admin_notes.value = inv.admin_notes || '';
+        recalcTotals();
     }
 
     function readForm() {
+        recalcTotals();
         return {
             invoice_date: form.invoice_date.value,
-            amount: form.amount.value,
+            period_start: form.period_start ? form.period_start.value || null : null,
+            period_end: form.period_end ? form.period_end.value || null : null,
+            quantity: form.quantity ? form.quantity.value : 1,
+            unit_price: form.unit_price ? form.unit_price.value : null,
+            vat_rate: form.vat_rate && form.vat_rate.value !== '' ? form.vat_rate.value : null,
+            amount: form.amount ? form.amount.value : null,
             billing_email: form.billing_email.value,
+            billing_name: form.billing_name ? form.billing_name.value : null,
+            billing_address_line: form.billing_address_line ? form.billing_address_line.value : null,
+            billing_postal_code: form.billing_postal_code ? form.billing_postal_code.value : null,
+            billing_city: form.billing_city ? form.billing_city.value : null,
             service_title: form.service_title.value,
             service_detail: form.service_detail.value,
             notes: form.notes.value,
@@ -368,24 +426,25 @@
         } catch (err) { toast(err.message, 'error'); }
     }
 
-    async function saveDraft() {
-        if (!state.invoice) return;
-        try {
-            var res = await api('PUT', url('update', state.invoice.id), readForm());
-            state.invoice = res.invoice;
-            upsertInvoice(state.invoice);
-            toast('Gespeichert', 'ok');
-        } catch (err) { toast(err.message, 'error'); }
+    async function saveDraft(silent) {
+        if (!state.invoice) throw new Error('Kein Rechnungsentwurf');
+        var res = await api('PUT', url('update', state.invoice.id), readForm());
+        state.invoice = res.invoice;
+        upsertInvoice(state.invoice);
+        fillForm(state.invoice);
+        if (!silent) toast('Gespeichert', 'ok');
+        return res;
     }
 
     async function sendConfirm() {
         if (!state.invoice || state.busy) return;
         state.busy = true;
+        setBusyPulse(true);
         markMail('confirm', 'active');
         setProgress(20, 'Bestätigung wird gesendet…', state.invoice.billing_email || '');
-        log('Sende Bestätigungs-E-Mail…', 'working');
+        log('Sende Bestätigungs-E-Mail an ' + (state.invoice.billing_email || '—') + '…', 'working');
         try {
-            await saveDraft();
+            await saveDraft(true);
             var res = await api('POST', url('confirm', state.invoice.id), {});
             state.invoice = res.invoice;
             upsertInvoice(state.invoice);
@@ -395,19 +454,29 @@
             toast(res.message || 'Bestätigung gesendet', 'ok');
         } catch (err) {
             markMail('confirm', 'error');
+            setProgress(0, 'Bestätigung fehlgeschlagen', err.message || '');
             log(err.message, 'error');
             toast(err.message, 'error');
-        } finally { state.busy = false; }
+        } finally {
+            state.busy = false;
+            setBusyPulse(false);
+        }
     }
 
     async function sendInvoice() {
         if (!state.invoice || state.busy) return;
+        if (!state.invoice.confirmation_sent_at) {
+            toast('Bitte zuerst die Bestätigung senden.', 'error');
+            log('Rechnung blockiert: Bestätigung fehlt noch.', 'error');
+            return;
+        }
         state.busy = true;
+        setBusyPulse(true);
         markMail('invoice', 'active');
         setProgress(70, 'Rechnung wird gesendet…', state.invoice.billing_email || '');
-        log('Sende Rechnungs-E-Mail…', 'working');
+        log('Sende Rechnungs-E-Mail an ' + (state.invoice.billing_email || '—') + '…', 'working');
         try {
-            await saveDraft();
+            await saveDraft(true);
             var res = await api('POST', url('send', state.invoice.id), { type: 'created' });
             state.invoice = res.invoice;
             upsertInvoice(state.invoice);
@@ -420,9 +489,13 @@
             toast(res.message || 'Rechnung gesendet', 'ok');
         } catch (err) {
             markMail('invoice', 'error');
+            setProgress(50, 'Rechnung fehlgeschlagen', err.message || '');
             log(err.message, 'error');
             toast(err.message, 'error');
-        } finally { state.busy = false; }
+        } finally {
+            state.busy = false;
+            setBusyPulse(false);
+        }
     }
 
     async function loadInvoice(id) {
@@ -460,10 +533,20 @@
         toast('Neue Rechnung gestartet');
     }
 
+    if (form) {
+        form.querySelectorAll('[data-ins-calc-input]').forEach(function (input) {
+            input.addEventListener('input', recalcTotals);
+            input.addEventListener('change', recalcTotals);
+        });
+    }
+
     root.querySelectorAll('[data-ins-goto]').forEach(function (btn) {
         btn.addEventListener('click', function () {
             var n = btn.getAttribute('data-ins-goto');
-            if (n === '4') { saveDraft().then(function () { setStep(4); }).catch(function (e) { toast(e.message, 'error'); }); return; }
+            if (n === '4') {
+                saveDraft(true).then(function () { setStep(4); }).catch(function (e) { toast(e.message, 'error'); });
+                return;
+            }
             if (n === '2' && !state.expertId) { toast('Bitte zuerst einen Experten wählen', 'error'); return; }
             setStep(n === 'library' ? 'library' : parseInt(n, 10));
         });
@@ -504,7 +587,9 @@
     var createBtn = root.querySelector('[data-ins-create]');
     if (createBtn) createBtn.addEventListener('click', createDraft);
     var saveBtn = root.querySelector('[data-ins-save]');
-    if (saveBtn) saveBtn.addEventListener('click', function () { saveDraft(); });
+    if (saveBtn) saveBtn.addEventListener('click', function () {
+        saveDraft(false).catch(function (e) { toast(e.message, 'error'); });
+    });
     var cBtn = root.querySelector('[data-ins-send-confirm]');
     if (cBtn) cBtn.addEventListener('click', sendConfirm);
     var iBtn = root.querySelector('[data-ins-send-invoice]');

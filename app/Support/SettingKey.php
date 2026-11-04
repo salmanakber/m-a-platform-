@@ -16,6 +16,8 @@ final class SettingKey
 
     public const GROUP_FOOTER = 'footer';
 
+    public const GROUP_INVOICE = 'invoice';
+
     public const APP_NAME = 'app.name';
 
     public const FOOTER_CONTACT_LINES = 'footer.contact_lines';
@@ -53,4 +55,22 @@ final class SettingKey
     public const ADMIN_NOTIFICATION_EMAIL = 'email.admin_notification_email';
 
     public const RESEND_REPLY_TO = 'email.reply_to';
+
+    public const INVOICE_SENDER_NAME = 'invoice.sender_name';
+
+    public const INVOICE_SENDER_COMPANY = 'invoice.sender_company';
+
+    public const INVOICE_SENDER_ADDRESS = 'invoice.sender_address';
+
+    public const INVOICE_BANK_NAME = 'invoice.bank_name';
+
+    public const INVOICE_BANK_IBAN = 'invoice.bank_iban';
+
+    public const INVOICE_BANK_BIC = 'invoice.bank_bic';
+
+    public const INVOICE_PAYMENT_HINT = 'invoice.payment_hint';
+
+    public const INVOICE_DEFAULT_VAT_RATE = 'invoice.default_vat_rate';
+
+    public const INVOICE_VAT_UID = 'invoice.vat_uid';
 }

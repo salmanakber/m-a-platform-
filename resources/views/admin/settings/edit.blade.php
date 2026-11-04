@@ -8,14 +8,15 @@
     <nav class="admin-tabs">
         <a href="{{ route('admin.settings.edit', ['tab' => 'general']) }}" class="{{ $tab === 'general' ? 'is-active' : '' }}">Allgemein</a>
         <a href="{{ route('admin.settings.edit', ['tab' => 'footer']) }}" class="{{ $tab === 'footer' ? 'is-active' : '' }}">Footer / Kontakt</a>
+        <a href="{{ route('admin.settings.edit', ['tab' => 'invoice']) }}" class="{{ $tab === 'invoice' ? 'is-active' : '' }}">Rechnung / Bank</a>
         <a href="{{ route('admin.settings.edit', ['tab' => 'maps']) }}" class="{{ $tab === 'maps' ? 'is-active' : '' }}">Maps</a>
         <a href="{{ route('admin.settings.edit', ['tab' => 'email']) }}" class="{{ $tab === 'email' ? 'is-active' : '' }}">E-Mail</a>
         <a href="{{ route('admin.settings.edit', ['tab' => 'ai']) }}" class="{{ $tab === 'ai' ? 'is-active' : '' }}">KI</a>
         <a href="{{ route('admin.settings.edit', ['tab' => 'promotion']) }}" class="{{ $tab === 'promotion' ? 'is-active' : '' }}">Promotionen</a>
-        <a href="{{ route('admin.settings.edit', ['tab' => 'password']) }}" class="{{ $tab === 'password' ? 'is-active' : '' }}">Passwort</a>
+        <a href="{{ route('admin.settings.edit', ['tab' => 'account']) }}" class="{{ in_array($tab, ['account', 'password'], true) ? 'is-active' : '' }}">Mein Konto</a>
     </nav>
 
-    @if ($tab !== 'password')
+    @if (! in_array($tab, ['account', 'password'], true))
     <form method="post" action="{{ route('admin.settings.update') }}" class="card">
         @csrf
         @method('PUT')
@@ -119,13 +120,82 @@
             </div>
         @endif
 
+        @if ($tab === 'invoice')
+            <p class="field-hint" style="margin-top:0;">Absender, Bankverbindung und Standard-MwSt. für alle Rechnungs-E-Mails. Pro Rechnung können Zeitraum, Menge und MwSt. im Studio überschrieben werden.</p>
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="invoice_sender_name">Absender (Marke)</label>
+                    <input class="form-control" type="text" name="invoice_sender_name" id="invoice_sender_name" value="{{ old('invoice_sender_name', $invoiceSenderName) }}">
+                </div>
+                <div class="form-group">
+                    <label for="invoice_sender_company">Firma Absender</label>
+                    <input class="form-control" type="text" name="invoice_sender_company" id="invoice_sender_company" value="{{ old('invoice_sender_company', $invoiceSenderCompany) }}">
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="invoice_sender_address">Adresse Absender (mehrzeilig)</label>
+                <textarea class="form-control" name="invoice_sender_address" id="invoice_sender_address" rows="3">{{ old('invoice_sender_address', $invoiceSenderAddress) }}</textarea>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="invoice_bank_name">Bank</label>
+                    <input class="form-control" type="text" name="invoice_bank_name" id="invoice_bank_name" value="{{ old('invoice_bank_name', $invoiceBankName) }}">
+                </div>
+                <div class="form-group">
+                    <label for="invoice_bank_iban">IBAN</label>
+                    <input class="form-control" type="text" name="invoice_bank_iban" id="invoice_bank_iban" value="{{ old('invoice_bank_iban', $invoiceBankIban) }}" placeholder="CH00 0000 0000 0000 0000 0">
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="invoice_bank_bic">BIC / SWIFT</label>
+                    <input class="form-control" type="text" name="invoice_bank_bic" id="invoice_bank_bic" value="{{ old('invoice_bank_bic', $invoiceBankBic) }}">
+                </div>
+                <div class="form-group">
+                    <label for="invoice_vat_uid">MWST-Nr. / UID</label>
+                    <input class="form-control" type="text" name="invoice_vat_uid" id="invoice_vat_uid" value="{{ old('invoice_vat_uid', $invoiceVatUid) }}" placeholder="CHE-xxx.xxx.xxx MWST">
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="invoice_default_vat_rate">Standard-MwSt. %</label>
+                    <input class="form-control" type="number" step="0.01" min="0" max="100" name="invoice_default_vat_rate" id="invoice_default_vat_rate" value="{{ old('invoice_default_vat_rate', $invoiceDefaultVatRate) }}" placeholder="leer = keine MwSt.">
+                    <p class="field-hint">Leer lassen, solange keine MwSt. ausgewiesen wird. Später z.&nbsp;B. 8.1.</p>
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="invoice_payment_hint">Zahlungsinfo (Text auf Rechnung)</label>
+                <textarea class="form-control" name="invoice_payment_hint" id="invoice_payment_hint" rows="3">{{ old('invoice_payment_hint', $invoicePaymentHint) }}</textarea>
+            </div>
+        @endif
+
         <button type="submit" class="btn">Speichern</button>
     </form>
     @else
+        <form method="post" action="{{ route('admin.settings.update') }}" class="card" style="margin-bottom:1rem;">
+            @csrf
+            @method('PUT')
+            <input type="hidden" name="tab" value="account">
+            <p class="field-hint" style="margin-top:0;">Name und E-Mail Ihres Admin-Kontos.</p>
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="admin_name">Name</label>
+                    <input class="form-control" type="text" name="admin_name" id="admin_name" value="{{ old('admin_name', $adminUser->name ?? '') }}" required>
+                    @error('admin_name')<p class="field-error">{{ $message }}</p>@enderror
+                </div>
+                <div class="form-group">
+                    <label for="admin_email">E-Mail</label>
+                    <input class="form-control" type="email" name="admin_email" id="admin_email" value="{{ old('admin_email', $adminUser->email ?? '') }}" required>
+                    @error('admin_email')<p class="field-error">{{ $message }}</p>@enderror
+                </div>
+            </div>
+            <button type="submit" class="btn">Konto speichern</button>
+        </form>
+
         <form method="post" action="{{ route('admin.settings.password') }}" class="card">
             @csrf
             @method('PUT')
-            <p class="field-hint" style="margin-top:0;">Eigenes Admin-Passwort ändern (aktuelles Passwort erforderlich).</p>
+            <p class="field-hint" style="margin-top:0;">Passwort ändern (aktuelles Passwort erforderlich).</p>
             <div class="form-group">
                 <label for="current_password">Aktuelles Passwort</label>
                 <input class="form-control" type="password" name="current_password" id="current_password" required autocomplete="current-password">

@@ -13,5 +13,5 @@
 @endsection
 
 @push('scripts')
-<script src="{{ asset('js/invoice-studio.js') }}?v=2"></script>
+<script src="{{ asset('js/invoice-studio.js') }}?v=3"></script>
 @endpush
