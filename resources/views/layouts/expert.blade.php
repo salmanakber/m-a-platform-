@@ -22,6 +22,7 @@
             <a href="{{ route('expert.profile.edit') }}" class="{{ request()->routeIs('expert.profile.*') ? 'is-active' : '' }}">Unternehmen</a>
             <a href="{{ route('expert.offices.index') }}" class="{{ request()->routeIs('expert.offices.*') ? 'is-active' : '' }}">Standorte</a>
             <a href="{{ route('expert.cv.index') }}" class="{{ request()->routeIs('expert.cv.*') ? 'is-active' : '' }}">Lebenslauf / CV</a>
+            <a href="{{ route('expert.videos.index') }}" class="{{ request()->routeIs('expert.videos.*') ? 'is-active' : '' }}">Videos</a>
             <a href="{{ route('expert.crawl.index') }}" class="{{ request()->routeIs('expert.crawl.*') ? 'is-active' : '' }}">Website-Import</a>
 
             <p class="admin-sidebar__label">Wachstum</p>

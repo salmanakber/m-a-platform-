@@ -3,6 +3,7 @@
 namespace App\Services\Invoice;
 
 use App\Models\Expert;
+use App\Models\ExpertVideo;
 use App\Models\Invoice;
 use App\Models\InvoiceProduct;
 use App\Models\Promotion;
@@ -249,6 +250,8 @@ class InvoiceService
 
     public function notifyPaid(Invoice $invoice): bool
     {
+        $this->activateVideosForInvoice($invoice);
+
         try {
             $this->notifications->sendInvoicePaid($invoice->fresh(['expert', 'promotion.canton', 'linkedPromotion.canton']));
 
@@ -260,22 +263,34 @@ class InvoiceService
         }
     }
 
+    /** Unlock pending expert videos linked to this invoice (also safe to call without e-mail). */
+    public function activateVideosForInvoice(Invoice $invoice): int
+    {
+        return ExpertVideo::query()
+            ->where('invoice_id', $invoice->id)
+            ->where('status', ExpertVideo::STATUS_PENDING)
+            ->update(['status' => ExpertVideo::STATUS_ACTIVE]);
+    }
+
     public function nextInvoiceNumber(): string
     {
-        $year = now()->format('Y');
-        $prefix = 'NE-'.$year.'-';
+        return DB::transaction(function () {
+            $year = now()->format('Y');
+            $prefix = 'NE-'.$year.'-';
 
-        $latest = Invoice::query()
-            ->where('invoice_number', 'like', $prefix.'%')
-            ->orderByDesc('invoice_number')
-            ->value('invoice_number');
+            $latest = Invoice::query()
+                ->where('invoice_number', 'like', $prefix.'%')
+                ->orderByDesc('invoice_number')
+                ->lockForUpdate()
+                ->value('invoice_number');
 
-        $seq = 1;
-        if (is_string($latest) && preg_match('/(\d+)$/', $latest, $m)) {
-            $seq = ((int) $m[1]) + 1;
-        }
+            $seq = 1;
+            if (is_string($latest) && preg_match('/(\d+)$/', $latest, $m)) {
+                $seq = ((int) $m[1]) + 1;
+            }
 
-        return $prefix.str_pad((string) $seq, 5, '0', STR_PAD_LEFT);
+            return $prefix.str_pad((string) $seq, 5, '0', STR_PAD_LEFT);
+        });
     }
 
     /** @return array<string, mixed> */

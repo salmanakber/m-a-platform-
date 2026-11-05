@@ -116,7 +116,17 @@
         });
         var data = null;
         try { data = await res.json(); } catch (e) {}
-        if (!res.ok) throw new Error((data && data.message) || ('Fehler ' + res.status));
+        if (!res.ok) {
+            var msg = (data && data.message) || ('Fehler ' + res.status);
+            if (data && data.errors) {
+                var bits = [];
+                Object.keys(data.errors).forEach(function (k) {
+                    (data.errors[k] || []).forEach(function (m) { bits.push(m); });
+                });
+                if (bits.length) msg = bits.join(' · ');
+            }
+            throw new Error(msg);
+        }
         return data;
     }
 
@@ -465,37 +475,56 @@
 
     async function sendInvoice() {
         if (!state.invoice || state.busy) return;
-        if (!state.invoice.confirmation_sent_at) {
-            toast('Bitte zuerst die Bestätigung senden.', 'error');
-            log('Rechnung blockiert: Bestätigung fehlt noch.', 'error');
-            return;
-        }
         state.busy = true;
         setBusyPulse(true);
-        markMail('invoice', 'active');
-        setProgress(70, 'Rechnung wird gesendet…', state.invoice.billing_email || '');
-        log('Sende Rechnungs-E-Mail an ' + (state.invoice.billing_email || '—') + '…', 'working');
         try {
             await saveDraft(true);
+            if (!state.invoice.confirmation_sent_at) {
+                markMail('confirm', 'active');
+                setProgress(25, 'Bestätigung wird gesendet…', state.invoice.billing_email || '');
+                log('1/2 Bestätigung an ' + (state.invoice.billing_email || '—'), 'working');
+                var conf = await api('POST', url('confirm', state.invoice.id), {});
+                state.invoice = conf.invoice;
+                upsertInvoice(state.invoice);
+                markMail('confirm', 'done');
+                setProgress(50, 'Bestätigung gesendet', conf.message || '');
+                log(conf.message || 'Bestätigung ok', 'ok');
+            }
+            markMail('invoice', 'active');
+            setProgress(75, 'Rechnung wird gesendet…', state.invoice.billing_email || '');
+            log('2/2 Rechnung an ' + (state.invoice.billing_email || '—'), 'working');
             var res = await api('POST', url('send', state.invoice.id), { type: 'created' });
             state.invoice = res.invoice;
             upsertInvoice(state.invoice);
             markMail('invoice', 'done');
-            setProgress(100, 'Rechnung gesendet', res.message || '');
+            setProgress(100, 'Fertig — E-Mails gesendet', res.message || '');
             log(res.message || 'Rechnung ok', 'ok');
             var msg = root.querySelector('[data-ins-done-msg]');
-            if (msg) msg.textContent = res.message || 'Rechnung wurde versendet.';
+            if (msg) msg.textContent = res.message || 'Rechnung wurde versendet. Sie können für dieselbe Firma ein weiteres Produkt verrechnen.';
             setStep(5);
             toast(res.message || 'Rechnung gesendet', 'ok');
         } catch (err) {
             markMail('invoice', 'error');
-            setProgress(50, 'Rechnung fehlgeschlagen', err.message || '');
+            setProgress(state.invoice && state.invoice.confirmation_sent_at ? 50 : 0, 'Senden fehlgeschlagen', err.message || '');
             log(err.message, 'error');
             toast(err.message, 'error');
         } finally {
             state.busy = false;
             setBusyPulse(false);
         }
+    }
+
+    function anotherProductSameExpert() {
+        if (!state.expertId) { restart(); return; }
+        state.invoice = null;
+        state.productId = null;
+        if (feedEl) feedEl.innerHTML = '';
+        markMail('confirm', '');
+        markMail('invoice', '');
+        setProgress(0, 'Bereit', '');
+        renderProducts();
+        setStep(2);
+        toast('Produkt wählen — dieselbe Firma, weitere Rechnung', 'ok');
     }
 
     async function loadInvoice(id) {
@@ -594,6 +623,8 @@
     if (cBtn) cBtn.addEventListener('click', sendConfirm);
     var iBtn = root.querySelector('[data-ins-send-invoice]');
     if (iBtn) iBtn.addEventListener('click', sendInvoice);
+    var anotherBtn = root.querySelector('[data-ins-another-product]');
+    if (anotherBtn) anotherBtn.addEventListener('click', anotherProductSameExpert);
     root.querySelectorAll('[data-ins-restart]').forEach(function (btn) {
         btn.addEventListener('click', restart);
     });

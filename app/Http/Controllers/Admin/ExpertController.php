@@ -15,6 +15,7 @@ use App\Support\ExpertStatus;
 use App\Support\ProfessionalGroup;
 use App\Support\Role;
 use App\Support\SettingKey;
+use App\Support\UrlNormalizer;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -90,6 +91,8 @@ class ExpertController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
+        UrlNormalizer::mergeRequest($request, ['website']);
+
         $validated = $request->validate([
             'company_name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255'],
@@ -270,6 +273,8 @@ class ExpertController extends Controller
 
     public function update(Request $request, Expert $expert): RedirectResponse
     {
+        UrlNormalizer::mergeRequest($request, ['website', 'website_crawl_url', 'video_url']);
+
         $validated = $request->validate([
             'company_name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255'],

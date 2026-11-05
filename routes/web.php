@@ -31,6 +31,7 @@ use App\Http\Controllers\Expert\OfficeController as ExpertOfficeController;
 use App\Http\Controllers\Expert\ProfileController as ExpertProfileController;
 use App\Http\Controllers\Expert\InvoiceController as ExpertInvoiceController;
 use App\Http\Controllers\Expert\PromotionController as ExpertPromotionController;
+use App\Http\Controllers\Expert\VideoController as ExpertVideoController;
 use App\Http\Controllers\PublicSite\ArticleController as PublicArticleController;
 use App\Http\Controllers\PublicSite\CantonController;
 use App\Http\Controllers\PublicSite\DirectoryController;
@@ -261,6 +262,11 @@ Route::prefix('expert')->name('expert.')->middleware(['auth', 'role:expert', 'ex
 
     Route::get('/rechnungen', [ExpertInvoiceController::class, 'index'])->name('invoices.index');
     Route::get('/rechnungen/{invoice}', [ExpertInvoiceController::class, 'show'])->name('invoices.show');
+
+    Route::get('/videos', [ExpertVideoController::class, 'index'])->name('videos.index');
+    Route::post('/videos', [ExpertVideoController::class, 'store'])->name('videos.store');
+    Route::put('/videos/{video}', [ExpertVideoController::class, 'update'])->name('videos.update');
+    Route::delete('/videos/{video}', [ExpertVideoController::class, 'destroy'])->name('videos.destroy');
 
     Route::get('/lebenslauf', [ExpertCvController::class, 'index'])->name('cv.index');
     Route::post('/lebenslauf', [ExpertCvController::class, 'store'])->name('cv.store');

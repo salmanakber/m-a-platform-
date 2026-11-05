@@ -70,6 +70,11 @@ class Expert extends Model
         'interim_criteria' => 'array',
     ];
 
+    public function videos(): HasMany
+    {
+        return $this->hasMany(ExpertVideo::class)->orderBy('sort_order')->orderBy('id');
+    }
+
     public function isAdInterim(): bool
     {
         return ($this->professional_group ?? '') === \App\Support\ProfessionalGroup::AD_INTERIM;

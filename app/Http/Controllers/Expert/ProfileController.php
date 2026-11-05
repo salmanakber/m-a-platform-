@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\ExpertMedia;
 use App\Support\ProfessionalGroup;
 use App\Support\TextLines;
+use App\Support\UrlNormalizer;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -32,6 +33,8 @@ class ProfileController extends Controller
         if ($expert === null) {
             abort(403);
         }
+
+        UrlNormalizer::mergeRequest($request, ['website', 'website_crawl_url', 'video_url']);
 
         $validated = $request->validate([
             'company_name' => ['required', 'string', 'max:255'],

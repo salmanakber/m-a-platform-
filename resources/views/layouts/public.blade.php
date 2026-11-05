@@ -93,7 +93,7 @@
                 <a href="{{ route('directory.index') }}">Verzeichnis</a>
                 <a href="{{ route('blog.index') }}">Fachbeiträge</a>
                 @foreach (($navArticleCategories ?? collect()) as $cat)
-                    <a href="{{ route('blog.index', ['gruppe' => $cat->slug]) }}">{{ $cat->name_de }}</a>
+                    <a class="site-footer__sub" href="{{ route('blog.index', ['gruppe' => $cat->slug]) }}">{{ $cat->name_de }}</a>
                 @endforeach
                 <a href="{{ route('events.index') }}">Events</a>
                 <a href="{{ route('map.index') }}">Schweiz-Karte</a>

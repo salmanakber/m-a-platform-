@@ -128,27 +128,30 @@
             </section>
 
             <section class="ins__panel" data-ins-panel="4" hidden>
-                <div class="ins__head"><h2>4. Bestätigung &amp; Versand</h2><p>Nichts läuft automatisch — bitte die Buttons unten klicken. Zuerst Bestätigung, danach Rechnung.</p></div>
+                <div class="ins__head">
+                    <h2>4. E-Mails senden</h2>
+                    <p>Ein Klick sendet Bestätigung und Rechnung an die Rechnungs-E-Mail. Dieselbe Firma darf beliebig viele Produkte / Rechnungen erhalten.</p>
+                </div>
                 <div class="ins__progress" data-ins-progress>
                     <div class="ins__progress-top">
                         <div class="cvs__pulse" data-ins-pulse hidden aria-hidden="true"><span></span><span></span><span></span></div>
                         <div>
-                            <strong data-ins-progress-title>Bereit — bitte senden</strong>
-                            <p data-ins-progress-sub>Noch nicht gestartet</p>
+                            <strong data-ins-progress-title>Bereit zum Senden</strong>
+                            <p data-ins-progress-sub>Button unten klicken</p>
                         </div>
                         <div class="ins__pct"><strong data-ins-pct>0%</strong></div>
                     </div>
                     <div class="ins__bar"><i data-ins-bar></i></div>
                     <ol class="ins__gen-steps">
-                        <li data-ins-mail="confirm"><i></i><div><strong>1) Bestätigungs-E-Mail</strong><em>Vor der Rechnung — Angaben prüfen lassen</em></div></li>
-                        <li data-ins-mail="invoice"><i></i><div><strong>2) Rechnung senden</strong><em>Offizielle Rechnung an Rechnungs-E-Mail</em></div></li>
+                        <li data-ins-mail="confirm"><i></i><div><strong>Bestätigung</strong><em>Kurz-Mail vor der Rechnung</em></div></li>
+                        <li data-ins-mail="invoice"><i></i><div><strong>Rechnung</strong><em>Offizielle Rechnung mit Betrag / IBAN</em></div></li>
                     </ol>
                     <div class="ins__feed" data-ins-feed aria-live="polite"></div>
                 </div>
                 <div class="ins__actions">
                     <button type="button" class="btn btn--ghost" data-ins-goto="3">Zurück</button>
-                    <button type="button" class="btn" data-ins-send-confirm>1) Bestätigung senden</button>
-                    <button type="button" class="btn" data-ins-send-invoice>2) Rechnung senden</button>
+                    <button type="button" class="btn btn--ghost" data-ins-send-confirm>Nur Bestätigung</button>
+                    <button type="button" class="btn" data-ins-send-invoice>Rechnung senden</button>
                 </div>
             </section>
 
@@ -158,7 +161,8 @@
                     <h2>Rechnung verarbeitet</h2>
                     <p data-ins-done-msg>Status und Versandzeiten sind gespeichert.</p>
                     <div class="ins__actions" style="justify-content:center;">
-                        <button type="button" class="btn" data-ins-goto="library">Zur Bibliothek</button>
+                        <button type="button" class="btn" data-ins-another-product>Weiteres Produkt · gleiche Firma</button>
+                        <button type="button" class="btn btn--ghost" data-ins-goto="library">Zur Bibliothek</button>
                         <button type="button" class="btn btn--ghost" data-ins-restart>Neue Rechnung</button>
                     </div>
                 </div>

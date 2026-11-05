@@ -216,12 +216,40 @@ class InvoiceController extends Controller
             'currency' => ['nullable', 'string', 'size:3'],
             'invoice_date' => ['nullable', 'date'],
             'period_start' => ['nullable', 'date'],
-            'period_end' => ['nullable', 'date', 'after_or_equal:period_start'],
+            'period_end' => ['nullable', 'date'],
             'notes' => ['nullable', 'string', 'max:5000'],
             'admin_notes' => ['nullable', 'string', 'max:5000'],
         ]);
 
-        $invoice = $this->invoiceService->updateDraft($invoice, $validated);
+        if (! empty($validated['period_start']) && ! empty($validated['period_end'])
+            && $validated['period_end'] < $validated['period_start']) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'Zeitraum «bis» muss nach «von» liegen.',
+                'errors' => ['period_end' => ['Zeitraum «bis» muss nach «von» liegen.']],
+            ], 422);
+        }
+
+        // Empty strings → null (avoids date-cast / MySQL issues)
+        foreach (['period_start', 'period_end', 'vat_rate', 'billing_name', 'billing_address_line', 'billing_postal_code', 'billing_city'] as $nullable) {
+            if (array_key_exists($nullable, $validated) && $validated[$nullable] === '') {
+                $validated[$nullable] = null;
+            }
+        }
+
+        try {
+            $invoice = $this->invoiceService->updateDraft($invoice, $validated);
+        } catch (\Throwable $e) {
+            report($e);
+            if ($request->expectsJson() || $request->ajax()) {
+                return response()->json([
+                    'ok' => false,
+                    'message' => 'Speichern fehlgeschlagen: '.$e->getMessage(),
+                ], 500);
+            }
+
+            return back()->with('error', 'Speichern fehlgeschlagen: '.$e->getMessage());
+        }
 
         if ($request->expectsJson() || $request->ajax()) {
             return response()->json([
@@ -271,6 +299,13 @@ class InvoiceController extends Controller
         $nowPaid = $validated['payment_status'] === InvoicePaymentStatus::PAID;
 
         $msg = 'Zahlungsstatus aktualisiert.';
+
+        if ($nowPaid && ! $wasPaid) {
+            $unlocked = $this->invoiceService->activateVideosForInvoice($invoice);
+            if ($unlocked > 0) {
+                $msg .= ' '.$unlocked.' Video(s) freigeschaltet.';
+            }
+        }
 
         if (
             ($validated['activate_promotion'] ?? false)

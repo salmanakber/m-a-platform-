@@ -7298,6 +7298,86 @@ body.is-public-redesign .site-nav .nav-drop__menu a:hover {
     color: var(--nh-muted, #5a6b78);
     flex: 1;
 }
+.nh-rankrow--open { background: rgba(197,160,89,0.06); }
+.nh-article-card--open {
+    border-style: dashed !important;
+    border-color: rgba(197,160,89,0.45) !important;
+    background: rgba(197,160,89,0.06);
+}
+.nh-fach-more { margin-top: 1.75rem; }
+.nh-fach-more__label,
+.nh-fach-topics__label {
+    margin: 0 0 0.65rem;
+    font-size: 0.72rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: rgba(245,241,234,0.55);
+    font-weight: 700;
+}
+.nh-fach-topics {
+    margin-top: 2rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid rgba(245,241,234,0.12);
+}
+.nh-fach-topics__list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+.nh-fach-topics__list a {
+    color: rgba(245,241,234,0.72);
+    text-decoration: none;
+    font-size: 0.95rem;
+}
+.nh-fach-topics__list a:hover { color: var(--nh-gold-2, #e8c98a); }
+.nh-fach-topics__list li:first-child a { color: var(--nh-gold-2, #e8c98a); }
+.site-footer__sub {
+    display: block;
+    padding-left: 0.85rem;
+    opacity: 0.78;
+    font-size: 0.88rem;
+}
+.nh-fach-videos { margin-top: 0.5rem; }
+.nh-card--video {
+    background: rgba(255,255,255,0.04);
+    border-color: rgba(255,255,255,0.14);
+    color: #fff;
+}
+.nh-card--video h3 { color: #fff; }
+.nh-card--video .nh-card__firm,
+.nh-card--video .nh-card__foot span { color: rgba(245,241,234,0.65); }
+.nh-card--video .nh-card__foot a { color: var(--nh-gold-2, #e8c98a); }
+.nh-card--video .nh-card__rank { color: rgba(197,160,89,0.55); }
+.nh-video-frame {
+    position: relative;
+    width: 100%;
+    padding-top: 56.25%;
+    border-radius: 12px;
+    overflow: hidden;
+    margin: 0.35rem 0 0.55rem;
+    background: #000;
+}
+.nh-video-frame iframe {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    border: 0;
+}
+.nh-video-link {
+    display: block;
+    margin: 0.5rem 0;
+    padding: 0.85rem;
+    border-radius: 12px;
+    border: 1px dashed rgba(197,160,89,0.45);
+    text-align: center;
+    color: var(--nh-gold-2, #e8c98a);
+    text-decoration: none;
+    font-weight: 700;
+}
 .nh-card {
     position: relative;
     background: #fff;

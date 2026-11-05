@@ -110,7 +110,7 @@
 
                     <div class="form-group">
                         <label for="website">Website</label>
-                        <input class="form-control @error('website') is-invalid @enderror" type="url" name="website" id="website" value="{{ old('website') }}" placeholder="https://www.beispiel.ch" autocomplete="url">
+                        <input class="form-control @error('website') is-invalid @enderror" type="text" name="website" id="website" value="{{ old('website') }}" placeholder="www.beispiel.ch" autocomplete="url">
                         @error('website')<p class="field-error">{{ $message }}</p>@enderror
                     </div>
 

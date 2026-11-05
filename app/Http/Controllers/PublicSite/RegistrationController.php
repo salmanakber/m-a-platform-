@@ -7,6 +7,7 @@ use App\Models\Canton;
 use App\Models\Expert;
 use App\Models\User;
 use App\Services\Expert\ExpertRegistrationService;
+use App\Support\UrlNormalizer;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -31,6 +32,8 @@ class RegistrationController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
+        UrlNormalizer::mergeRequest($request, ['website']);
+
         $validated = $request->validate([
             'company_name' => ['required', 'string', 'max:255'],
             'contact_person_name' => ['required', 'string', 'max:255'],

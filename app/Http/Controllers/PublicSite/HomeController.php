@@ -8,6 +8,7 @@ use App\Models\ArticleCategory;
 use App\Models\Canton;
 use App\Models\Event;
 use App\Models\Expert;
+use App\Models\ExpertVideo;
 use App\Models\Ranking;
 use App\Services\Ranking\RankingService;
 use App\Services\Settings\SettingsService;
@@ -195,6 +196,31 @@ class HomeController extends Controller
         $nationalContactRemark = $this->rankings->nationalContactRemark()
             ?: 'Platz frei — melden Sie sich bei uns für eine Top-Position auf nachfolge-experten.ch.';
 
+        $homeVideos = ExpertVideo::query()
+            ->where('status', ExpertVideo::STATUS_ACTIVE)
+            ->with(['expert' => function ($q) {
+                $q->where('status', ExpertStatus::APPROVED)->where('is_public', true);
+            }])
+            ->orderBy('sort_order')
+            ->orderByDesc('id')
+            ->limit(20)
+            ->get()
+            ->filter(fn (ExpertVideo $v) => $v->expert !== null)
+            ->take(5)
+            ->values()
+            ->map(function (ExpertVideo $video, int $i) {
+                return [
+                    'n' => str_pad((string) ($i + 1), 2, '0', STR_PAD_LEFT),
+                    'title' => $video->title ?: ($video->expert->company_name ?? 'Video'),
+                    'company' => $video->expert->company_name ?? '',
+                    'url' => $video->url,
+                    'embed' => $video->embedUrl(),
+                    'profile_url' => $video->expert?->slug
+                        ? route('experts.show', $video->expert->slug)
+                        : null,
+                ];
+            });
+
         return view('public.home', [
             'heroMatch' => $heroMatch,
             'heroCard' => $heroCard,
@@ -202,6 +228,8 @@ class HomeController extends Controller
             'nationalCards' => $nationalCards,
             'nationalContactRemark' => $nationalContactRemark,
             'footerContactEmail' => $this->settings->get(SettingKey::FOOTER_CONTACT_EMAIL, 'kontakt@nachfolge-experten.ch'),
+            'navArticleCategories' => $fachGroups,
+            'homeVideos' => $homeVideos,
             'marktplatzCards' => $this->expertCardsFromRankings($marktplatzRankings),
             'beraterCards' => $this->expertCardsFromRankings($beraterRankings),
             'juristCards' => $this->expertCardsFromRankings($juristRankings),

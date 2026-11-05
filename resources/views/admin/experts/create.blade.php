@@ -59,7 +59,7 @@
             </div>
             <div class="form-group">
                 <label for="website">Website</label>
-                <input class="form-control" type="url" name="website" id="website" value="{{ old('website') }}" placeholder="https://">
+                <input class="form-control" type="text" name="website" id="website" value="{{ old('website') }}" placeholder="www.beispiel.ch oder https://…">
             </div>
         </div>
         <div class="form-group">

@@ -64,7 +64,8 @@
                 </div>
                 <div class="form-group">
                     <label for="website">Website</label>
-                    <input class="form-control" type="url" name="website" id="website" value="{{ old('website', $expert->website) }}" placeholder="https://">
+                    <input class="form-control" type="text" name="website" id="website" value="{{ old('website', $expert->website) }}" placeholder="www.beispiel.ch oder https://…">
+                    <p class="field-hint">Domain reicht — https:// wird automatisch ergänzt.</p>
                 </div>
 
                 <div class="xp-panel__head" style="margin-top:0.5rem;">
@@ -227,10 +228,10 @@
                         @endif
                     </div>
                     <div class="form-group">
-                        <label for="video_url">Video-Link (YouTube / Vimeo / Website)</label>
-                        <input class="form-control" type="url" name="video_url" id="video_url" value="{{ old('video_url', $expert->video_url) }}" placeholder="https://…">
+                        <label for="video_url">Haupt-Video (Profil)</label>
+                        <input class="form-control" type="text" name="video_url" id="video_url" value="{{ old('video_url', $expert->video_url) }}" placeholder="youtube.com/… oder https://…">
                         @error('video_url')<p class="field-error">{{ $message }}</p>@enderror
-                        <p class="field-hint">Link zu Ihrem Vorstellungs- oder Firmenvideo.</p>
+                        <p class="field-hint">Ein Link reicht. Weitere Videos: <a href="{{ route('expert.videos.index') }}">Videos verwalten</a> (1 frei, weitere kostenpflichtig).</p>
                     </div>
                 </div>
 

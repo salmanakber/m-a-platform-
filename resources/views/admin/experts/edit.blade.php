@@ -94,7 +94,7 @@
             </div>
             <div class="form-group">
                 <label for="website">Website</label>
-                <input class="form-control" type="url" name="website" id="website" value="{{ old('website', $expert->website) }}" placeholder="https://">
+                <input class="form-control" type="text" name="website" id="website" value="{{ old('website', $expert->website) }}" placeholder="www.beispiel.ch oder https://…">
             </div>
         </div>
         <div class="form-row">
@@ -192,7 +192,7 @@
             </div>
             <div class="form-group">
                 <label for="video_url">Video-Link (YouTube / Vimeo / Website)</label>
-                <input class="form-control" type="url" name="video_url" id="video_url" value="{{ old('video_url', $expert->video_url) }}" placeholder="https://…">
+                <input class="form-control" type="text" name="video_url" id="video_url" value="{{ old('video_url', $expert->video_url) }}" placeholder="youtube.com/… oder https://…">
                 <p class="field-hint">Öffentlich auf dem Expertenprofil verlinkt.</p>
             </div>
         </div>
@@ -214,7 +214,7 @@
         </div>
         <div class="form-group">
             <label for="website_crawl_url">Crawl-URL</label>
-            <input class="form-control" type="url" name="website_crawl_url" id="website_crawl_url" value="{{ old('website_crawl_url', $expert->website_crawl_url) }}" placeholder="https://beispiel.ch/blog">
+            <input class="form-control" type="text" name="website_crawl_url" id="website_crawl_url" value="{{ old('website_crawl_url', $expert->website_crawl_url) }}" placeholder="www.beispiel.ch/blog">
             <p class="field-hint">Seite mit Blog/News (z. B. wie kmu-beratungen.ch/blog). Crawl legt Artikel als Entwurf an — Experte/Admin veröffentlicht sie.</p>
         </div>
 
