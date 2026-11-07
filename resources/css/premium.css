@@ -3868,6 +3868,20 @@ body.is-login-page .nav-auth-link {
     margin-left: auto;
 }
 
+.register-nav[hidden],
+.register-nav .is-hidden,
+.register-nav [hidden],
+.register-submit[hidden],
+.register-submit.is-hidden,
+.register-submit__note[hidden],
+.register-submit__note.is-hidden,
+.register-submit__login[hidden],
+.register-submit__login.is-hidden,
+.register-form [hidden],
+.register-form .is-hidden {
+    display: none !important;
+}
+
 .register-section {
     padding: 1.35rem 1.35rem 1.2rem;
     background: #fff;

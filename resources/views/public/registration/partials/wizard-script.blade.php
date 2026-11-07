@@ -10,37 +10,63 @@
     var btnPrev = form.querySelector('[data-register-prev]');
     var btnNext = form.querySelector('[data-register-next]');
     var submitWrap = form.querySelector('[data-register-submit]');
+    var submitBtn = form.querySelector('[data-register-submit] button[type="submit"]');
     var total = panels.length;
     var current = 1;
     if (!total) return;
+
+    var nextDefaultLabel = btnNext ? (btnNext.getAttribute('data-label-next') || btnNext.textContent.trim() || 'Weiter →') : 'Weiter →';
+    var submitLabel = (submitBtn && submitBtn.textContent.trim()) || 'Registrierung einreichen';
 
     function panelFor(step) {
         return form.querySelector('[data-step-panel="' + step + '"]');
     }
 
+    function setHidden(el, hide) {
+        if (!el) return;
+        el.hidden = !!hide;
+        el.classList.toggle('is-hidden', !!hide);
+        if (hide) {
+            el.setAttribute('aria-hidden', 'true');
+        } else {
+            el.removeAttribute('aria-hidden');
+        }
+    }
+
     function setStep(step) {
         current = Math.max(1, Math.min(total, step));
+        var isLast = current === total;
+
         panels.forEach(function (panel) {
             var active = Number(panel.getAttribute('data-step-panel')) === current;
-            panel.hidden = !active;
+            setHidden(panel, !active);
             panel.classList.toggle('is-active-step', active);
-            panel.setAttribute('aria-hidden', active ? 'false' : 'true');
         });
+
         links.forEach(function (link) {
             var s = Number(link.getAttribute('data-step'));
             link.classList.toggle('is-active', s === current);
             link.classList.toggle('is-done', s < current);
             link.setAttribute('aria-current', s === current ? 'step' : 'false');
         });
-        if (btnPrev) btnPrev.hidden = current === 1;
-        if (btnNext) btnNext.hidden = current === total;
-        if (submitWrap) submitWrap.hidden = current !== total;
-        if (nav) nav.hidden = false;
 
-        var shell = form.closest('.register-shell') || form;
-        if (shell && typeof shell.scrollIntoView === 'function') {
-            shell.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        setHidden(btnPrev, current === 1);
+        // Keep Weiter visible on last step — it submits the form.
+        setHidden(btnNext, false);
+        setHidden(submitWrap, true); // note + links stay out of the way; primary CTA is nav button
+        setHidden(nav, false);
+
+        if (btnNext) {
+            btnNext.textContent = isLast ? submitLabel : nextDefaultLabel;
+            btnNext.setAttribute('data-mode', isLast ? 'submit' : 'next');
+            btnNext.type = 'button';
         }
+
+        // Show legal note under nav on last step only.
+        var note = form.querySelector('[data-register-final-note]');
+        setHidden(note, !isLast);
+        var loginLine = form.querySelector('[data-register-final-links]');
+        setHidden(loginLine, !isLast);
     }
 
     function validateStep(step) {
@@ -53,6 +79,16 @@
             if (typeof field.checkValidity === 'function' && !field.checkValidity()) {
                 field.reportValidity();
                 field.focus();
+                return false;
+            }
+        }
+        return true;
+    }
+
+    function validateAll() {
+        for (var s = 1; s <= total; s++) {
+            if (!validateStep(s)) {
+                setStep(s);
                 return false;
             }
         }
@@ -75,6 +111,15 @@
 
     if (btnNext) {
         btnNext.addEventListener('click', function () {
+            if (btnNext.getAttribute('data-mode') === 'submit') {
+                if (!validateAll()) return;
+                if (typeof form.requestSubmit === 'function') {
+                    form.requestSubmit();
+                } else {
+                    form.submit();
+                }
+                return;
+            }
             if (!validateStep(current)) return;
             setStep(current + 1);
         });
@@ -87,16 +132,11 @@
     }
 
     form.addEventListener('submit', function (e) {
-        for (var s = 1; s <= total; s++) {
-            if (!validateStep(s)) {
-                e.preventDefault();
-                setStep(s);
-                return;
-            }
+        if (!validateAll()) {
+            e.preventDefault();
         }
     });
 
-    // After validation errors, open first step that has an error.
     var errorField = form.querySelector('.is-invalid, .field-error');
     if (errorField) {
         var errPanel = errorField.closest('[data-step-panel]');
@@ -105,7 +145,6 @@
 
     setStep(current);
 
-    // File upload labels
     form.querySelectorAll('.register-upload__input').forEach(function (input) {
         input.addEventListener('change', function () {
             var meta = input.parentElement && input.parentElement.querySelector('.register-upload__meta');

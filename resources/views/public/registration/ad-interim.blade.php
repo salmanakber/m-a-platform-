@@ -231,18 +231,22 @@
                 </section>
 
                 <div class="register-nav" data-register-nav>
-                    <button type="button" class="btn btn--ghost" data-register-prev hidden>← Zurück</button>
-                    <button type="button" class="btn" data-register-next>Weiter →</button>
+                    <button type="button" class="btn btn--ghost is-hidden" data-register-prev hidden>← Zurück</button>
+                    <button type="button" class="btn" data-register-next data-label-next="Weiter →">Weiter →</button>
                 </div>
 
-                <div class="register-submit" data-register-submit hidden>
-                    <p class="register-submit__note">Mit dem Absenden bestätigen Sie, dass die Angaben korrekt sind. Der Basiseintrag ist kostenlos und wird manuell geprüft.</p>
+                <p class="register-submit__note is-hidden" data-register-final-note hidden>
+                    Mit dem Absenden bestätigen Sie, dass die Angaben korrekt sind. Der Basiseintrag ist kostenlos und wird manuell geprüft.
+                </p>
+                <p class="register-submit__login is-hidden" data-register-final-links hidden>
+                    Firma / Berater?
+                    <a href="{{ route('registration.create') }}">Zur Experten-Registrierung</a>
+                    · Bereits registriert? <a href="{{ route('login') }}">Zum Login</a>
+                </p>
+
+                {{-- Keep a real submit control for accessibility / progressive enhancement --}}
+                <div class="register-submit is-hidden" data-register-submit hidden>
                     <button type="submit" class="btn btn--block register-submit__btn">Ad-Interim-Registrierung einreichen</button>
-                    <p class="register-submit__login">
-                        Firma / Berater?
-                        <a href="{{ route('registration.create') }}">Zur Experten-Registrierung</a>
-                        · Bereits registriert? <a href="{{ route('login') }}">Zum Login</a>
-                    </p>
                 </div>
             </form>
         </div>

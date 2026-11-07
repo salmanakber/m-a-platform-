@@ -11,6 +11,7 @@ use App\Support\TextLines;
 use App\Support\UrlNormalizer;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
@@ -154,7 +155,7 @@ class RegistrationController extends Controller
             $description = $description !== '' ? $description."\n\n".$note : $note;
         }
 
-        $this->registrationService->registerAdInterim(
+        $expert = $this->registrationService->registerAdInterim(
             [
                 'name' => $display,
                 'email' => $validated['email'],
@@ -183,13 +184,15 @@ class RegistrationController extends Controller
             ]
         );
 
-        $request->session()->put('registration_thanks', [
-            'company' => $display,
-            'email' => $validated['email'],
-            'kind' => 'ad_interim',
-        ]);
+        // Log in immediately and open the Ad Interim profile for completion.
+        if ($expert->user) {
+            Auth::login($expert->user);
+            $request->session()->regenerate();
+        }
 
-        return redirect()->route('registration.thanks');
+        return redirect()
+            ->route('expert.profile.edit')
+            ->with('success', 'Registrierung erfolgreich. Ihr Ad-Interim-Profil wird geprüft — Sie können es hier bereits ergänzen.');
     }
 
     public function thanks(): View|RedirectResponse

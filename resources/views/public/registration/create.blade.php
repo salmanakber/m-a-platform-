@@ -228,14 +228,19 @@
                 </section>
 
                 <div class="register-nav" data-register-nav>
-                    <button type="button" class="btn btn--ghost" data-register-prev hidden>← Zurück</button>
-                    <button type="button" class="btn" data-register-next>Weiter →</button>
+                    <button type="button" class="btn btn--ghost is-hidden" data-register-prev hidden>← Zurück</button>
+                    <button type="button" class="btn" data-register-next data-label-next="Weiter →">Weiter →</button>
                 </div>
 
-                <div class="register-submit" data-register-submit hidden>
-                    <p class="register-submit__note">Mit dem Absenden bestätigen Sie, dass die Angaben korrekt sind. Der Basiseintrag ist kostenlos.</p>
+                <p class="register-submit__note is-hidden" data-register-final-note hidden>
+                    Mit dem Absenden bestätigen Sie, dass die Angaben korrekt sind. Der Basiseintrag ist kostenlos.
+                </p>
+                <p class="register-submit__login is-hidden" data-register-final-links hidden>
+                    Bereits registriert? <a href="{{ route('login') }}">Zum Login</a>
+                </p>
+
+                <div class="register-submit is-hidden" data-register-submit hidden>
                     <button type="submit" class="btn btn--block register-submit__btn">Registrierung einreichen</button>
-                    <p class="register-submit__login">Bereits registriert? <a href="{{ route('login') }}">Zum Login</a></p>
                 </div>
             </form>
         </div>
