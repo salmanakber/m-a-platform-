@@ -68,10 +68,10 @@
                 </a>
             </nav>
 
-            <form method="post" action="{{ route('registration.store') }}" enctype="multipart/form-data" class="register-form" id="expertRegisterForm">
+            <form method="post" action="{{ route('registration.store') }}" enctype="multipart/form-data" class="register-form" id="expertRegisterForm" data-register-wizard novalidate>
                 @csrf
 
-                <section class="register-section" id="step-company" data-step-panel="1">
+                <section class="register-section is-active-step" id="step-company" data-step-panel="1">
                     <div class="register-section__head">
                         <span class="register-section__num">01</span>
                         <div>
@@ -154,7 +154,7 @@
                     </fieldset>
                 </section>
 
-                <section class="register-section" id="step-location" data-step-panel="2">
+                <section class="register-section" id="step-location" data-step-panel="2" hidden>
                     <div class="register-section__head">
                         <span class="register-section__num">02</span>
                         <div>
@@ -204,7 +204,7 @@
                     </div>
                 </section>
 
-                <section class="register-section" id="step-access" data-step-panel="3">
+                <section class="register-section" id="step-access" data-step-panel="3" hidden>
                     <div class="register-section__head">
                         <span class="register-section__num">03</span>
                         <div>
@@ -227,7 +227,12 @@
                     </div>
                 </section>
 
-                <div class="register-submit">
+                <div class="register-nav" data-register-nav>
+                    <button type="button" class="btn btn--ghost" data-register-prev hidden>← Zurück</button>
+                    <button type="button" class="btn" data-register-next>Weiter →</button>
+                </div>
+
+                <div class="register-submit" data-register-submit hidden>
                     <p class="register-submit__note">Mit dem Absenden bestätigen Sie, dass die Angaben korrekt sind. Der Basiseintrag ist kostenlos.</p>
                     <button type="submit" class="btn btn--block register-submit__btn">Registrierung einreichen</button>
                     <p class="register-submit__login">Bereits registriert? <a href="{{ route('login') }}">Zum Login</a></p>
@@ -237,45 +242,5 @@
     </div>
 </div>
 
-<script>
-(function () {
-    var links = Array.prototype.slice.call(document.querySelectorAll('.register-steps__item'));
-    var panels = Array.prototype.slice.call(document.querySelectorAll('[data-step-panel]'));
-    var logo = document.getElementById('logo');
-    var logoName = document.getElementById('logoFileName');
-
-    if (logo && logoName) {
-        logo.addEventListener('change', function () {
-            logoName.textContent = logo.files && logo.files[0]
-                ? logo.files[0].name
-                : 'PNG oder JPG, max. 2 MB';
-            logo.closest('.register-upload').classList.toggle('has-file', !!(logo.files && logo.files[0]));
-        });
-    }
-
-    function setActive(step) {
-        links.forEach(function (link) {
-            link.classList.toggle('is-active', String(link.getAttribute('data-step')) === String(step));
-        });
-    }
-
-    if ('IntersectionObserver' in window && panels.length) {
-        var observer = new IntersectionObserver(function (entries) {
-            entries.forEach(function (entry) {
-                if (entry.isIntersecting) {
-                    setActive(entry.target.getAttribute('data-step-panel'));
-                }
-            });
-        }, { rootMargin: '-35% 0px -50% 0px', threshold: 0.01 });
-
-        panels.forEach(function (panel) { observer.observe(panel); });
-    }
-
-    links.forEach(function (link) {
-        link.addEventListener('click', function () {
-            setActive(link.getAttribute('data-step'));
-        });
-    });
-})();
-</script>
+@include('public.registration.partials.wizard-script')
 @endsection

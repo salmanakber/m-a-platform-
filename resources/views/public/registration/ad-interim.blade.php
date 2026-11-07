@@ -70,10 +70,10 @@
                 </a>
             </nav>
 
-            <form method="post" action="{{ route('registration.ad-interim.store') }}" enctype="multipart/form-data" class="register-form" id="adInterimRegisterForm">
+            <form method="post" action="{{ route('registration.ad-interim.store') }}" enctype="multipart/form-data" class="register-form" id="adInterimRegisterForm" data-register-wizard novalidate>
                 @csrf
 
-                <section class="register-section" id="step-person" data-step-panel="1">
+                <section class="register-section is-active-step" id="step-person" data-step-panel="1">
                     <div class="register-section__head">
                         <span class="register-section__num">01</span>
                         <div>
@@ -141,7 +141,7 @@
                     </div>
                 </section>
 
-                <section class="register-section" id="step-profile" data-step-panel="2">
+                <section class="register-section" id="step-profile" data-step-panel="2" hidden>
                     <div class="register-section__head">
                         <span class="register-section__num">02</span>
                         <div>
@@ -208,7 +208,7 @@
                     </div>
                 </section>
 
-                <section class="register-section" id="step-access" data-step-panel="3">
+                <section class="register-section" id="step-access" data-step-panel="3" hidden>
                     <div class="register-section__head">
                         <span class="register-section__num">03</span>
                         <div>
@@ -230,7 +230,12 @@
                     </div>
                 </section>
 
-                <div class="register-submit">
+                <div class="register-nav" data-register-nav>
+                    <button type="button" class="btn btn--ghost" data-register-prev hidden>← Zurück</button>
+                    <button type="button" class="btn" data-register-next>Weiter →</button>
+                </div>
+
+                <div class="register-submit" data-register-submit hidden>
                     <p class="register-submit__note">Mit dem Absenden bestätigen Sie, dass die Angaben korrekt sind. Der Basiseintrag ist kostenlos und wird manuell geprüft.</p>
                     <button type="submit" class="btn btn--block register-submit__btn">Ad-Interim-Registrierung einreichen</button>
                     <p class="register-submit__login">
@@ -244,26 +249,5 @@
     </div>
 </div>
 
-<script>
-(function () {
-    var links = Array.prototype.slice.call(document.querySelectorAll('.register-steps__item'));
-    links.forEach(function (link) {
-        link.addEventListener('click', function () {
-            links.forEach(function (l) { l.classList.remove('is-active'); });
-            link.classList.add('is-active');
-        });
-    });
-    function bindFile(id, labelId) {
-        var input = document.getElementById(id);
-        var label = document.getElementById(labelId);
-        if (!input || !label) return;
-        input.addEventListener('change', function () {
-            label.textContent = (input.files && input.files[0]) ? input.files[0].name : label.getAttribute('data-default') || label.textContent;
-            input.closest('.register-upload').classList.toggle('has-file', !!(input.files && input.files[0]));
-        });
-    }
-    bindFile('contact_photo', 'photoFileName');
-    bindFile('cv', 'cvFileName');
-})();
-</script>
+@include('public.registration.partials.wizard-script')
 @endsection
