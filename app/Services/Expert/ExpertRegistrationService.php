@@ -7,6 +7,7 @@ use App\Models\ExpertOffice;
 use App\Models\User;
 use App\Services\Email\NotificationService;
 use App\Support\ExpertStatus;
+use App\Support\ProfessionalGroup;
 use App\Support\Role;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -34,7 +35,7 @@ class ExpertRegistrationService
                 'is_active' => true,
             ]);
 
-            $slugBase = Str::slug($expertData['company_name']);
+            $slugBase = Str::slug($expertData['company_name'] ?? ($userData['name'] ?? 'profil'));
             $slug = $this->uniqueSlug($slugBase);
 
             $expert = Expert::query()->create(array_merge($expertData, [
@@ -56,6 +57,34 @@ class ExpertRegistrationService
 
             return $expert->fresh(['user', 'offices']);
         });
+    }
+
+    /**
+     * Natural person registration for Ad Interim / Future Owner (CV-based, not a company).
+     *
+     * @param  array<string, mixed>  $userData
+     * @param  array<string, mixed>  $personData
+     * @param  array<string, mixed>  $officeData
+     */
+    public function registerAdInterim(array $userData, array $personData, array $officeData): Expert
+    {
+        $first = trim((string) ($personData['contact_person_name'] ?? ''));
+        $last = trim((string) ($personData['contact_person_last_name'] ?? ''));
+        $display = trim($first.($last !== '' ? ' '.$last : ''));
+        if ($display === '') {
+            $display = 'Ad Interim';
+        }
+
+        return $this->register(
+            $userData,
+            array_merge($personData, [
+                'company_name' => $display,
+                'professional_group' => ProfessionalGroup::AD_INTERIM,
+                'offers_buy' => (bool) ($personData['offers_buy'] ?? true),
+                'offers_sell' => false,
+            ]),
+            $officeData
+        );
     }
 
     private function uniqueSlug(string $base): string

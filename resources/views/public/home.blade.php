@@ -232,12 +232,13 @@
                 'kicker' => 'Fachgruppe',
                 'title' => 'Ad Interim',
                 'topLabel' => 'Top Ad Interim',
-                'lead' => 'Ad-Interim-Kandidaten für operative Nachfolge und Übergangsmandate. Leere Plätze erscheinen als offene Karten.',
+                'lead' => 'Ad-Interim-Kandidaten für operative Nachfolge und Übergangsmandate. Leere Plätze erscheinen als offene Karten — Registrierung für natürliche Personen mit CV.',
                 'cards' => $adInterimCards ?? collect(),
                 'tag' => 'Ad Interim',
                 'link' => route('directory.index', ['gruppe' => 'ad_interim']),
                 'linkLabel' => 'Alle Ad Interim →',
                 'promoScope' => 'group_top',
+                'registrationKind' => 'ad_interim',
                 'band' => false,
             ],
             [
@@ -279,6 +280,7 @@
                         'forceTag' => $strip['tag'],
                         'remark' => $openRemark,
                         'promoScope' => $strip['promoScope'] ?? 'group_top',
+                        'registrationKind' => $strip['registrationKind'] ?? null,
                     ])
                 </div>
         @if (! empty($strip['band']))

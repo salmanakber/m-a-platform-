@@ -107,10 +107,23 @@
                 <p class="dx-rail-head__hint">Hover synchronisiert die Karte</p>
             </div>
 
+            @if (($group ?? '') === 'ad_interim')
+                <div class="status-help" style="margin:0 0 0.85rem;">
+                    <strong>Ad Interim / Future Owner</strong>
+                    <span>
+                        Für natürliche Personen mit CV — nicht die Firmen-Registrierung.
+                        <a href="{{ route('registration.ad-interim.create') }}">Jetzt als Person registrieren →</a>
+                    </span>
+                </div>
+            @endif
+
             @if ($experts->isEmpty())
                 <div class="empty-state empty-state--panel">
                     <p><strong>Keine Experten für diese Auswahl.</strong></p>
                     <p>Passen Sie Suche, Kanton oder Kauf/Verkauf an.</p>
+                    @if (($group ?? '') === 'ad_interim')
+                        <p style="margin-top:.75rem;"><a class="btn btn--small" href="{{ route('registration.ad-interim.create') }}">Als Ad Interim registrieren</a></p>
+                    @endif
                 </div>
             @else
                 <div class="dir-explorer__cards">

@@ -64,6 +64,8 @@ Route::post('/events/{slug}/anmelden', [PublicEventController::class, 'register'
 
 Route::get('/registrierung', [RegistrationController::class, 'create'])->name('registration.create');
 Route::post('/registrierung', [RegistrationController::class, 'store'])->name('registration.store');
+Route::get('/registrierung/ad-interim', [RegistrationController::class, 'createAdInterim'])->name('registration.ad-interim.create');
+Route::post('/registrierung/ad-interim', [RegistrationController::class, 'storeAdInterim'])->name('registration.ad-interim.store');
 Route::get('/registrierung/danke', [RegistrationController::class, 'thanks'])->name('registration.thanks');
 
 Route::post('/kontakt/{expertSlug}', [PublicLeadController::class, 'store'])->name('leads.store');

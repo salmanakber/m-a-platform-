@@ -24,6 +24,10 @@
             'kanton' => $promoCanton ?? null,
         ]));
         $ctaLabel = $ctaLabel ?? 'Platz anfragen →';
+    } elseif (($registrationKind ?? '') === 'ad_interim') {
+        // Natural person / CV registration — not company expert signup.
+        $href = route('registration.ad-interim.create');
+        $ctaLabel = $ctaLabel ?? 'Als Person registrieren →';
     } else {
         $href = route('registration.create', array_filter([
             'intent' => 'promotion',
@@ -61,7 +65,15 @@
         <p class="nh-card__firm">{{ $subtitle }}</p>
         <p class="nh-card__remark">{{ $remark }}</p>
         <div class="nh-card__foot">
-            <span>{{ $isExpert ? 'Jetzt anfragen' : 'Als Experte anmelden' }}</span>
+            <span>
+                @if ($isExpert)
+                    Jetzt anfragen
+                @elseif (($registrationKind ?? '') === 'ad_interim')
+                    Als Person anmelden
+                @else
+                    Als Experte anmelden
+                @endif
+            </span>
             <a href="{{ $href }}">{{ str_replace(' →', ' ↗', $ctaLabel) }}</a>
         </div>
     </article>

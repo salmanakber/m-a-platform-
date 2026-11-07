@@ -75,6 +75,7 @@
             'remark' => $remark,
             'promoScope' => $promoScope ?? null,
             'promoCanton' => $promoCanton ?? null,
+            'registrationKind' => $registrationKind ?? null,
         ])
     @endif
 @endfor

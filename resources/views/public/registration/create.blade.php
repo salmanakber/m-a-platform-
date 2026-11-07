@@ -49,7 +49,11 @@
             <header class="register-shell__head">
                 <p class="register-shell__kicker">Experten-Registrierung</p>
                 <h2>Profil anlegen</h2>
-                <p class="register-shell__lead">Alle Pflichtfelder ausfüllen. Nach Prüfung erhalten Sie eine Freigabe per E-Mail.</p>
+                <p class="register-shell__lead">
+                    Für Firmen / Berater. Alle Pflichtfelder ausfüllen. Nach Prüfung erhalten Sie eine Freigabe per E-Mail.
+                    Ad Interim als Privatperson?
+                    <a href="{{ route('registration.ad-interim.create') }}">Hier registrieren (CV / Future Owner)</a>.
+                </p>
             </header>
 
             <nav class="register-steps" aria-label="Formularschritte">
