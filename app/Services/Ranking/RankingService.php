@@ -44,29 +44,22 @@ class RankingService
     public function nationalTop5(?string $group = null): Collection
     {
         if ($group) {
-            return $this->active(RankingScope::GROUP_TOP, $group)->take(5);
+            return $this->active(RankingScope::GROUP_TOP, $group)
+                ->filter(fn (Ranking $row) => $row->expert_id && $row->expert)
+                ->take(6)
+                ->values();
         }
 
-        // Positions 1–5 with an expert (slot 6 is the contact/remark card).
         return $this->active(RankingScope::NATIONAL_TOP5)
             ->filter(fn (Ranking $row) => $row->expert_id && $row->expert)
-            ->take(5)
+            ->take(6)
             ->values();
     }
 
-    /** Optional remark text for homepage slot 6 (Top 5 Schweiz). */
+    /** Default remark for open/empty ranking slots on the homepage. */
     public function nationalContactRemark(): ?string
     {
-        $row = $this->active(RankingScope::NATIONAL_TOP5)
-            ->first(fn (Ranking $row) => (int) $row->position === 6);
-
-        if ($row === null) {
-            return null;
-        }
-
-        $label = trim((string) ($row->label ?? ''));
-
-        return $label !== '' ? $label : null;
+        return 'Platz frei — melden Sie sich bei uns für eine Top-Position auf nachfolge-experten.ch.';
     }
 
     /**
@@ -81,8 +74,10 @@ class RankingService
             ->when($group, fn ($q) => $q->where('professional_group', $group))
             ->with(['expert.offices.canton', 'canton'])
             ->orderBy('position')
-            ->take(5)
-            ->get();
+            ->get()
+            ->filter(fn (Ranking $row) => $row->expert_id && $row->expert)
+            ->take(6)
+            ->values();
     }
 
     /** @deprecated Use cantonTop5() */
@@ -98,6 +93,7 @@ class RankingService
      */
     public function articleTop3(?int $categoryId = null): Collection
     {
+        // Name kept for compatibility; returns up to Top 6 Fachbeiträge.
         return Ranking::query()
             ->currentlyActive()
             ->where('scope', RankingScope::ARTICLE_TOP)
@@ -108,7 +104,7 @@ class RankingService
             )
             ->with(['article.category', 'article.expert', 'articleCategory'])
             ->orderBy('position')
-            ->take(3)
+            ->take(6)
             ->get();
     }
 

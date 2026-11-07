@@ -15,22 +15,37 @@
             <p class="xp-hero__kicker">Medien</p>
             <h1>Meine Videos</h1>
             <p>
-                Ein Video ist kostenlos. Weitere Videos werden nach Zahlung freigeschaltet
-                ({{ number_format($extraPrice, 2, '.', "'") }} {{ $extraCurrency }} / Video).
-                Top-5-Platzierungen auf der Startseite können separat verrechnet werden.
+                1. Video kostenlos (auch für Juristen &amp; Treuhand). Weitere Videos über Monats-Pakete:
+                bis 5 Videos 30 CHF · bis 10 Videos 50 CHF · über 10 Videos 150 CHF. Top-6-Platzierungen auf der Startseite separat buchbar.
             </p>
         </div>
     </header>
+
+    <div class="xp-stat-grid xp-stat-grid--4" style="margin-bottom:1rem;">
+        @foreach ($tiers as $tier)
+            <div class="xp-stat xp-stat--static">
+                <span>{{ $tier['label'] }}</span>
+                <strong>{{ $tier['price'] === 0 ? '0' : number_format($tier['price'], 0) }}</strong>
+                <em>{{ $tier['hint'] }}</em>
+            </div>
+        @endforeach
+    </div>
 
     <div class="xp-panel" style="margin-bottom:1rem;">
         <div class="xp-panel__head">
             <div>
                 <h2>Video hinzufügen</h2>
                 <p>
-                    @if ($freeAvailable)
+                    @if ($freeAvailable && $videoCount === 0)
                         Nächstes Video: <strong>kostenlos</strong>
+                    @elseif (($nextTier['price'] ?? 0) > ($currentTier['price'] ?? 0))
+                        Nächstes Video wechselt auf Paket <strong>{{ $nextTier['label'] }}</strong>
+                        ({{ number_format($nextTier['price'], 0) }} CHF / Mt.) — Rechnung wird erstellt
                     @else
-                        Nächstes Video: <strong>kostenpflichtig</strong> — Rechnung wird als Entwurf erstellt
+                        Nächstes Video: im aktuellen Paket <strong>{{ $currentTier['label'] ?? '—' }}</strong>
+                        @if (($currentTier['price'] ?? 0) > 0)
+                            ({{ number_format($currentTier['price'], 0) }} CHF / Mt.)
+                        @endif
                     @endif
                 </p>
             </div>
@@ -49,7 +64,9 @@
                     @error('url')<p class="field-error">{{ $message }}</p>@enderror
                 </div>
             </div>
-            <button type="submit" class="btn">{{ $freeAvailable ? 'Kostenlos speichern' : 'Speichern & Rechnung anlegen' }}</button>
+            <button type="submit" class="btn">
+                {{ ($freeAvailable && $videoCount === 0) ? 'Kostenlos speichern' : 'Speichern' }}
+            </button>
         </form>
     </div>
 
@@ -102,7 +119,7 @@
                                     @endif
                                 </td>
                                 <td>
-                                    <form method="post" action="{{ route('expert.videos.destroy', $video) }}" onsubmit="return confirm('Video wirklich löschen?');">
+                                    <form method="post" action="{{ route('expert.videos.destroy', $video) }}" onsubmit="return confirm('Video entfernen?');">
                                         @csrf
                                         @method('DELETE')
                                         <button type="submit" class="btn btn--ghost btn--small">Löschen</button>

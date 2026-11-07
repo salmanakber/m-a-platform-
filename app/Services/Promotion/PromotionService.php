@@ -3,9 +3,11 @@
 namespace App\Services\Promotion;
 
 use App\Models\Promotion;
+use App\Models\PromotionPrice;
 use App\Models\PromotionWaitlist;
 use App\Support\InvoicePaymentStatus;
 use App\Support\PromotionStatus;
+use App\Support\RankingScope;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 
@@ -14,27 +16,86 @@ class PromotionService
     /**
      * Request a promotion slot or join the waitlist when occupied.
      */
-    public function requestPosition(int $expertId, int $cantonId, int $positionNumber): Promotion|PromotionWaitlist
-    {
-        if ($positionNumber < 1 || $positionNumber > 5) {
-            throw new \InvalidArgumentException('Position number must be between 1 and 5.');
+    public function requestPosition(
+        int $expertId,
+        string $scope,
+        int $positionNumber,
+        ?int $cantonId = null,
+        ?int $articleCategoryId = null,
+        ?string $professionalGroup = null
+    ): Promotion|PromotionWaitlist {
+        if (! in_array($scope, [
+            RankingScope::CANTON_TOP3,
+            RankingScope::NATIONAL_TOP5,
+            RankingScope::GROUP_TOP,
+            RankingScope::ARTICLE_TOP,
+            RankingScope::HERO_MATCH,
+        ], true)) {
+            throw new \InvalidArgumentException('Unbekannter Promotion-Scope.');
         }
 
-        return DB::transaction(function () use ($expertId, $cantonId, $positionNumber) {
+        $max = RankingScope::maxPosition($scope);
+        if ($positionNumber < 1 || $positionNumber > $max) {
+            throw new \InvalidArgumentException("Position muss zwischen 1 und {$max} liegen.");
+        }
+
+        if ($scope === RankingScope::CANTON_TOP3 && ! $cantonId) {
+            throw new \InvalidArgumentException('Kanton ist erforderlich.');
+        }
+
+        if ($scope === RankingScope::ARTICLE_TOP && ! $articleCategoryId) {
+            throw new \InvalidArgumentException('Fachbereich ist erforderlich.');
+        }
+
+        if ($scope !== RankingScope::CANTON_TOP3) {
+            $cantonId = null;
+        }
+
+        if ($scope !== RankingScope::ARTICLE_TOP) {
+            $articleCategoryId = null;
+        }
+
+        if ($scope !== RankingScope::GROUP_TOP) {
+            $professionalGroup = $scope === RankingScope::NATIONAL_TOP5 ? null : $professionalGroup;
+        }
+
+        return DB::transaction(function () use ($expertId, $scope, $positionNumber, $cantonId, $articleCategoryId, $professionalGroup) {
             $active = Promotion::query()
-                ->where('canton_id', $cantonId)
+                ->where('scope', $scope)
                 ->where('position_number', $positionNumber)
+                ->when(
+                    $scope === RankingScope::CANTON_TOP3,
+                    fn ($q) => $q->where('canton_id', $cantonId),
+                    fn ($q) => $q->whereNull('canton_id')
+                )
+                ->when(
+                    $scope === RankingScope::ARTICLE_TOP,
+                    fn ($q) => $q->where('article_category_id', $articleCategoryId),
+                    fn ($q) => $q->whereNull('article_category_id')
+                )
+                ->when(
+                    $scope === RankingScope::GROUP_TOP,
+                    fn ($q) => $q->where('professional_group', $professionalGroup),
+                    fn ($q) => $q->whereNull('professional_group')
+                )
                 ->whereIn('status', [PromotionStatus::PENDING, PromotionStatus::ACTIVE])
                 ->lockForUpdate()
                 ->exists();
 
             if ($active) {
-                return $this->joinWaitlist($expertId, $cantonId, $positionNumber);
+                if ($scope === RankingScope::CANTON_TOP3 && $cantonId) {
+                    return $this->joinWaitlist($expertId, $cantonId, $positionNumber);
+                }
+
+                throw new \InvalidArgumentException('Dieser Platz ist bereits belegt. Bitte wählen Sie eine andere Position.');
             }
 
             return Promotion::query()->create([
                 'expert_id' => $expertId,
+                'scope' => $scope,
+                'professional_group' => $professionalGroup,
                 'canton_id' => $cantonId,
+                'article_category_id' => $articleCategoryId,
                 'position_number' => $positionNumber,
                 'status' => PromotionStatus::PENDING,
             ]);
@@ -54,6 +115,39 @@ class PromotionService
             'position_number' => $positionNumber,
             'queue_order' => (int) $maxOrder + 1,
         ]);
+    }
+
+    public function priceFor(string $scope, int $position, ?string $professionalGroup = null): float
+    {
+        $query = PromotionPrice::query()
+            ->where('scope', $scope)
+            ->where('position', $position);
+
+        $row = (clone $query)
+            ->when(
+                $professionalGroup,
+                fn ($q) => $q->where('professional_group', $professionalGroup),
+                fn ($q) => $q->whereNull('professional_group')
+            )
+            ->first();
+
+        if ($row === null && $professionalGroup) {
+            $row = $query->whereNull('professional_group')->first();
+        }
+
+        return $row ? (float) $row->price_chf : 0.0;
+    }
+
+    /** @return array<int, float> */
+    public function priceMap(string $scope, ?string $professionalGroup = null): array
+    {
+        $max = RankingScope::maxPosition($scope);
+        $map = [];
+        for ($i = 1; $i <= $max; $i++) {
+            $map[$i] = $this->priceFor($scope, $i, $professionalGroup);
+        }
+
+        return $map;
     }
 
     public function activateAfterPayment(Promotion $promotion, ?Carbon $startsAt = null, int $months = 1): Promotion
@@ -115,6 +209,10 @@ class PromotionService
 
     private function promoteNextFromWaitlist(Promotion $promotion): void
     {
+        if (($promotion->scope ?: RankingScope::CANTON_TOP3) !== RankingScope::CANTON_TOP3 || ! $promotion->canton_id) {
+            return;
+        }
+
         $next = PromotionWaitlist::query()
             ->where('canton_id', $promotion->canton_id)
             ->where(function ($query) use ($promotion) {
@@ -131,6 +229,7 @@ class PromotionService
 
         Promotion::query()->create([
             'expert_id' => $next->expert_id,
+            'scope' => RankingScope::CANTON_TOP3,
             'canton_id' => $next->canton_id,
             'position_number' => $promotion->position_number,
             'status' => PromotionStatus::PENDING,

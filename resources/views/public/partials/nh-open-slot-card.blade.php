@@ -5,10 +5,33 @@
     $subtitle = $subtitle ?? 'Kontakt & Bemerkung';
     $remark = $remark
         ?? 'Platz frei — melden Sie sich bei uns für eine Top-Position auf nachfolge-experten.ch.';
-    $mail = $mail ?? ($footerContactEmail ?? 'kontakt@nachfolge-experten.ch');
-    $subject = $subject ?? 'Top-Position nachfolge-experten.ch';
     $tag = $tag ?? 'OFFEN';
     $variant = $variant ?? 'card'; // card | row | article
+    $ctaLabel = $ctaLabel ?? null;
+
+    // Guests → registration; logged-in experts → promotions booking.
+    $expertUser = auth()->user();
+    $isExpert = $expertUser && method_exists($expertUser, 'resolvePortalExpert')
+        ? $expertUser->resolvePortalExpert() !== null
+        : ($expertUser?->expert !== null);
+
+    if (! empty($ctaUrl)) {
+        $href = $ctaUrl;
+        $ctaLabel = $ctaLabel ?? 'Mehr →';
+    } elseif ($isExpert) {
+        $href = route('expert.promotions.index', array_filter([
+            'scope' => $promoScope ?? null,
+            'kanton' => $promoCanton ?? null,
+        ]));
+        $ctaLabel = $ctaLabel ?? 'Platz anfragen →';
+    } else {
+        $href = route('registration.create', array_filter([
+            'intent' => 'promotion',
+            'scope' => $promoScope ?? null,
+            'platz' => ltrim((string) $rank, '0') ?: $rank,
+        ]));
+        $ctaLabel = $ctaLabel ?? 'Registrieren →';
+    }
 @endphp
 
 @if ($variant === 'row')
@@ -20,14 +43,14 @@
             <span>{{ \Illuminate\Support\Str::limit($remark, 90) }}</span>
         </div>
         <div class="nh-rankrow__meta"><em>{{ $tag }}</em></div>
-        <a class="nh-rankrow__link" href="mailto:{{ $mail }}?subject={{ rawurlencode($subject) }}">Kontakt →</a>
+        <a class="nh-rankrow__link" href="{{ $href }}">{{ $ctaLabel }}</a>
     </article>
 @elseif ($variant === 'article')
-    <a class="nh-article-card nh-article-card--open" href="mailto:{{ $mail }}?subject={{ rawurlencode($subject) }}">
+    <a class="nh-article-card nh-article-card--open" href="{{ $href }}">
         <span class="nh-article-card__n">{{ $rank }}</span>
         <h3>{{ $title }}</h3>
         <p>{{ $remark }}</p>
-        <em>Kontakt →</em>
+        <em>{{ $ctaLabel }}</em>
     </a>
 @else
     <article class="nh-card nh-card--contact">
@@ -38,8 +61,8 @@
         <p class="nh-card__firm">{{ $subtitle }}</p>
         <p class="nh-card__remark">{{ $remark }}</p>
         <div class="nh-card__foot">
-            <span>Direkt melden</span>
-            <a href="mailto:{{ $mail }}?subject={{ rawurlencode($subject) }}">Kontakt ↗</a>
+            <span>{{ $isExpert ? 'Jetzt anfragen' : 'Als Experte anmelden' }}</span>
+            <a href="{{ $href }}">{{ str_replace(' →', ' ↗', $ctaLabel) }}</a>
         </div>
     </article>
 @endif

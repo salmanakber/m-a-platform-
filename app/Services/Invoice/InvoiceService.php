@@ -61,13 +61,26 @@ class InvoiceService
 
     public function createForPromotion(Promotion $promotion, ?float $amount = null, string $currency = 'CHF', bool $notify = true): Invoice
     {
-        $promotion->loadMissing(['expert', 'invoice', 'canton']);
+        $promotion->loadMissing(['expert', 'invoice', 'canton', 'articleCategory']);
 
         if ($promotion->invoice !== null) {
             return $promotion->invoice;
         }
 
-        $amount = $amount ?? $this->monthlyPromotionPrice();
+        if ($amount === null) {
+            $priceRow = \App\Models\PromotionPrice::query()
+                ->where('scope', $promotion->scope ?: \App\Support\RankingScope::CANTON_TOP3)
+                ->where('position', $promotion->position_number)
+                ->when(
+                    $promotion->professional_group,
+                    fn ($q) => $q->where('professional_group', $promotion->professional_group),
+                    fn ($q) => $q->whereNull('professional_group')
+                )
+                ->first();
+
+            $amount = $priceRow ? (float) $priceRow->price_chf : $this->monthlyPromotionPrice();
+        }
+
         $expert = $promotion->expert;
 
         $invoice = DB::transaction(function () use ($promotion, $amount, $currency, $expert) {
@@ -86,11 +99,13 @@ class InvoiceService
                 'billing_address_line' => $expert?->billing_address_line,
                 'billing_postal_code' => $expert?->billing_postal_code,
                 'billing_city' => $expert?->billing_city,
-                'notes' => sprintf(
-                    'Promotion %s · Position %d',
-                    $promotion->canton->name_de ?? ('Kanton #'.$promotion->canton_id),
+                'notes' => trim(sprintf(
+                    'Promotion %s%s%s · Position %d',
+                    $promotion->scopeLabel(),
+                    $promotion->canton ? ' · '.$promotion->canton->name_de : '',
+                    $promotion->articleCategory ? ' · '.$promotion->articleCategory->name_de : '',
                     $promotion->position_number
-                ),
+                )),
                 'promotion_id' => $promotion->id,
             ]);
 

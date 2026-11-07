@@ -44,7 +44,7 @@
 
     @if ($scopes['canton_top3'] ?? false)
         <section class="rk-quick card">
-            <h3>Top 5 für einen anderen Kanton</h3>
+            <h3>Top 6 für einen anderen Kanton</h3>
             <form method="get" action="{{ route('admin.rankings.edit-group') }}" class="rk-quick__form">
                 <input type="hidden" name="scope" value="canton_top3">
                 <select class="form-control" name="canton_id" required>

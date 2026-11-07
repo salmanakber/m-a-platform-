@@ -7274,6 +7274,23 @@ body.is-public-redesign .site-nav .nav-drop__menu a:hover {
 .nh-topgrid--six {
     grid-template-columns: repeat(3, minmax(0, 1fr));
 }
+.nh-top-label {
+    margin: 0.55rem 0 0;
+    font-size: 1.05rem;
+    letter-spacing: 0.01em;
+    color: var(--nh-ink, #1a2a36);
+}
+.nh-top-label--light {
+    color: rgba(245, 241, 234, 0.92);
+}
+.nh-articles-top--six {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.85rem;
+}
+@media (max-width: 900px) {
+    .nh-articles-top--six { grid-template-columns: 1fr; }
+}
 .nh-card--contact {
     background: linear-gradient(165deg, #f7f1e4 0%, #fff 55%);
     border-color: rgba(197, 160, 89, 0.45);

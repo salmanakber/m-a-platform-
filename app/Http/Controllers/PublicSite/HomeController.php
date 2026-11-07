@@ -116,11 +116,14 @@ class HomeController extends Controller
                     ->where('status', ArticleStatus::PUBLISHED)
                     ->where('category_id', $category->id)
                     ->orderByDesc('published_at')
-                    ->limit(3)
+                    ->limit(6)
                     ->get();
                 $cards = $fallback->values()->map(function (Article $article, int $index) {
+                    $pos = $index + 1;
+
                     return [
-                        'n' => str_pad((string) ($index + 1), 2, '0', STR_PAD_LEFT),
+                        'position' => $pos,
+                        'n' => str_pad((string) $pos, 2, '0', STR_PAD_LEFT),
                         'title' => $article->title,
                         'url' => route('blog.show', $article->slug),
                         'excerpt' => Str::limit(strip_tags((string) ($article->excerpt ?: $article->body)), 120),
@@ -206,11 +209,17 @@ class HomeController extends Controller
             ->limit(20)
             ->get()
             ->filter(fn (ExpertVideo $v) => $v->expert !== null)
-            ->take(5)
+            ->take(6)
             ->values()
             ->map(function (ExpertVideo $video, int $i) {
+                $pos = max(1, (int) ($video->sort_order ?: ($i + 1)));
+                if ($pos > 6) {
+                    $pos = $i + 1;
+                }
+
                 return [
-                    'n' => str_pad((string) ($i + 1), 2, '0', STR_PAD_LEFT),
+                    'position' => $pos,
+                    'n' => str_pad((string) $pos, 2, '0', STR_PAD_LEFT),
                     'title' => $video->title ?: ($video->expert->company_name ?? 'Video'),
                     'company' => $video->expert->company_name ?? '',
                     'url' => $video->url,
@@ -282,7 +291,7 @@ class HomeController extends Controller
             ->where('professional_group', $group)
             ->with('offices.canton')
             ->orderBy('company_name')
-            ->limit(5)
+            ->limit(6)
             ->get()
             ->values()
             ->map(function (Expert $expert, int $index) {
@@ -299,11 +308,24 @@ class HomeController extends Controller
      */
     private function expertCardsFromRankings(Collection $rankings): Collection
     {
+        $used = [];
+
         return $rankings
             ->filter(fn (Ranking $row) => $row->expert !== null)
             ->values()
-            // Display rank = order in the list (avoids duplicate DB positions showing twice).
-            ->map(fn (Ranking $row, int $index) => $this->expertCard($row->expert, $index + 1, $row->label))
+            // Prefer stored ranking position; fall back to list order if missing/duplicate.
+            ->map(function (Ranking $row, int $index) use (&$used) {
+                $pos = (int) ($row->position ?: ($index + 1));
+                if ($pos < 1 || isset($used[$pos])) {
+                    $pos = $index + 1;
+                    while (isset($used[$pos])) {
+                        $pos++;
+                    }
+                }
+                $used[$pos] = true;
+
+                return $this->expertCard($row->expert, $pos, $row->label);
+            })
             ->filter()
             ->values();
     }
@@ -369,14 +391,25 @@ class HomeController extends Controller
      */
     private function articleCardsFromRankings(Collection $rankings): Collection
     {
+        $used = [];
+
         return $rankings
             ->filter(fn (Ranking $row) => $row->article !== null)
             ->values()
-            ->map(function (Ranking $row, int $index) {
+            ->map(function (Ranking $row, int $index) use (&$used) {
                 $article = $row->article;
+                $pos = (int) ($row->position ?: ($index + 1));
+                if ($pos < 1 || isset($used[$pos])) {
+                    $pos = $index + 1;
+                    while (isset($used[$pos])) {
+                        $pos++;
+                    }
+                }
+                $used[$pos] = true;
 
                 return [
-                    'n' => str_pad((string) ($index + 1), 2, '0', STR_PAD_LEFT),
+                    'position' => $pos,
+                    'n' => str_pad((string) $pos, 2, '0', STR_PAD_LEFT),
                     'title' => $article->title,
                     'url' => route('blog.show', $article->slug),
                     'excerpt' => Str::limit(strip_tags((string) ($article->excerpt ?: $article->body)), 120),

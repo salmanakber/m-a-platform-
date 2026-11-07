@@ -49,8 +49,8 @@
             <p>Kantonale Top-Plätze freischalten, Rechnung erstellen, stornieren oder beenden.</p>
         </div>
         <div class="admin-page-hero__actions">
-            <span class="admin-price-chip">Monatspreis <strong>{{ number_format((float) ($monthlyPrice ?? 0), 2, '.', "'") }} CHF</strong></span>
-            <a class="btn btn--ghost btn--small" href="{{ route('admin.settings.edit') }}">Preis ändern</a>
+            <span class="admin-price-chip">Fallback <strong>{{ number_format((float) ($monthlyPrice ?? 0), 2, '.', "'") }} CHF</strong></span>
+            <a class="btn btn--ghost btn--small" href="{{ route('admin.promotion-prices.index') }}">Preismatrix</a>
             <a class="btn btn--ghost btn--small" href="{{ route('admin.invoices.index') }}">Rechnungen</a>
         </div>
     </header>
@@ -166,8 +166,19 @@
                                     </div>
                                 </td>
                                 <td>
-                                    <strong>{{ $promotion->canton->code ?? '—' }}</strong>
-                                    <div class="entity-sub">{{ $promotion->canton->name_de ?? '' }} · Pos. {{ $promotion->position_number }}</div>
+                                    <strong>{{ $promotion->scopeLabel() }}</strong>
+                                    <div class="entity-sub">
+                                        @if ($promotion->canton)
+                                            {{ $promotion->canton->code }} · {{ $promotion->canton->name_de }}
+                                        @elseif ($promotion->articleCategory)
+                                            {{ $promotion->articleCategory->name_de }}
+                                        @elseif ($promotion->professional_group)
+                                            {{ \App\Support\ProfessionalGroup::label($promotion->professional_group) }}
+                                        @else
+                                            Schweiz
+                                        @endif
+                                        · Pos. {{ $promotion->position_number }}
+                                    </div>
                                 </td>
                                 <td>
                                     <span class="pill pill--{{ $pill[$promotion->status] ?? 'muted' }}">{{ $statusLabel[$promotion->status] ?? $promotion->status }}</span>

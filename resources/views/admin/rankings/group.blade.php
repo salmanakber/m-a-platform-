@@ -50,11 +50,7 @@
             <p class="page-kicker">Schritt bearbeiten</p>
             <h1>{{ $contextTitle }}</h1>
             <p>{{ \App\Support\RankingScope::help($scope) }}
-                @if ($scope === 'national_top5')
-                    Positionen 1–5 = Experten, Position 6 = Kontaktkarte (Bemerkung).
-                @else
-                    Setzen Sie Position 1–{{ $maxPosition }} und speichern Sie einmal.
-                @endif
+                Setzen Sie Position 1–{{ $maxPosition }} und speichern Sie einmal. Leere Positionen erscheinen auf der Startseite als «OFFEN».
             </p>
         </div>
         <div class="admin-page-hero__actions">
@@ -134,21 +130,15 @@
                         ? (bool) ($oldSlot['is_active'] ?? false)
                         : (bool) ($slot?->is_active ?? true);
                 @endphp
-                @php
-                    $isContactSlot = $scope === 'national_top5' && (int) $position === 6;
-                @endphp
-                <div class="rk-slot {{ $isContactSlot ? 'rk-slot--contact' : '' }}">
+                <div class="rk-slot">
                     <div class="rk-slot__rank">
-                        <span>{{ $isContactSlot ? 'Karte' : 'Rang' }}</span>
+                        <span>Rang</span>
                         <b>{{ $position }}</b>
                     </div>
                     <div class="rk-slot__body">
                         <input type="hidden" name="slots[{{ $position }}][position]" value="{{ $position }}">
 
-                        @if ($isContactSlot)
-                            <p class="field-hint" style="margin:0 0 .55rem;">Keine Expertenwahl — diese Karte bleibt offen für Kontakt / Bemerkung auf der Startseite (Platz 6).</p>
-                            <input type="hidden" name="slots[{{ $position }}][expert_id]" value="">
-                        @elseif ($slotKind === 'expert')
+                        @if ($slotKind === 'expert')
                             @php $selectedId = (string) ($oldSlot['expert_id'] ?? $slot?->expert_id ?? ''); @endphp
                             <div class="rk-expert-picker" data-expert-picker>
                                 <input type="hidden" name="slots[{{ $position }}][expert_id]" value="{{ $selectedId }}" data-expert-id>
@@ -182,19 +172,9 @@
                         @endif
 
                         <div class="rk-slot__dates form-row">
-                            <div class="form-group" @if($isContactSlot) style="grid-column:1/-1;" @endif>
-                                <label>
-                                    @if ($isContactSlot)
-                                        Bemerkung / Kontakttext
-                                    @else
-                                        Bezeichnung <em class="label-optional">(optional)</em>
-                                    @endif
-                                </label>
-                                @if ($isContactSlot)
-                                    <textarea class="form-control" name="slots[{{ $position }}][label]" rows="3" placeholder="z. B. Platz frei — melden Sie sich für eine Top-Position.">{{ $slotLabel }}</textarea>
-                                @else
-                                    <input class="form-control" type="text" name="slots[{{ $position }}][label]" value="{{ $slotLabel }}" placeholder="z. B. Q1 2026">
-                                @endif
+                            <div class="form-group">
+                                <label>Bezeichnung <em class="label-optional">(optional)</em></label>
+                                <input class="form-control" type="text" name="slots[{{ $position }}][label]" value="{{ $slotLabel }}" placeholder="z. B. Q1 2026">
                             </div>
                             <div class="form-group">
                                 <label>Von</label>

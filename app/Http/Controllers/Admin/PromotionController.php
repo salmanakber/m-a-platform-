@@ -37,7 +37,7 @@ class PromotionController extends Controller
                         ->orWhere('email', 'like', '%'.$q.'%');
                 });
             })
-            ->with(['expert', 'canton', 'invoice'])
+            ->with(['expert', 'canton', 'articleCategory', 'invoice'])
             ->orderByDesc('created_at')
             ->paginate(20)
             ->withQueryString();

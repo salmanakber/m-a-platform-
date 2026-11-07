@@ -180,21 +180,11 @@ class RankingController extends Controller
                     'is_active' => ! empty($slot['is_active']),
                 ];
             })
-            ->filter(function (array $slot) use ($scope) {
-                if ($slot['position'] < 1) {
-                    return false;
-                }
-                // Top 5 Schweiz · Platz 6 = Kontaktkarte (nur Bemerkung, kein Experte).
-                if ($scope === RankingScope::NATIONAL_TOP5 && (int) $slot['position'] === 6) {
-                    return filled($slot['label']) || $slot['is_active'];
-                }
-
-                return (bool) $slot['target_id'];
-            })
+            ->filter(fn (array $slot) => $slot['position'] >= 1 && (bool) $slot['target_id'])
             ->sortBy('position')
             ->values();
 
-        // No duplicate targets in one list (ignore empty contact slots)
+        // No duplicate targets in one list
         $ids = $filled->pluck('target_id')->filter();
         if ($ids->count() !== $ids->unique()->count()) {
             throw ValidationException::withMessages([
@@ -214,23 +204,19 @@ class RankingController extends Controller
             $this->groupQuery($scope, $cantonId, $groupKey, $categoryId)->delete();
 
             foreach ($filled as $slot) {
-                $isContactSlot = $scope === RankingScope::NATIONAL_TOP5 && (int) $slot['position'] === 6;
-
                 Ranking::query()->create([
                     'scope' => $scope,
                     'professional_group' => $scope === RankingScope::GROUP_TOP ? $groupKey : ($groupKey ?: null),
                     'canton_id' => $scope === RankingScope::CANTON_TOP3 ? $cantonId : null,
                     'article_category_id' => $scope === RankingScope::ARTICLE_TOP ? $categoryId : null,
-                    'expert_id' => ($slotKind === 'expert' && ! $isContactSlot) ? $slot['target_id'] : null,
+                    'expert_id' => $slotKind === 'expert' ? $slot['target_id'] : null,
                     'article_id' => $slotKind === 'article' ? $slot['target_id'] : null,
                     'event_id' => $slotKind === 'event' ? $slot['target_id'] : null,
                     'position' => $slot['position'],
                     'starts_on' => $slot['starts_on'] ?: null,
                     'ends_on' => $slot['ends_on'] ?: null,
                     'is_active' => (bool) $slot['is_active'],
-                    'label' => $slot['label'] !== '' ? $slot['label'] : ($isContactSlot
-                        ? 'Platz frei — melden Sie sich bei uns für eine Top-Position.'
-                        : null),
+                    'label' => $slot['label'] !== '' ? $slot['label'] : null,
                 ]);
             }
         });

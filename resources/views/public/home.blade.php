@@ -165,111 +165,98 @@
         </div>
     </div>
 
-    {{-- 1) Berater = Top 5 Schweiz (neben­einander, 2 Reihen à 3) + Kontaktkarte --}}
+    @php
+        $openMail = $footerContactEmail ?? 'kontakt@nachfolge-experten.ch';
+        $openRemark = $nationalContactRemark
+            ?? 'Platz frei — melden Sie sich bei uns für eine Top-Position auf nachfolge-experten.ch.';
+        // Top 6 Schweiz (Admin) first — then Fachgruppe Berater fallback.
+        $beraterShow = ($nationalCards ?? collect())->isNotEmpty()
+            ? $nationalCards->take(6)->values()
+            : (($beraterCards ?? collect())->take(6)->values());
+    @endphp
+
+    {{-- 1) Berater = Top 6 Schweiz, empty ranks shown as OFFEN --}}
     <section class="nh-section" id="berater">
         <div class="nh-section__head">
             <div>
                 <p class="nh-kicker">Top Schweiz · {{ $periodLabel }}</p>
                 <h2>Berater</h2>
-                <p>Die nationale Top-Auswahl — nummeriert, nebeneinander. Platz 6 bleibt offen für Ihre Anfrage.</p>
+                <p>Die nationale Top-Auswahl — nummeriert, nebeneinander. Leere Plätze bleiben offen für Ihre Anfrage.</p>
+                <p class="nh-top-label"><strong>Top Berater</strong></p>
             </div>
             <div class="nh-section__tools">
                 <a class="nh-link" href="{{ route('directory.index', ['gruppe' => 'ma_specialist']) }}">Alle Berater →</a>
             </div>
         </div>
-
-        @php
-            // Top 5 Schweiz (Admin) first — fixes mismatch with «Top Fachgruppe».
-            $beraterShow = ($nationalCards ?? collect())->isNotEmpty()
-                ? $nationalCards->take(5)->values()
-                : (($beraterCards ?? collect())->take(5)->values());
-            $contactRemark = $nationalContactRemark
-                ?? 'Platz frei — melden Sie sich bei uns für eine Top-Position auf nachfolge-experten.ch.';
-            $contactMail = $footerContactEmail ?? 'kontakt@nachfolge-experten.ch';
-        @endphp
-        @if ($beraterShow->isEmpty())
-            <div class="nh-empty">
-                <strong>Noch keine Berater veröffentlicht.</strong>
-                <p>Pflegen Sie «Top 5 Schweiz» unter Rankings — oder geprüfte Profile erscheinen im Verzeichnis.</p>
-            </div>
-        @else
-            <div class="nh-topgrid nh-topgrid--six" id="top5">
-                @foreach ($beraterShow as $card)
-                    @include('public.partials.nh-expert-card', ['card' => $card, 'forceTag' => 'Berater'])
-                @endforeach
-                @include('public.partials.nh-open-slot-card', [
-                    'rank' => '06',
-                    'remark' => $contactRemark,
-                    'mail' => $contactMail,
-                    'subject' => 'Top-Position Schweiz · nachfolge-experten.ch',
-                ])
-            </div>
-        @endif
+        <div class="nh-topgrid nh-topgrid--six" id="top5">
+            @include('public.partials.nh-top6-slots', [
+                'cards' => $beraterShow,
+                'variant' => 'card',
+                'forceTag' => 'Berater',
+                'remark' => $openRemark,
+                'promoScope' => 'national_top5',
+            ])
+        </div>
     </section>
 
     @php
-        $openMail = $footerContactEmail ?? 'kontakt@nachfolge-experten.ch';
-        $openRemark = $nationalContactRemark
-            ?? 'Platz frei — melden Sie sich bei uns für eine Top-Position auf nachfolge-experten.ch.';
         $fachStrips = [
             [
                 'id' => 'juristen',
                 'kicker' => 'Fachgruppe',
                 'title' => 'Juristen',
-                'lead' => 'Rechtliche Begleitung für Unternehmensnachfolge, Kauf und Verkauf — geprüfte Juristen im Verzeichnis. Nummeriert nebeneinander; Platz 6 bleibt offen.',
+                'topLabel' => 'Top Juristen',
+                'lead' => 'Rechtliche Begleitung für Unternehmensnachfolge, Kauf und Verkauf — geprüfte Juristen im Verzeichnis.',
                 'cards' => $juristCards ?? collect(),
                 'tag' => 'Jurist',
                 'link' => route('directory.index', ['gruppe' => 'jurist']),
                 'linkLabel' => 'Alle Juristen →',
-                'subject' => 'Top-Position Juristen · nachfolge-experten.ch',
+                'promoScope' => 'group_top',
                 'band' => false,
             ],
             [
                 'id' => 'treuhand',
                 'kicker' => 'Fachgruppe',
                 'title' => 'Treuhand',
-                'lead' => 'Treuhand- und Revisionspartner für Unternehmensnachfolge, Bewertung und Transaktionsbegleitung. Nummeriert nebeneinander; Platz 6 bleibt offen.',
+                'topLabel' => 'Top Treuhänder',
+                'lead' => 'Treuhand- und Revisionspartner für Unternehmensnachfolge, Bewertung und Transaktionsbegleitung.',
                 'cards' => $treuhandCards ?? collect(),
                 'tag' => 'Treuhand',
                 'link' => route('directory.index', ['gruppe' => 'treuhand']),
                 'linkLabel' => 'Alle Treuhand →',
-                'subject' => 'Top-Position Treuhand · nachfolge-experten.ch',
+                'promoScope' => 'group_top',
                 'band' => true,
             ],
             [
                 'id' => 'ad-interim',
                 'kicker' => 'Fachgruppe',
                 'title' => 'Ad Interim',
-                'lead' => 'Ad-Interim-Kandidaten für operative Nachfolge und Übergangsmandate. Leere Plätze werden als offene Kontaktkarte gezeigt.',
+                'topLabel' => 'Top Ad Interim',
+                'lead' => 'Ad-Interim-Kandidaten für operative Nachfolge und Übergangsmandate. Leere Plätze erscheinen als offene Karten.',
                 'cards' => $adInterimCards ?? collect(),
                 'tag' => 'Ad Interim',
                 'link' => route('directory.index', ['gruppe' => 'ad_interim']),
                 'linkLabel' => 'Alle Ad Interim →',
-                'subject' => 'Top-Position Ad Interim · nachfolge-experten.ch',
+                'promoScope' => 'group_top',
                 'band' => false,
-                'fillEmpty' => true,
             ],
             [
                 'id' => 'marktplaetze',
                 'kicker' => 'Fachgruppe',
                 'title' => 'Marktplätze',
-                'lead' => 'Digitale Plattformen und Marktplätze für Unternehmensnachfolge und M&A. Nummeriert nebeneinander; Platz 6 bleibt offen.',
+                'topLabel' => 'Top Marktplätze',
+                'lead' => 'Digitale Plattformen und Marktplätze für Unternehmensnachfolge und M&A.',
                 'cards' => $marktplatzCards ?? collect(),
                 'tag' => 'Marktplatz',
                 'link' => route('directory.index', ['gruppe' => 'marktplatz']),
                 'linkLabel' => 'Alle Marktplätze →',
-                'subject' => 'Top-Position Marktplätze · nachfolge-experten.ch',
+                'promoScope' => 'group_top',
                 'band' => true,
             ],
         ];
     @endphp
 
     @foreach ($fachStrips as $strip)
-        @php
-            $stripCards = collect($strip['cards'])->take(5)->values();
-            $fillEmpty = ! empty($strip['fillEmpty']);
-            $padTo = ($fillEmpty || $stripCards->isEmpty()) ? 5 : $stripCards->count();
-        @endphp
         @if (! empty($strip['band']))
             <section class="nh-band nh-band--soft" id="{{ $strip['id'] }}">
                 <div class="nh-section">
@@ -281,27 +268,17 @@
                         <p class="nh-kicker">{{ $strip['kicker'] }}</p>
                         <h2>{{ $strip['title'] }}</h2>
                         <p>{{ $strip['lead'] }}</p>
+                        <p class="nh-top-label"><strong>{{ $strip['topLabel'] }}</strong></p>
                     </div>
                     <a class="nh-link" href="{{ $strip['link'] }}">{{ $strip['linkLabel'] }}</a>
                 </div>
                 <div class="nh-topgrid nh-topgrid--six">
-                    @foreach ($stripCards as $card)
-                        @include('public.partials.nh-expert-card', ['card' => $card, 'forceTag' => $strip['tag']])
-                    @endforeach
-                    @for ($i = $stripCards->count() + 1; $i <= $padTo; $i++)
-                        @include('public.partials.nh-open-slot-card', [
-                            'rank' => str_pad((string) $i, 2, '0', STR_PAD_LEFT),
-                            'remark' => $openRemark,
-                            'mail' => $openMail,
-                            'subject' => $strip['subject'],
-                            'title' => 'Platz '.$i,
-                        ])
-                    @endfor
-                    @include('public.partials.nh-open-slot-card', [
-                        'rank' => '06',
+                    @include('public.partials.nh-top6-slots', [
+                        'cards' => collect($strip['cards'])->take(6)->values(),
+                        'variant' => 'card',
+                        'forceTag' => $strip['tag'],
                         'remark' => $openRemark,
-                        'mail' => $openMail,
-                        'subject' => $strip['subject'],
+                        'promoScope' => $strip['promoScope'] ?? 'group_top',
                     ])
                 </div>
         @if (! empty($strip['band']))
@@ -312,13 +289,14 @@
         @endif
     @endforeach
 
-    {{-- Top 5 Kanton --}}
+    {{-- Top 6 Kanton — empty ranks shown as OFFEN --}}
     <section class="nh-section" id="kantone-top">
         <div class="nh-section__head">
             <div>
                 <p class="nh-kicker">Regional</p>
-                <h2>Top 5 Experten je Kanton</h2>
-                <p>Wählen Sie Ihren Kanton — sehen Sie aktive Experten vor Ort und die kuratierte Top 5.</p>
+                <h2>Top 6 Experten je Kanton</h2>
+                <p>Wählen Sie Ihren Kanton — aktive Experten vor Ort und die kuratierte Top 6. Leere Plätze bleiben offen.</p>
+                <p class="nh-top-label"><strong>Top Experten</strong></p>
             </div>
             <a class="nh-link" href="{{ route('cantons.index') }}">Alle Kantone →</a>
         </div>
@@ -340,64 +318,17 @@
         <div class="nh-canton nh-canton--single">
             <div class="nh-canton__main">
                 <div class="nh-canton__title">
-                    <h3>Top 5 in {{ $selectedCanton->name_de ?? '—' }}</h3>
+                    <h3>Top 6 in {{ $selectedCanton->name_de ?? '—' }}</h3>
                     <span>Kanton {{ $selectedCanton->code ?? '—' }} · vorausgewählt</span>
                 </div>
 
-                @php $cantonShow = ($cantonCards ?? collect())->take(5)->values(); @endphp
                 <div class="nh-canton__cards">
-                    @forelse ($cantonShow as $card)
-                        <article class="nh-rankrow">
-                            <span class="nh-rankrow__n">{{ $card['n'] }}</span>
-                            @if ($card['logo'])
-                                <span class="nh-avatar nh-avatar--sm nh-avatar--logo"><img src="{{ $card['logo'] }}" alt=""></span>
-                            @else
-                                <span class="nh-avatar nh-avatar--sm" style="--g:{{ $card['color'] }}">{{ $card['initials'] }}</span>
-                            @endif
-                            <div class="nh-rankrow__copy">
-                                <strong>{{ $card['display_name'] }}</strong>
-                                @if (!empty($card['person_name']))
-                                    <span>{{ $card['person_name'] }}</span>
-                                @endif
-                            </div>
-                            <div class="nh-rankrow__meta">
-                                @if ($card['rating'])
-                                    <em>★ {{ $card['rating'] }}</em>
-                                @endif
-                                @if ($card['deals'])
-                                    <span>{{ $card['deals'] }} Deals</span>
-                                @endif
-                            </div>
-                            <a class="nh-rankrow__link" href="{{ $card['url'] }}">Profil →</a>
-                        </article>
-                    @empty
-                        <div class="nh-empty nh-empty--panel" style="margin-bottom:.5rem;">
-                            <strong>Noch keine Top-5-Ränge in {{ $selectedCanton->name_de ?? 'diesem Kanton' }}.</strong>
-                            <p>
-                                @if (($cs['total'] ?? 0) > 0)
-                                    In diesem Kanton sind {{ $cs['total'] }} geprüfte Experten aktiv — offene Plätze können Sie belegen.
-                                @else
-                                    Offene Plätze — melden Sie sich für eine Top-Position in diesem Kanton.
-                                @endif
-                            </p>
-                        </div>
-                        @for ($i = 1; $i <= 5; $i++)
-                            @include('public.partials.nh-open-slot-card', [
-                                'variant' => 'row',
-                                'rank' => str_pad((string) $i, 2, '0', STR_PAD_LEFT),
-                                'title' => 'Platz '.$i,
-                                'remark' => 'Top-Position Kanton '.$selectedCanton->code.' — Platz frei.',
-                                'mail' => $openMail ?? ($footerContactEmail ?? 'kontakt@nachfolge-experten.ch'),
-                                'subject' => 'Top 5 Kanton '.($selectedCanton->code ?? '').' · nachfolge-experten.ch',
-                            ])
-                        @endfor
-                    @endforelse
-                    @include('public.partials.nh-open-slot-card', [
+                    @include('public.partials.nh-top6-slots', [
+                        'cards' => ($cantonCards ?? collect())->take(6)->values(),
                         'variant' => 'row',
-                        'rank' => '06',
-                        'remark' => 'Platz 6 offen für Ihre Anfrage in '.$selectedCanton->name_de.'.',
-                        'mail' => $openMail ?? ($footerContactEmail ?? 'kontakt@nachfolge-experten.ch'),
-                        'subject' => 'Top 5 Kanton '.($selectedCanton->code ?? '').' · nachfolge-experten.ch',
+                        'remark' => 'Platz offen für Ihre Anfrage in '.($selectedCanton->name_de ?? 'diesem Kanton').'.',
+                        'promoScope' => 'canton_top3',
+                        'promoCanton' => $selectedCanton->code ?? null,
                     ])
                 </div>
 
@@ -413,14 +344,15 @@
         </div>
     </section>
 
-    {{-- Fachbeiträge — Top je Fachbereich + offener Platz; Themenliste darunter (nicht gleiche Ebene) --}}
+    {{-- Fachbeiträge — Top 6 je Fachbereich; leere Plätze als OFFEN --}}
     <section class="nh-band nh-band--dark" id="fachbeitraege">
         <div class="nh-section nh-section--flush">
             <div class="nh-section__head nh-section__head--light">
                 <div>
                     <p class="nh-kicker">Wissen</p>
                     <h2>Fachbeiträge zur Nachfolge</h2>
-                    <p>Top-Beiträge je Fachbereich — nummeriert. Der letzte Platz bleibt offen für Ihre Anfrage.</p>
+                    <p>Top-Beiträge je Fachbereich — nummeriert. Leere Plätze bleiben offen für Ihre Anfrage.</p>
+                    <p class="nh-top-label nh-top-label--light"><strong>Top Fachbeiträge</strong></p>
                 </div>
                 <a class="nh-link nh-link--light" href="{{ route('blog.index') }}">Alle Beiträge →</a>
             </div>
@@ -428,7 +360,6 @@
             @if (($fachGroupTops ?? collect())->isNotEmpty())
                 <div class="nh-fach-groups">
                     @foreach ($fachGroupTops as $group)
-                        @php $gCards = collect($group['cards'])->take(3)->values(); @endphp
                         <article class="nh-fach-group">
                             <header class="nh-fach-group__head">
                                 <div>
@@ -436,56 +367,28 @@
                                     @if ($group['category']->description_de)
                                         <p>{{ \Illuminate\Support\Str::limit($group['category']->description_de, 110) }}</p>
                                     @endif
+                                    <p class="nh-top-label nh-top-label--light"><strong>Top {{ $group['category']->name_de }}</strong></p>
                                 </div>
                                 <a class="nh-link nh-link--light" href="{{ $group['url'] }}">Gruppe →</a>
                             </header>
-                            <div class="nh-articles-top nh-articles-top--compact">
-                                @foreach ($gCards as $article)
-                                    <a class="nh-article-card" href="{{ $article['url'] }}">
-                                        <span class="nh-article-card__n">{{ $article['n'] }}</span>
-                                        <h3>{{ $article['title'] }}</h3>
-                                        <p>{{ $article['excerpt'] }}</p>
-                                        <em>Lesen →</em>
-                                    </a>
-                                @endforeach
-                                @for ($i = $gCards->count() + 1; $i <= 3; $i++)
-                                    @include('public.partials.nh-open-slot-card', [
-                                        'variant' => 'article',
-                                        'rank' => str_pad((string) $i, 2, '0', STR_PAD_LEFT),
-                                        'title' => 'Platz '.$i.' offen',
-                                        'remark' => 'Top-Beitrag «'.$group['category']->name_de.'» — Platz frei.',
-                                        'mail' => $openMail ?? ($footerContactEmail ?? 'kontakt@nachfolge-experten.ch'),
-                                        'subject' => 'Fachbeitrag Top · '.$group['category']->name_de,
-                                    ])
-                                @endfor
-                                @include('public.partials.nh-open-slot-card', [
+                            <div class="nh-articles-top nh-articles-top--compact nh-articles-top--six">
+                                @include('public.partials.nh-top6-slots', [
+                                    'cards' => collect($group['cards'])->take(6)->values(),
                                     'variant' => 'article',
-                                    'rank' => '04',
-                                    'title' => 'Ihr Platz',
-                                    'remark' => 'Platz offen für Ihren Fachbeitrag in «'.$group['category']->name_de.'».',
-                                    'mail' => $openMail ?? ($footerContactEmail ?? 'kontakt@nachfolge-experten.ch'),
-                                    'subject' => 'Fachbeitrag Top · '.$group['category']->name_de,
+                                    'remark' => 'Top-Beitrag «'.$group['category']->name_de.'» — Platz frei.',
+                                    'promoScope' => 'article_top',
                                 ])
                             </div>
                         </article>
                     @endforeach
                 </div>
-            @elseif ($articleTopCards->isNotEmpty())
-                <div class="nh-articles-top">
-                    @foreach ($articleTopCards as $article)
-                        <a class="nh-article-card" href="{{ $article['url'] }}">
-                            <span class="nh-article-card__n">{{ $article['n'] }}</span>
-                            <h3>{{ $article['title'] }}</h3>
-                            <p>{{ $article['excerpt'] }}</p>
-                            <em>Lesen →</em>
-                        </a>
-                    @endforeach
-                    @include('public.partials.nh-open-slot-card', [
+            @else
+                <div class="nh-articles-top nh-articles-top--compact nh-articles-top--six">
+                    @include('public.partials.nh-top6-slots', [
+                        'cards' => collect(),
                         'variant' => 'article',
-                        'rank' => '04',
-                        'remark' => 'Platz offen für Ihren Fachbeitrag.',
-                        'mail' => $openMail ?? ($footerContactEmail ?? 'kontakt@nachfolge-experten.ch'),
-                        'subject' => 'Fachbeitrag Top · nachfolge-experten.ch',
+                        'remark' => 'Fachbeitrag-Platz frei — melden Sie sich bei uns.',
+                        'promoScope' => 'article_top',
                     ])
                 </div>
             @endif
@@ -508,25 +411,6 @@
                         <button type="button" class="nh-carousel__btn" data-carousel-next aria-label="Weiter">›</button>
                     </div>
                 </div>
-            @elseif (($fachGroupTops ?? collect())->isEmpty() && $articleTopCards->isEmpty())
-                <div class="nh-articles-top nh-articles-top--compact">
-                    @for ($i = 1; $i <= 3; $i++)
-                        @include('public.partials.nh-open-slot-card', [
-                            'variant' => 'article',
-                            'rank' => str_pad((string) $i, 2, '0', STR_PAD_LEFT),
-                            'title' => 'Platz '.$i.' offen',
-                            'remark' => 'Fachbeitrag-Platz frei — melden Sie sich bei uns.',
-                            'mail' => $openMail ?? ($footerContactEmail ?? 'kontakt@nachfolge-experten.ch'),
-                            'subject' => 'Fachbeitrag · nachfolge-experten.ch',
-                        ])
-                    @endfor
-                    @include('public.partials.nh-open-slot-card', [
-                        'variant' => 'article',
-                        'rank' => '04',
-                        'mail' => $openMail ?? ($footerContactEmail ?? 'kontakt@nachfolge-experten.ch'),
-                        'subject' => 'Fachbeitrag · nachfolge-experten.ch',
-                    ])
-                </div>
             @endif
 
             {{-- Themenliste unter Fachbeiträge (verschachtelt, nicht gleiche Ebene wie H2) --}}
@@ -543,57 +427,54 @@
                 </nav>
             @endif
 
-            {{-- Separater Bereich: Top 5 Videos + offener Platz --}}
+            {{-- Separater Bereich: Top 6 Videos — leere Plätze als OFFEN --}}
             <div class="nh-fach-videos" id="videos">
                 <div class="nh-section__head nh-section__head--light" style="margin-top:2rem;">
                     <div>
                         <p class="nh-kicker">Videos</p>
-                        <h2 style="color:#fff;">Top 5 Videos</h2>
-                        <p>Separater Bereich unter Fachbeiträge — nummeriert. Platz 6 bleibt offen. Erstes Video gratis, weitere kostenpflichtig.</p>
+                        <h2 style="color:#fff;">Top 6 Videos</h2>
+                        <p>Separater Bereich unter Fachbeiträge — nummeriert. Leere Plätze bleiben offen. Erstes Video gratis, weitere kostenpflichtig.</p>
+                        <p class="nh-top-label nh-top-label--light"><strong>Top Videos</strong></p>
                     </div>
                 </div>
-                @php $videoCards = ($homeVideos ?? collect())->take(5)->values(); @endphp
+                @php
+                    $videoByPos = collect($homeVideos ?? [])->keyBy(fn ($v) => (int) ($v['position'] ?? (int) ($v['n'] ?? 0)));
+                @endphp
                 <div class="nh-topgrid nh-topgrid--six nh-topgrid--videos">
-                    @foreach ($videoCards as $video)
-                        <article class="nh-card nh-card--video">
-                            <span class="nh-card__rank" aria-hidden="true">{{ $video['n'] }}</span>
-                            <span class="nh-card__place">VIDEO</span>
-                            @if (!empty($video['embed']))
-                                <div class="nh-video-frame">
-                                    <iframe src="{{ $video['embed'] }}" title="{{ $video['title'] }}" loading="lazy" allowfullscreen></iframe>
-                                </div>
-                            @else
-                                <a class="nh-video-link" href="{{ $video['url'] }}" target="_blank" rel="noopener">Video öffnen ↗</a>
-                            @endif
-                            <h3>{{ $video['title'] }}</h3>
-                            <p class="nh-card__firm">{{ $video['company'] }}</p>
-                            <div class="nh-card__foot">
-                                <span>Expertenvideo</span>
-                                @if (!empty($video['profile_url']))
-                                    <a href="{{ $video['profile_url'] }}">Profil ↗</a>
+                    @for ($vi = 1; $vi <= 6; $vi++)
+                        @php $video = $videoByPos->get($vi); @endphp
+                        @if ($video)
+                            <article class="nh-card nh-card--video">
+                                <span class="nh-card__rank" aria-hidden="true">{{ $video['n'] }}</span>
+                                <span class="nh-card__place">VIDEO</span>
+                                @if (!empty($video['embed']))
+                                    <div class="nh-video-frame">
+                                        <iframe src="{{ $video['embed'] }}" title="{{ $video['title'] }}" loading="lazy" allowfullscreen></iframe>
+                                    </div>
                                 @else
-                                    <a href="{{ $video['url'] }}" target="_blank" rel="noopener">Link ↗</a>
+                                    <a class="nh-video-link" href="{{ $video['url'] }}" target="_blank" rel="noopener">Video öffnen ↗</a>
                                 @endif
-                            </div>
-                        </article>
-                    @endforeach
-                    @for ($i = $videoCards->count() + 1; $i <= 5; $i++)
-                        @include('public.partials.nh-open-slot-card', [
-                            'rank' => str_pad((string) $i, 2, '0', STR_PAD_LEFT),
-                            'title' => 'Video-Platz '.$i,
-                            'subtitle' => 'Noch frei',
-                            'remark' => 'Top-Video-Platz offen — 1. Video gratis, weitere gegen Gebühr.',
-                            'mail' => $openMail ?? ($footerContactEmail ?? 'kontakt@nachfolge-experten.ch'),
-                            'subject' => 'Top 5 Video · nachfolge-experten.ch',
-                        ])
+                                <h3>{{ $video['title'] }}</h3>
+                                <p class="nh-card__firm">{{ $video['company'] }}</p>
+                                <div class="nh-card__foot">
+                                    <span>Expertenvideo</span>
+                                    @if (!empty($video['profile_url']))
+                                        <a href="{{ $video['profile_url'] }}">Profil ↗</a>
+                                    @else
+                                        <a href="{{ $video['url'] }}" target="_blank" rel="noopener">Link ↗</a>
+                                    @endif
+                                </div>
+                            </article>
+                        @else
+                            @include('public.partials.nh-open-slot-card', [
+                                'rank' => str_pad((string) $vi, 2, '0', STR_PAD_LEFT),
+                                'title' => 'Video-Platz '.$vi,
+                                'subtitle' => 'Noch frei',
+                                'remark' => 'Top-Video-Platz offen — 1. Video gratis, weitere gegen Gebühr.',
+                                'promoScope' => 'national_top5',
+                            ])
+                        @endif
                     @endfor
-                    @include('public.partials.nh-open-slot-card', [
-                        'rank' => '06',
-                        'title' => 'Ihr Video-Platz',
-                        'remark' => 'Platz 6 offen für Ihre Anfrage / weiteres Video.',
-                        'mail' => $openMail ?? ($footerContactEmail ?? 'kontakt@nachfolge-experten.ch'),
-                        'subject' => 'Top 5 Video · nachfolge-experten.ch',
-                    ])
                 </div>
             </div>
         </div>

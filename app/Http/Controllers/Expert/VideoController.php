@@ -32,15 +32,25 @@ class VideoController extends Controller
             ->orderBy('id')
             ->get();
 
-        $freeUsed = $videos->contains(fn (ExpertVideo $v) => $v->is_complimentary);
-        $extraProduct = InvoiceProduct::query()->where('sku', 'video-extra')->where('is_active', true)->first();
+        $count = $videos->count();
+        $nextCount = $count + 1;
+        $nextTier = $this->tierForCount($nextCount);
+        $currentTier = $this->tierForCount(max(1, $count));
+        $freeAvailable = ! $videos->contains(fn (ExpertVideo $v) => $v->is_complimentary);
 
         return view('expert.videos.index', [
             'expert' => $expert,
             'videos' => $videos,
-            'freeAvailable' => ! $freeUsed,
-            'extraPrice' => $extraProduct ? (float) $extraProduct->unit_price : 45.0,
-            'extraCurrency' => $extraProduct->currency ?? 'CHF',
+            'freeAvailable' => $freeAvailable,
+            'videoCount' => $count,
+            'currentTier' => $currentTier,
+            'nextTier' => $nextTier,
+            'tiers' => [
+                ['label' => '1. Video', 'price' => 0, 'hint' => 'kostenlos'],
+                ['label' => 'bis 5 Videos', 'price' => 30, 'hint' => 'CHF / Mt.'],
+                ['label' => 'bis 10 Videos', 'price' => 50, 'hint' => 'CHF / Mt.'],
+                ['label' => 'über 10 Videos', 'price' => 150, 'hint' => 'CHF / Mt.'],
+            ],
         ]);
     }
 
@@ -62,13 +72,13 @@ class VideoController extends Controller
             ->where('is_complimentary', true)
             ->exists();
 
-        $isFree = ! $freeUsed;
         $sort = (int) ExpertVideo::query()->where('expert_id', $expert->id)->max('sort_order') + 1;
+        $nextCount = $existing + 1;
 
-        if ($isFree) {
+        if (! $freeUsed) {
             ExpertVideo::query()->create([
                 'expert_id' => $expert->id,
-                'title' => $validated['title'] ?: 'Video '.($existing + 1),
+                'title' => $validated['title'] ?: 'Video '.$nextCount,
                 'url' => $validated['url'],
                 'sort_order' => $sort,
                 'is_complimentary' => true,
@@ -77,38 +87,50 @@ class VideoController extends Controller
 
             return redirect()
                 ->route('expert.videos.index')
-                ->with('success', 'Video gespeichert (1. Video kostenlos).');
+                ->with('success', 'Video gespeichert (1. Video kostenlos — gilt auch für Juristen & Treuhand).');
         }
 
-        $product = InvoiceProduct::query()->where('sku', 'video-extra')->where('is_active', true)->first();
+        $tier = $this->tierForCount($nextCount);
+        $product = InvoiceProduct::query()->where('sku', $tier['sku'])->where('is_active', true)->first();
         if ($product === null) {
-            return back()->withInput()->with('error', 'Preisprodukt «Zusätzliches Experten-Video» fehlt. Bitte Admin kontaktieren.');
+            return back()->withInput()->with('error', 'Video-Paket «'.$tier['label'].'» fehlt. Bitte Admin kontaktieren.');
         }
 
-        $invoice = $this->invoices->createFromProduct($expert, $product, [
-            'service_title' => 'Zusätzliches Experten-Video',
-            'service_detail' => $validated['title'] ?: $validated['url'],
-            'billing_email' => $expert->billing_email ?: $expert->email,
-            'billing_name' => $expert->billing_name ?: $expert->company_name,
-            'billing_address_line' => $expert->billing_address_line,
-            'billing_postal_code' => $expert->billing_postal_code,
-            'billing_city' => $expert->billing_city,
-        ]);
+        // Only create a new invoice when entering / upgrading a paid tier.
+        $needsNewInvoice = $this->crossesTierBoundary($existing, $nextCount);
+
+        $invoice = null;
+        if ($needsNewInvoice) {
+            $invoice = $this->invoices->createFromProduct($expert, $product, [
+                'service_title' => $product->name,
+                'service_detail' => 'Video-Kontingent: '.$tier['label'].' · '.($validated['title'] ?: $validated['url']),
+                'billing_email' => $expert->billing_email ?: $expert->email,
+                'billing_name' => $expert->billing_name ?: $expert->company_name,
+                'billing_address_line' => $expert->billing_address_line,
+                'billing_postal_code' => $expert->billing_postal_code,
+                'billing_city' => $expert->billing_city,
+            ]);
+        }
 
         ExpertVideo::query()->create([
             'expert_id' => $expert->id,
-            'title' => $validated['title'] ?: 'Video '.($existing + 1),
+            'title' => $validated['title'] ?: 'Video '.$nextCount,
             'url' => $validated['url'],
             'sort_order' => $sort,
             'is_complimentary' => false,
-            'status' => ExpertVideo::STATUS_PENDING,
-            'invoice_id' => $invoice->id,
+            'status' => $needsNewInvoice ? ExpertVideo::STATUS_PENDING : ExpertVideo::STATUS_ACTIVE,
+            'invoice_id' => $invoice?->id,
         ]);
 
-        // Notify admin / create draft — optional send later from studio
+        if ($needsNewInvoice && $invoice) {
+            return redirect()
+                ->route('expert.videos.index')
+                ->with('success', 'Video erfasst. Paket «'.$tier['label'].'» (CHF '.number_format($tier['price'], 0).'/Mt.) — Rechnung '.$invoice->invoice_number.'.');
+        }
+
         return redirect()
             ->route('expert.videos.index')
-            ->with('success', 'Weiteres Video erfasst. Es wird nach Zahlung freigeschaltet (Rechnung '.$invoice->invoice_number.').');
+            ->with('success', 'Video gespeichert (bereits im aktuellen Paket «'.$tier['label'].'» enthalten).');
     }
 
     public function update(Request $request, ExpertVideo $video): RedirectResponse
@@ -139,6 +161,28 @@ class VideoController extends Controller
         $video->delete();
 
         return back()->with('success', 'Video entfernt.');
+    }
+
+    /** @return array{sku: string, label: string, price: float} */
+    private function tierForCount(int $count): array
+    {
+        if ($count <= 1) {
+            return ['sku' => '', 'label' => '1. Video gratis', 'price' => 0.0];
+        }
+        if ($count <= 5) {
+            return ['sku' => 'video-pack-5', 'label' => 'bis 5 Videos', 'price' => 30.0];
+        }
+        if ($count <= 10) {
+            return ['sku' => 'video-pack-10', 'label' => 'bis 10 Videos', 'price' => 50.0];
+        }
+
+        return ['sku' => 'video-pack-over10', 'label' => 'über 10 Videos', 'price' => 150.0];
+    }
+
+    private function crossesTierBoundary(int $before, int $after): bool
+    {
+        return $this->tierForCount($before)['sku'] !== $this->tierForCount($after)['sku']
+            && $this->tierForCount($after)['price'] > 0;
     }
 
     private function syncLegacyProfileVideo($expert): void
