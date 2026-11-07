@@ -178,10 +178,10 @@
                         <textarea class="form-control" name="interim_criteria" id="interim_criteria" rows="3" placeholder="z. B. KMU 5–50 MA, Deutschschweiz">{{ old('interim_criteria') }}</textarea>
                     </div>
 
-                    <label class="register-focus__card" style="margin-bottom:1rem;">
+                    <label class="register-choice">
                         <input type="checkbox" name="intends_purchase" value="1" @checked(old('intends_purchase'))>
-                        <span class="register-focus__card-body">
-                            <span class="register-focus__tag">Future Owner</span>
+                        <span class="register-choice__body">
+                            <span class="register-choice__tag">Future Owner</span>
                             <strong>Ich möchte als Ad Interim einsteigen und das Unternehmen später übernehmen.</strong>
                         </span>
                     </label>
